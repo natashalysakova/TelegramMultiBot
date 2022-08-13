@@ -1,0 +1,42 @@
+﻿// See https://aka.ms/new-console-template for more information
+[Serializable]
+public class Job
+{
+    bool sended = false;
+    DateTime nextExecution;
+    public int Id { get; }
+    public string Name { get; }
+    public string Message { get; }
+    public DateTime NextExecution
+    {
+        get
+        {
+            if (nextExecution == default || sended)
+            {
+                var next = CronUtil.ParseNext(Config);
+                sended = false;
+                nextExecution = next.HasValue ? next.Value : throw new Exception($"Failed to get next execution time for job ({Id}) {Name}");
+                LogUtil.Log($"Job {Name} in {ChatId} has new execution time: {nextExecution}");
+            }
+
+            return nextExecution;
+        }
+    }
+    public string Config { get; }
+    public long ChatId { get; }
+
+    public Job(int id, long chatId, string Name, string message, string config)
+    {
+        this.Id = id;
+        this.ChatId = chatId;
+        this.Name = Name;
+        this.Message = message;
+        this.Config = config;
+    }
+
+
+    public void Sended()
+    {
+        sended = true;
+    }
+}
