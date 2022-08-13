@@ -60,7 +60,7 @@ class Program
         {
             LogUtil.Log(ex.Message);
 
-            if (ex.Message.Contains("chat not found"))
+            if (ex.Message.Contains("chat not found") || ex.Message.Contains("PEER_ID_INVALID") || ex.Message.Contains("bot was kicked from the group chat"))
             {
                 jobManager.DeleteJobsForChat(chatId);
                 LogUtil.Log("Removing all jobs for " + chatId);
@@ -76,8 +76,9 @@ class Program
 
     private static Task HandleUpdateAsync(ITelegramBotClient cleint, Update update, CancellationToken token)
     {
-        //LogUtil.Log(JsonConvert.SerializeObject(update));
-
+#if DEBUG
+        LogUtil.Log(JsonConvert.SerializeObject(update));
+#endif
         try
         {
             switch (update.Type)
@@ -106,7 +107,7 @@ class Program
     {
         LogUtil.Log("Deleting job: " + callbackQuery.Data);
         jobManager.DeleteJob(long.Parse(callbackQuery.Data));
-        bot.SendTextMessageAsync(callbackQuery.Id, "Job deleted");
+        bot.SendTextMessageAsync(callbackQuery.Message.Chat.Id, "Job deleted");
         return Task.CompletedTask;
     }
 
@@ -115,7 +116,7 @@ class Program
         if (message == null) { return; }
         if (message.Text == null) { return; }
 
-        LogUtil.Log("Input message: " + message.Text);
+        LogUtil.Log($"Input message: {message.From.Username} in {message.Chat.Type}{ " " + (message.Chat.Type == ChatType.Group ? message.Chat.Title : string.Empty)} : {message.Text}");
         // /add & job name & cron & text
         if (message.Text.ToLower().StartsWith("/add"))
         {
@@ -147,7 +148,7 @@ class Program
                 return;
             }
 
-            await client.SendTextMessageAsync(message.Chat, response);
+            await client.SendTextMessageAsync(message.Chat, response, disableWebPagePreview: true);
         }
 
         if (message.Text.ToLower().StartsWith("/delete"))
@@ -304,7 +305,7 @@ public class Job
                 var next = CronUtil.ParseNext(Config);
                 sended = false;
                 nextExecution = next.HasValue ? next.Value : throw new Exception($"Failed to get next execution time for job ({Id}) {Name}");
-                LogUtil.Log($"Job {Name} has new execution time: {nextExecution}");
+                LogUtil.Log($"Job {Name} in {ChatId} has new execution time: {nextExecution}");
             }
 
             return nextExecution;
