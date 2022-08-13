@@ -1,5 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
-class LogUtil
+internal class LogUtil
 {
     public static void Log(string message)
     {

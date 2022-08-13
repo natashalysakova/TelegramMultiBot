@@ -2,11 +2,13 @@
 [Serializable]
 public class Job
 {
-    bool sended = false;
-    DateTime nextExecution;
+    private bool sended = false;
+    private DateTime nextExecution;
     public int Id { get; }
     public string Name { get; }
     public string Message { get; }
+    public string Config { get; }
+    public long ChatId { get; }
     public DateTime NextExecution
     {
         get
@@ -18,12 +20,9 @@ public class Job
                 nextExecution = next.HasValue ? next.Value : throw new Exception($"Failed to get next execution time for job ({Id}) {Name}");
                 LogUtil.Log($"Job {Name} in {ChatId} has new execution time: {nextExecution}");
             }
-
             return nextExecution;
         }
     }
-    public string Config { get; }
-    public long ChatId { get; }
 
     public Job(int id, long chatId, string Name, string message, string config)
     {
@@ -33,7 +32,6 @@ public class Job
         this.Message = message;
         this.Config = config;
     }
-
 
     public void Sended()
     {

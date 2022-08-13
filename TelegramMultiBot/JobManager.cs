@@ -1,18 +1,19 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Newtonsoft.Json;
 
-class JobManager : IDisposable
+internal class JobManager : IDisposable
 {
-    List<Job> jobs;
-    CancellationToken token;
-    const string JobFile = "jobs.json";
-    object locker = new object();
-
+    private List<Job> jobs;
+    private CancellationToken token;
+    private const string JobFile = "jobs.json";
+    private object locker = new object();
     private int nextId => jobs.Any() ? jobs.Max(x => x.Id) + 1 : 0;
+
+    //public delegate void SendNotificationHandler(long chatId, string message);
+    public event Action<long, string> ReadyToSend = delegate { };
 
     public JobManager()
     {
-
         try
         {
             jobs = Load();
@@ -30,13 +31,10 @@ class JobManager : IDisposable
     {
         Save();
     }
-    public delegate void SendNotificationHandler(long chatId, string message);
-    public event SendNotificationHandler ReadyToSend;
 
     internal void Run(CancellationToken token)
     {
         this.token = token;
-
         Task.Run(async () =>
         {
             while (!this.token.IsCancellationRequested)
@@ -46,11 +44,10 @@ class JobManager : IDisposable
                     var jobsToSend = jobs.Where(x => x.NextExecution < DateTime.Now).ToList();
                     foreach (var job in jobsToSend)
                     {
-                        ReadyToSend?.Invoke(job.ChatId, job.Message);
+                        ReadyToSend(job.ChatId, job.Message);
                         job.Sended();
                     }
                 }
-
                 await Task.Delay(TimeSpan.FromSeconds(5));
             }
         });
@@ -58,14 +55,14 @@ class JobManager : IDisposable
 
     private List<Job>? Load()
     {
-        var tmp = System.IO.File.ReadAllText(JobFile);
+        var tmp = File.ReadAllText(JobFile);
         return JsonConvert.DeserializeObject<List<Job>>(tmp);
     }
 
     private void Save()
     {
         var tmp = JsonConvert.SerializeObject(jobs);
-        System.IO.File.WriteAllText(JobFile, tmp);
+        File.WriteAllText(JobFile, tmp);
         LogUtil.Log("jobs are saved");
     }
 
@@ -92,7 +89,7 @@ class JobManager : IDisposable
 
     internal void DeleteJobsForChat(long chatId)
     {
-        jobs.RemoveAll(x => x.ChatId== chatId);
+        jobs.RemoveAll(x => x.ChatId == chatId);
         LogUtil.Log($"Jobs for chat {chatId} removed");
         Save();
     }

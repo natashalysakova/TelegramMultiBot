@@ -1,31 +1,31 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using AngleSharp.Dom;
-using AngleSharp.Html.Dom;
-using AngleSharp.Html.Parser;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
-using System.Net;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 
-class Program
+internal class Program
 {
-    static JobManager jobManager;
-    static TelegramBotClient bot;
-    public static void Main(string[] args)
-    {
-        var builder = new ConfigurationBuilder();
-        builder.AddUserSecrets<Program>();
-        var configurationRoot = builder.Build();
+    private static JobManager jobManager;
+    private static TelegramBotClient bot;
 
+    static Program()
+    {
         jobManager = new JobManager();
 #if DEBUG
         bot = new TelegramBotClient("5341260793:AAELGS7rXCtEv2TH6_BLTDty_dGDfQ1Luuc");
 #else
         bot = new TelegramBotClient("5449772952:AAEJPlCKjeC39kDJk_s89ztqsgQaiLyO8OM");
 #endif
+    }
+
+    public static void Main(string[] args)
+    {
+        var builder = new ConfigurationBuilder();
+        builder.AddUserSecrets<Program>();
+        var configurationRoot = builder.Build();
 
         Telegram.Bot.Polling.ReceiverOptions? receiverOptions = new Telegram.Bot.Polling.ReceiverOptions
         {
@@ -50,7 +50,7 @@ class Program
     }
 
     private async static void JobManager_ReadyToSend(long chatId, string message)
-    {       
+    {
         try
         {
             LogUtil.Log($"sending by schedule: {message}");
@@ -59,7 +59,6 @@ class Program
         catch (Exception ex)
         {
             LogUtil.Log(ex.Message);
-
             if (ex.Message.Contains("chat not found") || ex.Message.Contains("PEER_ID_INVALID") || ex.Message.Contains("bot was kicked from the group chat"))
             {
                 jobManager.DeleteJobsForChat(chatId);
@@ -83,10 +82,6 @@ class Program
         {
             switch (update.Type)
             {
-                //case UpdateType.InlineQuery:
-                //    return BotOnInlineQueryReceived(bot, update.InlineQuery);
-                //case UpdateType.ChosenInlineResult:
-                //    return BotOnChosenInlineResultReceived(bot, update.ChosenInlineResult!);
                 case UpdateType.Message:
                     return BotOnMessageRecived(bot, update.Message);
                 case UpdateType.CallbackQuery:
@@ -99,7 +94,6 @@ class Program
         {
             LogUtil.Log(ex.Message);
         }
-
         return Task.CompletedTask;
     }
 
@@ -107,7 +101,7 @@ class Program
     {
         LogUtil.Log("Deleting job: " + callbackQuery.Data);
         jobManager.DeleteJob(long.Parse(callbackQuery.Data));
-        bot.SendTextMessageAsync(callbackQuery.Message.Chat.Id, "Job deleted");
+        bot.SendTextMessageAsync(callbackQuery.Message.Chat.Id, "Job deleted", disableNotification: true);
         return Task.CompletedTask;
     }
 
@@ -116,24 +110,23 @@ class Program
         if (message == null) { return; }
         if (message.Text == null) { return; }
 
-        LogUtil.Log($"Input message: {message.From.Username} in {message.Chat.Type}{ " " + (message.Chat.Type == ChatType.Group ? message.Chat.Title : string.Empty)} : {message.Text}");
+        LogUtil.Log($"Input message: {message.From.Username} in {message.Chat.Type}{" " + (message.Chat.Type == ChatType.Group ? message.Chat.Title : string.Empty)} : {message.Text}");
         // /add & job name & cron & text
         if (message.Text.ToLower().StartsWith("/add"))
         {
-            var split = message.Text.Split('&', StringSplitOptions.RemoveEmptyEntries);
+            var split = message.Text.Split('&', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray();
             if (split.Length == 4)
             {
-                var name = split[1].Trim();
-                var cron = split[2].Trim();
-                var text = split[3].Trim();
-
+                var name = split[1];
+                var cron = split[2];
+                var text = split[3];
                 var nextexec = jobManager.AddJob(message.Chat.Id, name, cron, text);
-                await client.SendTextMessageAsync(message.Chat, "Job added");
+                await client.SendTextMessageAsync(message.Chat, "Job added", disableNotification: true);
             }
             else
             {
                 LogUtil.Log("Invalid command. Correct format: /add & {job name} & {cron} & {text}");
-                await client.SendTextMessageAsync(message.Chat, "Invalid command. Correct format: /add & {job name} & {cron} & {text}");
+                await client.SendTextMessageAsync(message.Chat, "Invalid command. Correct format: /add & {job name} & {cron} & {text}", disableNotification: true);
             }
             return;
         }
@@ -144,16 +137,14 @@ class Program
             var response = string.Join('\n', jobs.Select(x => $"{x.Name} Next run: {x.NextExecution} Text: {x.Message}"));
             if (string.IsNullOrEmpty(response))
             {
-                await client.SendTextMessageAsync(message.Chat, "No jobs found");
+                await client.SendTextMessageAsync(message.Chat, "No jobs found", disableNotification: true);
                 return;
             }
-
-            await client.SendTextMessageAsync(message.Chat, response, disableWebPagePreview: true);
+            await client.SendTextMessageAsync(message.Chat, response, disableWebPagePreview: true, disableNotification: true);
         }
 
         if (message.Text.ToLower().StartsWith("/delete"))
         {
-
             var buttons = new List<InlineKeyboardButton[]>();
             var jobs = jobManager.GetJobsByChatId(message.Chat.Id);
             if (jobs.Any())
@@ -162,30 +153,15 @@ class Program
                 {
                     buttons.Add(new[] { InlineKeyboardButton.WithCallbackData(job.Name, job.Id.ToString()) });
                 }
-
                 InlineKeyboardMarkup inlineKeyboard = new InlineKeyboardMarkup(buttons);
                 LogUtil.Log("Sending lis of available jobs");
-                await client.SendTextMessageAsync(message.Chat, "Select job to delete", replyMarkup: inlineKeyboard);
+                await client.SendTextMessageAsync(message.Chat, "Select job to delete", replyMarkup: inlineKeyboard, disableNotification: true);
             }
             else
             {
                 LogUtil.Log("No jobs found");
-                await client.SendTextMessageAsync(message.Chat, "No jobs found");
+                await client.SendTextMessageAsync(message.Chat, "No jobs found", disableNotification: true);
             }
         }
-
-        //if (message.Text.ToLower().StartsWith("https://www.tiktok.com/"))
-        //{
-
-        //    using (HttpClient tiktok_client = new HttpClient()) // WebClient class inherits IDisposable
-        //    {
-        //        // Or you can get the file content without saving it
-        //        string htmlCode = await tiktok_client.GetStringAsync(message.Text);
-
-        //        IHtmlDocument angle = new HtmlParser().ParseDocument(htmlCode);
-        //        foreach (IElement element in angle.QuerySelectorAll("video"))
-        //            Console.WriteLine(element.GetAttribute("src"));
-        //    }
-        //}
     }
 }
