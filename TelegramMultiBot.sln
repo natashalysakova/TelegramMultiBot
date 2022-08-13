@@ -1,0 +1,31 @@
+﻿
+Microsoft Visual Studio Solution File, Format Version 12.00
+# Visual Studio Version 17
+VisualStudioVersion = 17.2.32602.215
+MinimumVisualStudioVersion = 10.0.40219.1
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelegramMultiBot", "TelegramMultiBot\TelegramMultiBot.csproj", "{11DE492D-F193-4563-86EA-CD75A2D9BE34}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "BotTests", "BotTests\BotTests.csproj", "{04C3F4F0-9D75-4650-97CF-C6663A0C395C}"
+EndProject
+Global
+	GlobalSection(SolutionConfigurationPlatforms) = preSolution
+		Debug|Any CPU = Debug|Any CPU
+		Release|Any CPU = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(ProjectConfigurationPlatforms) = postSolution
+		{11DE492D-F193-4563-86EA-CD75A2D9BE34}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{11DE492D-F193-4563-86EA-CD75A2D9BE34}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{11DE492D-F193-4563-86EA-CD75A2D9BE34}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{11DE492D-F193-4563-86EA-CD75A2D9BE34}.Release|Any CPU.Build.0 = Release|Any CPU
+		{04C3F4F0-9D75-4650-97CF-C6663A0C395C}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{04C3F4F0-9D75-4650-97CF-C6663A0C395C}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{04C3F4F0-9D75-4650-97CF-C6663A0C395C}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{04C3F4F0-9D75-4650-97CF-C6663A0C395C}.Release|Any CPU.Build.0 = Release|Any CPU
+	EndGlobalSection
+	GlobalSection(SolutionProperties) = preSolution
+		HideSolutionNode = FALSE
+	EndGlobalSection
+	GlobalSection(ExtensibilityGlobals) = postSolution
+		SolutionGuid = {44090AB2-A1A5-45B8-82F5-3F428983AC9C}
+	EndGlobalSection
+EndGlobal
