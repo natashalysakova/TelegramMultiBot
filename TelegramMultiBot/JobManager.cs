@@ -9,7 +9,6 @@ internal class JobManager : IDisposable
     private object locker = new object();
     private int nextId => jobs.Any() ? jobs.Max(x => x.Id) + 1 : 0;
 
-    //public delegate void SendNotificationHandler(long chatId, string message);
     public event Action<long, string> ReadyToSend = delegate { };
 
     public JobManager()
