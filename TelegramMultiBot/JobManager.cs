@@ -1,13 +1,12 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Newtonsoft.Json;
+using TelegramMultiBot;
 
-internal class JobManager : IDisposable
+internal class JobManager : Manager<Job>, IDisposable
 {
-    private List<Job> jobs;
-    private CancellationToken token;
     private const string JobFile = "jobs.json";
     private object locker = new object();
-    private int nextId => jobs.Any() ? jobs.Max(x => x.Id) + 1 : 0;
+    private int nextId => list.Any() ? list.Max(x => x.Id) + 1 : 0;
 
     public event Action<long, string> ReadyToSend = delegate { };
 
@@ -15,23 +14,23 @@ internal class JobManager : IDisposable
     {
         try
         {
-            jobs = Load();
-            LogUtil.Log($"Loadded {jobs.Count} jobs");
+            list = Load(JobFile);
+            LogUtil.Log($"Loadded {list.Count} jobs");
         }
         catch (Exception ex)
         {
             LogUtil.Log(ex.Message);
-            jobs = new List<Job>();
+            list = new List<Job>();
             LogUtil.Log($"Created new job list");
         }
     }
 
     public void Dispose()
     {
-        Save();
+        Save(JobFile);
     }
 
-    internal void Run(CancellationToken token)
+    public void Run(CancellationToken token)
     {
         this.token = token;
         Task.Run(async () =>
@@ -40,7 +39,7 @@ internal class JobManager : IDisposable
             {
                 lock (locker)
                 {
-                    var jobsToSend = jobs.Where(x => x.NextExecution < DateTime.Now).ToList();
+                    var jobsToSend = list.Where(x => x.NextExecution < DateTime.Now).ToList();
                     foreach (var job in jobsToSend)
                     {
                         ReadyToSend(job.ChatId, job.Message);
@@ -52,44 +51,31 @@ internal class JobManager : IDisposable
         });
     }
 
-    private List<Job>? Load()
-    {
-        var tmp = File.ReadAllText(JobFile);
-        return JsonConvert.DeserializeObject<List<Job>>(tmp);
-    }
-
-    private void Save()
-    {
-        var tmp = JsonConvert.SerializeObject(jobs);
-        File.WriteAllText(JobFile, tmp);
-        LogUtil.Log("jobs are saved");
-    }
-
     internal DateTime AddJob(long chatid, string name, string cron, string text)
     {
         var job = new Job(nextId, chatid, name, text, cron);
-        jobs.Add(job);
+        list.Add(job);
         LogUtil.Log($"Job {name} {cron} added");
-        Save();
+        Save(JobFile);
         return job.NextExecution;
     }
 
     internal List<Job> GetJobsByChatId(long id)
     {
-        return jobs.Where(x => x.ChatId == id).ToList();
+        return list.Where(x => x.ChatId == id).ToList();
     }
 
     internal void DeleteJob(long id)
     {
-        jobs.Remove(jobs.Single(x => x.Id == id));
+        list.Remove(list.Single(x => x.Id == id));
         LogUtil.Log($"Job {id} removed");
-        Save();
+        Save(JobFile);
     }
 
     internal void DeleteJobsForChat(long chatId)
     {
-        jobs.RemoveAll(x => x.ChatId == chatId);
+        list.RemoveAll(x => x.ChatId == chatId);
         LogUtil.Log($"Jobs for chat {chatId} removed");
-        Save();
+        Save(JobFile);
     }
 }

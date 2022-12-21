@@ -5,20 +5,46 @@ using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
+using TelegramMultiBot;
 
 internal class Program
 {
     private static JobManager jobManager;
+    private static PingSubscribersManager subscribersManager;
+
+    private static PingManager ping;
+
     private static TelegramBotClient bot;
 
     static Program()
     {
         jobManager = new JobManager();
+        subscribersManager= new PingSubscribersManager();
+
+
 #if DEBUG
         bot = new TelegramBotClient("5341260793:AAELGS7rXCtEv2TH6_BLTDty_dGDfQ1Luuc");
 #else
         bot = new TelegramBotClient("5449772952:AAEJPlCKjeC39kDJk_s89ztqsgQaiLyO8OM");
 #endif
+
+        ping = new PingManager();
+    }
+
+    private async static void Ping_InternetStatusChanged(DateTime date, bool status)
+    {
+        var sunscribers = subscribersManager.GetSubscribers();
+        foreach (var subscriber in sunscribers)
+        {
+            if (status)
+            {
+                await bot.SendTextMessageAsync(subscriber, "Інтернетохарчування із бак!");
+            }
+            else
+            {
+                await bot.SendTextMessageAsync(subscriber, "Інтернетохарчування із упало!");
+            }
+        }
     }
 
     public static void Main(string[] args)
@@ -41,11 +67,18 @@ internal class Program
                 cancellationToken.Token
             );
 
+        ping.InternetDown += Ping_InternetStatusChanged;
+        ping.InternetUp += Ping_InternetStatusChanged;
+        var pingTask = Task.Run(ping.Run);
+
+
         while (!cancellationToken.IsCancellationRequested)
         {
             Thread.Sleep(1000);
         }
-
+        ping.InternetDown-= Ping_InternetStatusChanged;
+        ping.InternetUp-= Ping_InternetStatusChanged;
+        ping.Abort();
         jobManager.Dispose();
     }
 
@@ -161,6 +194,18 @@ internal class Program
             {
                 LogUtil.Log("No jobs found");
                 await client.SendTextMessageAsync(message.Chat, "No jobs found", disableNotification: true);
+            }
+        }
+
+        if (message.Text.ToLower().Equals("/status")){
+            var result = subscribersManager.UpdateSubscription(message.Chat.Id);
+            if (result)
+            {
+                await client.SendTextMessageAsync(message.Chat, "You've been subscrbed on Інтернетохарчування notification");
+            }
+            else
+            {
+                await client.SendTextMessageAsync(message.Chat, "You've been unsubscrbed from Інтернетохарчування notification");
             }
         }
     }
