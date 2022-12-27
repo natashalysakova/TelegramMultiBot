@@ -159,7 +159,7 @@ internal class Program
             else
             {
                 LogUtil.Log("Invalid command. Correct format: /add & {job name} & {cron} & {text}");
-                await client.SendTextMessageAsync(message.Chat, "Invalid command. Correct format: /add & {job name} & {cron} & {text}", disableNotification: true);
+                await client.SendTextMessageAsync(message.Chat.Id, "Invalid command. Correct format: /add & {job name} & {cron} & {text}", disableNotification: true);
             }
             return;
         }
@@ -201,7 +201,7 @@ internal class Program
             var result = subscribersManager.UpdateSubscription(message.Chat.Id);
             if (result)
             {
-                await client.SendTextMessageAsync(message.Chat, "You've been subscrbed on Інтернетохарчування notification");
+                await client.SendTextMessageAsync(message.Chat.Id, "You've been subscrbed on Інтернетохарчування notification");
             }
             else
             {
