@@ -95,7 +95,7 @@ internal class Program
         }
         catch (Exception ex)
         {
-            LogUtil.Log(ex.Message);
+            LogUtil.LogError(ex.Message);
             if (ex.Message.Contains("chat not found") || ex.Message.Contains("PEER_ID_INVALID") || ex.Message.Contains("bot was kicked from the group chat"))
             {
                 jobManager.DeleteJobsForChat(chatId);
@@ -106,7 +106,7 @@ internal class Program
 
     private static Task HandleErrorAsync(ITelegramBotClient cleint, Exception e, CancellationToken token)
     {
-        LogUtil.Log(e.ToString());
+        LogUtil.LogError(e.ToString());
         return Task.CompletedTask;
     }
 
@@ -129,7 +129,7 @@ internal class Program
         }
         catch (Exception ex)
         {
-            LogUtil.Log(ex.Message);
+            LogUtil.LogError(ex.Message);
         }
         return Task.CompletedTask;
     }

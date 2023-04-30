@@ -18,7 +18,8 @@ public class Job
                 var next = CronUtil.ParseNext(Config);
                 sended = false;
                 nextExecution = next.HasValue ? next.Value : throw new Exception($"Failed to get next execution time for job ({Id}) {Name}");
-                LogUtil.Log($"Job {Name} in {ChatId} has new execution time: {nextExecution}");
+                
+                //LogUtil.Log($"Job {Name} in {ChatId} has new execution time: {nextExecution}");
             }
             return nextExecution;
         }

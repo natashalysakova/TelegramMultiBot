@@ -54,7 +54,7 @@ internal class JobManager : Manager<Job>, IDisposable
 
     internal DateTime AddJob(long chatid, string name, string cron, string text)
     {
-        var job = new Job(nextId, chatid, name, text, cron);
+        var job = new Job(nextId, chatid, name, text, cron.ToString());
         list.Add(job);
         LogUtil.Log($"Job {name} {cron} added");
         Save(JobFile);
