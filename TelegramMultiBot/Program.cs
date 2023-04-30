@@ -1,16 +1,20 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using AngleSharp.Html.Dom;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
+using System.Xml.Linq;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot;
+using static System.Net.Mime.MediaTypeNames;
 
 internal class Program
 {
     private static JobManager jobManager;
     private static PingSubscribersManager subscribersManager;
+    private static DialogManager dialogManager;
 
     private static PingManager ping;
 
@@ -20,7 +24,7 @@ internal class Program
     {
         jobManager = new JobManager();
         subscribersManager= new PingSubscribersManager();
-
+        dialogManager = new DialogManager();
 
 #if DEBUG
         bot = new TelegramBotClient("5341260793:AAELGS7rXCtEv2TH6_BLTDty_dGDfQ1Luuc");
@@ -144,24 +148,25 @@ internal class Program
         if (message.Text == null) { return; }
 
         LogUtil.Log($"Input message: {message.From.Username} in {message.Chat.Type}{" " + (message.Chat.Type == ChatType.Group ? message.Chat.Title : string.Empty)} : {message.Text}");
+
+        var activeDialog = dialogManager[message.Chat.Id];
+        if (activeDialog != null)
+        {
+            await HandleActiveDialog(client, message, activeDialog);
+            return;
+        }
+
         // /add & job name & cron & text
         if (message.Text.ToLower().StartsWith("/add"))
         {
-            var split = message.Text.Split('&', StringSplitOptions.RemoveEmptyEntries).Select(x => x.Trim()).ToArray();
-            if (split.Length == 4)
+            var dialog = new Dialog()
             {
-                var name = split[1];
-                var cron = split[2];
-                var text = split[3];
-                var nextexec = jobManager.AddJob(message.Chat.Id, name, cron, text);
-                await client.SendTextMessageAsync(message.Chat, "Job added", disableNotification: true);
-            }
-            else
-            {
-                LogUtil.Log("Invalid command. Correct format: /add & {job name} & {cron} & {text}");
-                await client.SendTextMessageAsync(message.Chat.Id, "Invalid command. Correct format: /add & {job name} & {cron} & {text}", disableNotification: true);
-            }
-            return;
+                ChatId = message.Chat.Id,
+                Type = DialogType.AddJob
+            };
+
+            dialogManager[message.Chat.Id] = dialog;
+            await HandleActiveDialog(client, message, dialog);         
         }
 
         if (message.Text.ToLower().StartsWith("/list"))
@@ -207,6 +212,26 @@ internal class Program
             {
                 await client.SendTextMessageAsync(message.Chat, "You've been unsubscrbed from Інтернетохарчування notification");
             }
+        }
+    }
+
+    private static async Task HandleActiveDialog(TelegramBotClient client, Message message, Dialog activeDialog)
+    {
+        if (message.Text == "cancel")
+        {
+            await client.SendTextMessageAsync(activeDialog.ChatId, "Job creation cancelled", disableNotification: true);
+            dialogManager.Remove(activeDialog);
+            return;
+        }
+
+        var handler = DialogHandlerFactory.CreateHandler(activeDialog.Type);
+        handler.Handle(activeDialog, message, client);
+
+        if (activeDialog.IsDone)
+        {
+            var nextexec = jobManager.AddJob(activeDialog.ChatId, activeDialog.Name, activeDialog.CRON, activeDialog.Text);
+            await client.SendTextMessageAsync(activeDialog.ChatId, "Job added", disableNotification: true);
+            dialogManager.Remove(activeDialog);
         }
     }
 }
