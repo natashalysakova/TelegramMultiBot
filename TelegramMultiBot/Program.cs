@@ -2,6 +2,7 @@
 using AngleSharp.Html.Dom;
 using Microsoft.Extensions.Configuration;
 using Newtonsoft.Json;
+using System.Net.Http.Headers;
 using System.Xml.Linq;
 using Telegram.Bot;
 using Telegram.Bot.Types;
@@ -23,7 +24,7 @@ internal class Program
     static Program()
     {
         jobManager = new JobManager();
-        subscribersManager= new PingSubscribersManager();
+        subscribersManager = new PingSubscribersManager();
         dialogManager = new DialogManager();
 
 #if DEBUG
@@ -54,7 +55,7 @@ internal class Program
     public static void Main(string[] args)
     {
         var builder = new ConfigurationBuilder();
-        builder.AddUserSecrets<Program>();
+        //builder.AddUserSecrets<Program>();
         var configurationRoot = builder.Build();
 
         Telegram.Bot.Polling.ReceiverOptions? receiverOptions = new Telegram.Bot.Polling.ReceiverOptions
@@ -80,8 +81,8 @@ internal class Program
         {
             Thread.Sleep(1000);
         }
-        ping.InternetDown-= Ping_InternetStatusChanged;
-        ping.InternetUp-= Ping_InternetStatusChanged;
+        ping.InternetDown -= Ping_InternetStatusChanged;
+        ping.InternetUp -= Ping_InternetStatusChanged;
         ping.Abort();
         jobManager.Dispose();
     }
@@ -166,7 +167,7 @@ internal class Program
             };
 
             dialogManager[message.Chat.Id] = dialog;
-            await HandleActiveDialog(client, message, dialog);         
+            await HandleActiveDialog(client, message, dialog);
         }
 
         if (message.Text.ToLower().StartsWith("/list"))
@@ -202,7 +203,8 @@ internal class Program
             }
         }
 
-        if (message.Text.ToLower().Equals("/status")){
+        if (message.Text.ToLower().Equals("/status"))
+        {
             var result = subscribersManager.UpdateSubscription(message.Chat.Id);
             if (result)
             {
@@ -213,6 +215,45 @@ internal class Program
                 await client.SendTextMessageAsync(message.Chat, "You've been unsubscrbed from Інтернетохарчування notification");
             }
         }
+
+        if (ServiceItems.Any(x => message.Text.Contains(x.service)))
+        {
+            string link = message.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(x => x.Contains("https://"));
+            if (link != null)
+            {
+                var service = ServiceItems.SingleOrDefault(x => link.Contains(x.service));
+                if (service != null)
+                {
+                    link = link.Replace(service.whatReplace, service.replaceWith);
+                    link = CutTrackingInfo(link);
+
+                    var newMessage = $"🦫 Дякую, ось твій пост: {link}";
+                    await client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId);
+                }
+
+
+            }
+        }
+    }
+
+    record ServiceItem(string service, string whatReplace, string replaceWith);
+    static List<ServiceItem> ServiceItems = new List<ServiceItem>()
+    {
+        new ServiceItem("https://www.instagram.com", "instagram", "ddinstagram"),
+        new ServiceItem("https://x.com", "x", "fixupx"),
+        new ServiceItem("https://twitter.com", "twitter", "fxtwitter"),
+    };
+
+
+    private static string CutTrackingInfo(string link)
+    {
+        if (link.Contains('?'))
+        {
+            return link.Replace(link.Substring(link.IndexOf('?')), string.Empty);
+
+        }
+
+        return link;
     }
 
     private static async Task HandleActiveDialog(TelegramBotClient client, Message message, Dialog activeDialog)
