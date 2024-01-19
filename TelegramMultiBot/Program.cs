@@ -41,13 +41,19 @@ internal class Program
         var sunscribers = subscribersManager.GetSubscribers();
         foreach (var subscriber in sunscribers)
         {
-            if (status)
+            try
             {
-                await bot.SendTextMessageAsync(subscriber, "Інтернетохарчування із бак!");
+                if (status)
+                {
+                    await bot.SendTextMessageAsync(subscriber, "Інтернетохарчування із бак!");
+                }
+                else
+                {
+                    await bot.SendTextMessageAsync(subscriber, "Інтернетохарчування із упало!");
+                }
             }
-            else
-            {
-                await bot.SendTextMessageAsync(subscriber, "Інтернетохарчування із упало!");
+            catch { 
+            
             }
         }
     }
@@ -224,11 +230,37 @@ internal class Program
                 var service = ServiceItems.SingleOrDefault(x => link.Contains(x.service));
                 if (service != null)
                 {
-                    link = link.Replace(service.whatReplace, service.replaceWith);
-                    link = CutTrackingInfo(link);
+                    var newlink = link.Replace(service.whatReplace, service.replaceWith);
+                    newlink = CutTrackingInfo(newlink);
 
-                    var newMessage = $"🦫 Дякую, ось твій пост: {link}";
-                    await client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId);
+                    string newMessage;
+                    try
+                    {
+                        await client.DeleteMessageAsync(message.Chat, message.MessageId);
+                        var oldMessage = message.Text.Replace(link, newlink);
+
+                        string name = string.Empty;
+                        if (string.IsNullOrEmpty(message.From.Username))
+                        {
+                            name = $"{message.From.FirstName}";
+                        }
+                        else
+                        {
+                            name = "@" + message.From.Username;
+                        }
+
+                        newMessage = $"\U0001f9ab {name}: {oldMessage}\n";
+                        await client.SendTextMessageAsync(message.Chat, newMessage, disableNotification: false);
+                    }
+                    catch (Exception)
+                    {
+                        newMessage = $"🦫 Дякую, я не зміг видалити твоє повідомлення, тому ось твій лінк: {newlink}";
+                        await client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
+                    }
+
+                    
+
+
                 }
 
 
