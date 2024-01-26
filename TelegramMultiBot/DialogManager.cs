@@ -95,23 +95,23 @@ class AddJobHandler : IDialogHandler
         switch (dialog.Step)
         {
             case 0:
-                await client.SendTextMessageAsync(dialog.ChatId, "What name of the job?", disableNotification: true);
+                await client.SendTextMessageAsync(dialog.ChatId, "Дайте назву завдання", disableNotification: true);
                 dialog.Step++;
                 return;
             case 1:
                 if (string.IsNullOrEmpty(message.Text))
                 {
-                    await client.SendTextMessageAsync(dialog.ChatId, "Name is empty. Try again", disableNotification: true);
+                    await client.SendTextMessageAsync(dialog.ChatId, "Ім'я порожнє. Спробуйте знову", disableNotification: true);
                     return;
                 }
                 dialog.Name = message.Text;
                 dialog.Step++;
-                await client.SendTextMessageAsync(dialog.ChatId, "Enter CRON", disableNotification: true);
+                await client.SendTextMessageAsync(dialog.ChatId, "Введіть CRON", disableNotification: true);
                 return;
             case 2:
                 if (string.IsNullOrEmpty(message.Text))
                 {
-                    await client.SendTextMessageAsync(dialog.ChatId, "CRON is empty. Try again", disableNotification: true);
+                    await client.SendTextMessageAsync(dialog.ChatId, "CRON порожній. Спробуйте знову", disableNotification: true);
                     return;
                 }
                 try
@@ -120,17 +120,17 @@ class AddJobHandler : IDialogHandler
                 }
                 catch (Exception)
                 {
-                    await client.SendTextMessageAsync(dialog.ChatId, "CRON is invalid. Try again", disableNotification: true);
+                    await client.SendTextMessageAsync(dialog.ChatId, "CRON не валідний. Спробуйте знову", disableNotification: true);
                     return;
                 }
                 dialog.CRON = message.Text;
                 dialog.Step++;
-                await client.SendTextMessageAsync(dialog.ChatId, "Enter Text Message", disableNotification: true);
+                await client.SendTextMessageAsync(dialog.ChatId, "Введіть повідомлення, яке буде відправлятися", disableNotification: true);
                 return;
             case 3:
                 if (string.IsNullOrEmpty(message.Text))
                 {
-                    await client.SendTextMessageAsync(dialog.ChatId, "Text is empty. Try again", disableNotification: true);
+                    await client.SendTextMessageAsync(dialog.ChatId, "Повідомлення порожнє. Спробуйте знову", disableNotification: true);
                     return;
                 }
 

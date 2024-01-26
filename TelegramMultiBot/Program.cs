@@ -14,55 +14,34 @@ using static System.Net.Mime.MediaTypeNames;
 internal class Program
 {
     private static JobManager jobManager;
-    private static PingSubscribersManager subscribersManager;
     private static DialogManager dialogManager;
-
-    private static PingManager ping;
-
     private static TelegramBotClient bot;
 
     static Program()
     {
         jobManager = new JobManager();
-        subscribersManager = new PingSubscribersManager();
         dialogManager = new DialogManager();
-
-#if DEBUG
-        bot = new TelegramBotClient("5341260793:AAELGS7rXCtEv2TH6_BLTDty_dGDfQ1Luuc");
-#else
-        bot = new TelegramBotClient("5449772952:AAEJPlCKjeC39kDJk_s89ztqsgQaiLyO8OM");
-#endif
-
-        ping = new PingManager();
-    }
-
-    private async static void Ping_InternetStatusChanged(DateTime date, bool status)
-    {
-        var sunscribers = subscribersManager.GetSubscribers();
-        foreach (var subscriber in sunscribers)
-        {
-            try
-            {
-                if (status)
-                {
-                    await bot.SendTextMessageAsync(subscriber, "Інтернетохарчування із бак!");
-                }
-                else
-                {
-                    await bot.SendTextMessageAsync(subscriber, "Інтернетохарчування із упало!");
-                }
-            }
-            catch { 
-            
-            }
-        }
     }
 
     public static void Main(string[] args)
     {
         var builder = new ConfigurationBuilder();
-        //builder.AddUserSecrets<Program>();
-        var configurationRoot = builder.Build();
+        builder.AddJsonFile("tokens.json");
+        var config = builder.Build();
+
+#if DEBUG
+        config.Providers.First().TryGet("token_debug", out string? botKey);
+#else
+        config.Providers.First().TryGet("token", out string? botKey);
+#endif
+        
+        if(string.IsNullOrEmpty(botKey))
+        {
+            LogUtil.LogError("cannot get bot API key");
+            return;
+        }
+
+        bot = new TelegramBotClient(botKey);
 
         Telegram.Bot.Polling.ReceiverOptions? receiverOptions = new Telegram.Bot.Polling.ReceiverOptions
         {
@@ -78,18 +57,12 @@ internal class Program
                 cancellationToken.Token
             );
 
-        ping.InternetDown += Ping_InternetStatusChanged;
-        ping.InternetUp += Ping_InternetStatusChanged;
-        var pingTask = Task.Run(ping.Run);
-
 
         while (!cancellationToken.IsCancellationRequested)
         {
             Thread.Sleep(1000);
         }
-        ping.InternetDown -= Ping_InternetStatusChanged;
-        ping.InternetUp -= Ping_InternetStatusChanged;
-        ping.Abort();
+
         jobManager.Dispose();
     }
 
@@ -113,7 +86,10 @@ internal class Program
 
     private static Task HandleErrorAsync(ITelegramBotClient cleint, Exception e, CancellationToken token)
     {
+#if DEBUG
         LogUtil.LogError(e.ToString());
+#endif
+        LogUtil.LogError(e.Message);
         return Task.CompletedTask;
     }
 
@@ -145,7 +121,7 @@ internal class Program
     {
         LogUtil.Log("Deleting job: " + callbackQuery.Data);
         jobManager.DeleteJob(long.Parse(callbackQuery.Data));
-        bot.SendTextMessageAsync(callbackQuery.Message.Chat.Id, "Job deleted", disableNotification: true);
+        bot.SendTextMessageAsync(callbackQuery.Message.Chat.Id, "Завдання видалено", disableNotification: true);
         return Task.CompletedTask;
     }
 
@@ -163,7 +139,6 @@ internal class Program
             return;
         }
 
-        // /add & job name & cron & text
         if (message.Text.ToLower().StartsWith("/add"))
         {
             var dialog = new Dialog()
@@ -179,10 +154,10 @@ internal class Program
         if (message.Text.ToLower().StartsWith("/list"))
         {
             var jobs = jobManager.GetJobsByChatId(message.Chat.Id);
-            var response = string.Join('\n', jobs.Select(x => $"{x.Name} Next run: {x.NextExecution} Text: {x.Message}"));
+            var response = string.Join('\n', jobs.Select(x => $"{x.Name} Наступний запуск: {x.NextExecution} Текст: {x.Message}"));
             if (string.IsNullOrEmpty(response))
             {
-                await client.SendTextMessageAsync(message.Chat, "No jobs found", disableNotification: true);
+                await client.SendTextMessageAsync(message.Chat, "Завдань не знайдено", disableNotification: true);
                 return;
             }
             await client.SendTextMessageAsync(message.Chat, response, disableWebPagePreview: true, disableNotification: true);
@@ -199,26 +174,13 @@ internal class Program
                     buttons.Add(new[] { InlineKeyboardButton.WithCallbackData(job.Name, job.Id.ToString()) });
                 }
                 InlineKeyboardMarkup inlineKeyboard = new InlineKeyboardMarkup(buttons);
-                LogUtil.Log("Sending lis of available jobs");
-                await client.SendTextMessageAsync(message.Chat, "Select job to delete", replyMarkup: inlineKeyboard, disableNotification: true);
+                LogUtil.Log("Sending list of available jobs");
+                await client.SendTextMessageAsync(message.Chat, "Виберіть завдання, яке треба видалити", replyMarkup: inlineKeyboard, disableNotification: true);
             }
             else
             {
                 LogUtil.Log("No jobs found");
-                await client.SendTextMessageAsync(message.Chat, "No jobs found", disableNotification: true);
-            }
-        }
-
-        if (message.Text.ToLower().Equals("/status"))
-        {
-            var result = subscribersManager.UpdateSubscription(message.Chat.Id);
-            if (result)
-            {
-                await client.SendTextMessageAsync(message.Chat.Id, "You've been subscrbed on Інтернетохарчування notification");
-            }
-            else
-            {
-                await client.SendTextMessageAsync(message.Chat, "You've been unsubscrbed from Інтернетохарчування notification");
+                await client.SendTextMessageAsync(message.Chat, "Завдань не знайдено", disableNotification: true);
             }
         }
 
@@ -257,13 +219,7 @@ internal class Program
                         newMessage = $"🦫 Дякую, я не зміг видалити твоє повідомлення, тому ось твій лінк: {newlink}";
                         await client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
                     }
-
-                    
-
-
                 }
-
-
             }
         }
     }
@@ -290,9 +246,9 @@ internal class Program
 
     private static async Task HandleActiveDialog(TelegramBotClient client, Message message, Dialog activeDialog)
     {
-        if (message.Text == "cancel")
+        if (message.Text == "cancel" || message.Text == "відміна")
         {
-            await client.SendTextMessageAsync(activeDialog.ChatId, "Job creation cancelled", disableNotification: true);
+            await client.SendTextMessageAsync(activeDialog.ChatId, "Створення завдання перервано", disableNotification: true);
             dialogManager.Remove(activeDialog);
             return;
         }
@@ -303,7 +259,7 @@ internal class Program
         if (activeDialog.IsDone)
         {
             var nextexec = jobManager.AddJob(activeDialog.ChatId, activeDialog.Name, activeDialog.CRON, activeDialog.Text);
-            await client.SendTextMessageAsync(activeDialog.ChatId, "Job added", disableNotification: true);
+            await client.SendTextMessageAsync(activeDialog.ChatId, "Завдання додано", disableNotification: true);
             dialogManager.Remove(activeDialog);
         }
     }
