@@ -1,6 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using Cronos;
-using Newtonsoft.Json;
+using Microsoft.Extensions.Logging;
 using TelegramMultiBot;
 
 internal class JobManager : Manager<Job>, IDisposable
@@ -11,18 +10,18 @@ internal class JobManager : Manager<Job>, IDisposable
 
     public event Action<long, string> ReadyToSend = delegate { };
 
-    public JobManager()
+    public JobManager(ILogger<JobManager> logger) : base(logger)
     {
         try
         {
             list = Load(JobFile);
-            LogUtil.Log($"Loadded {list.Count} jobs");
+            _logger.LogDebug($"Loadded {list.Count} jobs");
         }
         catch (Exception ex)
         {
-            LogUtil.Log(ex.Message);
+            _logger.LogDebug(ex.Message);
             list = new List<Job>();
-            LogUtil.Log($"Created new job list");
+            _logger.LogDebug($"Created new job list");
         }
     }
 
@@ -56,7 +55,7 @@ internal class JobManager : Manager<Job>, IDisposable
     {
         var job = new Job(nextId, chatid, name, text, cron.ToString());
         list.Add(job);
-        LogUtil.Log($"Job {name} {cron} added");
+        _logger.LogDebug($"Job {name} {cron} added");
         Save(JobFile);
         return job.NextExecution;
     }
@@ -69,14 +68,14 @@ internal class JobManager : Manager<Job>, IDisposable
     internal void DeleteJob(long id)
     {
         list.Remove(list.Single(x => x.Id == id));
-        LogUtil.Log($"Job {id} removed");
+        _logger.LogDebug($"Job {id} removed");
         Save(JobFile);
     }
 
     internal void DeleteJobsForChat(long chatId)
     {
         list.RemoveAll(x => x.ChatId == chatId);
-        LogUtil.Log($"Jobs for chat {chatId} removed");
+        _logger.LogDebug($"Jobs for chat {chatId} removed");
         Save(JobFile);
     }
 }
