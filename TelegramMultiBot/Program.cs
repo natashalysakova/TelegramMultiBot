@@ -67,7 +67,14 @@ internal class Program
 
         foreach (var item in types)
         {
+            if (typeof(T) == typeof(ICommand))
+            {
+                var key = item.GetAttributeValue((CommandAttribute c) => { return c.Command; });
+                services.AddKeyedScoped(typeof(T), key, item);
+            }
+
             services.AddScoped(typeof(T), item);
+
         }
 
         return services;
@@ -78,6 +85,7 @@ internal class Program
         return new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
             .AddJsonFile("tokens.json")
+            .AddJsonFile("config.json")
             .AddEnvironmentVariables()
             .AddCommandLine(args)
             .Build();

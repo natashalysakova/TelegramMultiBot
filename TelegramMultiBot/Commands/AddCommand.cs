@@ -4,7 +4,8 @@ using Telegram.Bot.Types;
 
 namespace TelegramMultiBot.Commands
 {
-    class AddCommand : ICommand
+    [Command("add")]
+    class AddCommand : BaseCommand
     {
         private readonly DialogManager _dialogManager;
         private readonly ILogger<AddCommand> _logger;
@@ -16,12 +17,7 @@ namespace TelegramMultiBot.Commands
             this._logger = _logger;
         }
 
-        public bool CanHandle(string textCommand)
-        {
-            return textCommand.ToLower().StartsWith("/add");
-        }
-
-        public async void Handle(Message message)
+        public override async Task Handle(Message message)
         {
             var dialog = new AddJobDialog()
             {
@@ -32,7 +28,7 @@ namespace TelegramMultiBot.Commands
             await _dialogManager.HandleActiveDialog(message, dialog);
         }
 
-        public void HandleCallback(CallbackData callbackData)
+        public void HandleCallback(CallbackQuery callbackQuery)
         {
             return;
         }

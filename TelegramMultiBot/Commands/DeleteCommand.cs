@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -6,7 +7,8 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace TelegramMultiBot.Commands
 {
-    class DeleteCommand : ICommand
+    [Command("delete")]
+    class DeleteCommand : BaseCommand, ICallbackHandler
     {
         private readonly ILogger<DeleteCommand> _logger;
         private readonly JobManager _jobManager;
@@ -18,12 +20,8 @@ namespace TelegramMultiBot.Commands
             _jobManager = jobManager;
             _client = client;
         }
-        public bool CanHandle(string textCommand)
-        {
-            return textCommand.ToLower().StartsWith("/delete");
-        }
 
-        public async void Handle(Message message)
+        public override async Task Handle(Message message)
         {
             var buttons = new List<InlineKeyboardButton[]>();
             var jobs = _jobManager.GetJobsByChatId(message.Chat.Id);
@@ -45,8 +43,10 @@ namespace TelegramMultiBot.Commands
             }
         }
 
-        public void HandleCallback(CallbackData callbackData)
+        public async Task HandleCallback(CallbackQuery callbackQuery)
         {
+            var callbackData = CallbackData.FromData(callbackQuery.Data);
+
             _logger.LogDebug("Deleting job: " + callbackData.data);
 
             var jobId = callbackData.data.ToString();
@@ -54,7 +54,7 @@ namespace TelegramMultiBot.Commands
                 return;
 
             _jobManager.DeleteJob(long.Parse(jobId));
-            _client.SendTextMessageAsync(callbackData.chatId, "Завдання видалено", disableNotification: true);
+            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдання видалено", showAlert: true) ;
         }
     }
 }

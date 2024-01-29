@@ -1,4 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Telegram.Bot;
@@ -14,15 +15,15 @@ class BotService
     private readonly ILogger _logger;
     JobManager _jobManager;
     private readonly DialogManager _dialogManager;
-    private readonly IEnumerable<ICommand> _commands;
-
-    public BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IEnumerable<ICommand> commands)
+    private readonly IServiceProvider _serviceProvider;
+    public static string BotName;
+    public BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider)
     {
         _client = client;
         _logger = logger;
         _jobManager = jobManager;
         _dialogManager = dialogManager;
-        _commands = commands;
+        _serviceProvider = serviceProvider;
     }
 
     public void Run(CancellationTokenSource cancellationToken)
@@ -41,6 +42,8 @@ class BotService
                 receiverOptions,
                 cancellationToken.Token
             );
+
+        BotName = _client.GetMeAsync().Result.Username;
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -87,6 +90,8 @@ class BotService
                     return BotOnMessageRecived(update.Message);
                 case UpdateType.CallbackQuery:
                     return BotOnCallbackRecived(update.CallbackQuery);
+                case UpdateType.InlineQuery:
+                    return BotOnInlineQueryRecived(update.InlineQuery);
                 default:
                     return Task.CompletedTask;
             }
@@ -98,14 +103,33 @@ class BotService
         return Task.CompletedTask;
     }
 
+    private Task BotOnInlineQueryRecived(InlineQuery? inlineQuery)
+    {
+        var commands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(inlineQuery) && x.CanHandleInlineQuery);
+
+        foreach (var item in commands)
+        {
+            (item as IInlineQueryHandler).HandleInlineQuery(inlineQuery);
+        }
+
+        
+
+        return Task.CompletedTask;
+    }
+
     private Task BotOnCallbackRecived(CallbackQuery? callbackQuery)
     {
         try
         {
             var callbackData = CallbackData.FromData(callbackQuery.Data);
-            var command = _commands.Single(x => x.GetType().Name == callbackData.comand);
-            _logger.LogDebug($"callback {command}");
-            command.HandleCallback(callbackData);
+            var commands = _serviceProvider.GetServices<ICommand>().Where(x=>x.CanHandleCallback && x.CanHandle(callbackData)).Select(x=> (ICallbackHandler)x );
+
+            foreach (var command in commands)
+            {
+                _logger.LogDebug($"callback {command}");
+                command.HandleCallback(callbackQuery);
+
+            }
 
         }
         catch (Exception ex)
@@ -116,7 +140,7 @@ class BotService
         return Task.CompletedTask;
     }
 
-    
+
 
     private async Task BotOnMessageRecived(Message message)
     {
@@ -128,8 +152,8 @@ class BotService
         var activeDialog = _dialogManager[message.Chat.Id];
         if (activeDialog != null)
         {
-            var cancelCommand = _commands.Single(x => x.CanHandle("/cancel"));
-            if (cancelCommand.CanHandle(message.Text))
+            var cancelCommand = _serviceProvider.GetKeyedService<ICommand>("cancel");
+            if (cancelCommand.CanHandle(message))
             {
                 cancelCommand.Handle(message);
                 _dialogManager.Remove(activeDialog);
@@ -141,14 +165,14 @@ class BotService
         }
         else
         {
-            var applicableComands = _commands.Where(x => x.CanHandle(message.Text));
+            var applicableComands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(message));
 
             foreach (var command in applicableComands)
             {
                 _logger.LogDebug($"{command}");
                 try
                 {
-                    command.Handle(message);
+                    await command.Handle(message);
                 }
                 catch (Exception ex)
                 {

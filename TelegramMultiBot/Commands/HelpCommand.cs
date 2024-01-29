@@ -8,21 +8,18 @@ using Telegram.Bot.Types;
 
 namespace TelegramMultiBot.Commands
 {
-    internal class HelpCommand : ICommand
+    [Command("help")]
+
+    internal class HelpCommand : BaseCommand
     {
         private readonly TelegramBotClient _client;
-
-        public bool CanHandle(string textCommand)
-        {
-            return textCommand.ToLower().StartsWith("/help");
-        }
 
         public HelpCommand(TelegramBotClient client)
         {
             _client = client;
         }
 
-        public void Handle(Message message)
+        public override Task Handle(Message message)
         {
             var help = 
 @$"
@@ -47,11 +44,8 @@ This functionality can be laggy or don't work for some links cause it's heavily 
             */
 
             _client.SendTextMessageAsync(message.Chat.Id, help, parseMode: Telegram.Bot.Types.Enums.ParseMode.MarkdownV2);
-        }
 
-        public void HandleCallback(CallbackData callbackData)
-        {
-            return;
+            return Task.CompletedTask;
         }
     }
 }

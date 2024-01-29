@@ -8,15 +8,11 @@ using Telegram.Bot.Types;
 
 namespace TelegramMultiBot.Commands
 {
-    internal class CancelCommand : ICommand
+    [Command("cancel")]
+    internal class CancelCommand : BaseCommand
     {
         private readonly TelegramBotClient _client;
         private readonly DialogManager _dialogManager;
-
-        public bool CanHandle(string textCommand)
-        {
-            return textCommand.ToLower().StartsWith("/cancel");
-        }
 
         public CancelCommand(TelegramBotClient client, DialogManager dialogManager)
         {
@@ -24,7 +20,7 @@ namespace TelegramMultiBot.Commands
             _dialogManager = dialogManager;
         }
 
-        public async void Handle(Message message)
+        public override async Task Handle(Message message)
         {
             var activeDialog = _dialogManager[message.Chat.Id];
             if(activeDialog != null)
@@ -36,11 +32,6 @@ namespace TelegramMultiBot.Commands
             {
                 await _client.SendTextMessageAsync(message.Chat.Id, "Нема активної операції", disableNotification: true);
             }
-        }
-
-        public void HandleCallback(CallbackData callbackData)
-        {
-            return;
         }
     }
 }

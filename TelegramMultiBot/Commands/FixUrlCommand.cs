@@ -5,7 +5,9 @@ using Telegram.Bot.Types;
 
 namespace TelegramMultiBot.Commands
 {
-    class FixUrlCommand : ICommand
+    [Command("")]
+
+    class FixUrlCommand : BaseCommand
     {
         private readonly ILogger _logger;
         private readonly TelegramBotClient _client;
@@ -16,12 +18,12 @@ namespace TelegramMultiBot.Commands
             _client = client;
         }
 
-        public bool CanHandle(string textCommand)
+        public override bool CanHandle(Message message)
         {
-            return ServiceItems.Any(x => textCommand.Contains(x.service));
+            return ServiceItems.Any(x => message.Text.ToLower().Contains(x.service));
         }
 
-        public async void Handle(Message message)
+        public override async Task Handle(Message message)
         {
             string link = message.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault(x => x.Contains("https://"));
 
@@ -70,6 +72,8 @@ namespace TelegramMultiBot.Commands
         new ServiceItem("https://x.com", "x", "fixupx"),
         new ServiceItem("https://twitter.com", "twitter", "fxtwitter"),
     };
+
+
         private string CutTrackingInfo(string link)
         {
             if (link.Contains('?'))
@@ -78,11 +82,6 @@ namespace TelegramMultiBot.Commands
             }
 
             return link;
-        }
-
-        public void HandleCallback(CallbackData callbackData)
-        {
-            return;
         }
     }
 }

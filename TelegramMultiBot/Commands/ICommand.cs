@@ -11,8 +11,23 @@ namespace TelegramMultiBot.Commands
 {
     internal interface ICommand
     {
-        bool CanHandle(string textCommand);
-        void Handle(Message message);
-        void HandleCallback(CallbackData callbackData);
+        string Command { get; }
+
+        bool CanHandle(Message message);
+        bool CanHandle(InlineQuery query);
+        bool CanHandle(CallbackData callbackData);
+        Task Handle(Message message);
+        bool CanHandleInlineQuery { get; }
+        bool CanHandleCallback { get; }
+    }
+
+    interface ICallbackHandler
+    {
+        Task HandleCallback(CallbackQuery callbackQuery);
+    }
+
+    interface IInlineQueryHandler
+    {
+        Task HandleInlineQuery(InlineQuery inlineQuery);
     }
 }
