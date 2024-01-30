@@ -1,0 +1,17 @@
+{
+  "prompt": "{USER_PROMPT}",
+  "steps": 5,
+  "batch_size": 1,
+  "negative_prompt": "",
+  "seed": -1,
+  "sampler_name": "DPM++ SDE Karras",
+  "cfg_scale": 2,
+  
+  "width": 1024,
+  "height": 1024,
+  "override_settings": {
+    "sd_model_checkpoint": "SDXL\\dreamshaperXL_turboDpmppSDE.safetensors [676f0d60c8]",
+    "CLIP_stop_at_last_layers": 1
+  },
+  "override_settings_restore_afterwards": true
+}

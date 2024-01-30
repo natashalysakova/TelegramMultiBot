@@ -8,7 +8,7 @@ using Telegram.Bot.Types;
 
 namespace TelegramMultiBot.Commands
 {
-    [Command("help")]
+    [ServiceKey("help")]
 
     internal class HelpCommand : BaseCommand
     {
@@ -28,6 +28,9 @@ namespace TelegramMultiBot.Commands
 [/delete](/delete) \- delete existing reminder
 [/list](/list) \- show all active jobs
 
+🤖 Image Generation
+[/imagine](/imagine cat driving a bike) \- generate image using the prompt \(not always awailable\)
+
 🛠 *Other*
 [/cancel](/cancel) \- cancel current operation
 [/help](/help) \- show help
@@ -43,7 +46,7 @@ This functionality can be laggy or don't work for some links cause it's heavily 
             enclose your text in double vertical bars to make it hidden: ||text|| →
             */
 
-            _client.SendTextMessageAsync(message.Chat.Id, help, parseMode: Telegram.Bot.Types.Enums.ParseMode.MarkdownV2);
+            _client.SendTextMessageAsync(message.Chat.Id, help, parseMode: Telegram.Bot.Types.Enums.ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId);
 
             return Task.CompletedTask;
         }

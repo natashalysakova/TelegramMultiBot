@@ -1,13 +1,13 @@
-﻿using Telegram.Bot.Types;
+﻿using Microsoft.Extensions.DependencyInjection;
+using Telegram.Bot.Types;
 
 namespace TelegramMultiBot.Commands
 {
-
     abstract class BaseCommand : ICommand
     {
         public bool CanHandleInlineQuery { get => this.GetType().IsAssignableTo(typeof(IInlineQueryHandler)); }
         public bool CanHandleCallback { get => this.GetType().IsAssignableTo(typeof(ICallbackHandler)); }
-        public string Command { get => this.GetType().GetAttributeValue((CommandAttribute att) => { return att.Command; }); }
+        public string Command { get => this.GetType().GetAttributeValue((ServiceKeyAttribute att) => { return att.Command; }); }
 
         public virtual bool CanHandle(Message message)
         {
@@ -49,14 +49,14 @@ namespace TelegramMultiBot.Commands
 
 
     [System.AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-    sealed class CommandAttribute : Attribute
+    sealed class ServiceKeyAttribute : Attribute
     {
         // See the attribute guidelines at 
         //  http://go.microsoft.com/fwlink/?LinkId=85236
         readonly string command;
 
         // This is a positional argument
-        public CommandAttribute(string positionalString)
+        public ServiceKeyAttribute(string positionalString)
         {
             this.command = positionalString;
 

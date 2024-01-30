@@ -41,7 +41,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
     {
         if (string.IsNullOrEmpty(message.Text))
         {
-            await _client.SendTextMessageAsync(dialog.ChatId, "Повідомлення порожнє. Спробуйте знову", disableNotification: true);
+            await _client.SendTextMessageAsync(dialog.ChatId, "Повідомлення порожнє. Спробуйте знову", disableNotification: true, messageThreadId: message.MessageThreadId);
             return false;
         }
 
@@ -49,7 +49,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
         dialog.IsFinished = true;
 
         _jobManager.AddJob(dialog.ChatId, dialog.Name, dialog.CRON, dialog.Text);
-        await _client.SendTextMessageAsync(dialog.ChatId, "Завдання додано: ", disableNotification: true);
+        await _client.SendTextMessageAsync(dialog.ChatId, "Завдання додано: ", disableNotification: true, messageThreadId: message.MessageThreadId);
 
         return true;
     }
@@ -58,7 +58,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
     {
         if (string.IsNullOrEmpty(message.Text))
         {
-            await _client.SendTextMessageAsync(dialog.ChatId, "CRON порожній. Спробуйте знову", disableNotification: true);
+            await _client.SendTextMessageAsync(dialog.ChatId, "CRON порожній. Спробуйте знову", disableNotification: true, messageThreadId: message.MessageThreadId);
             return false;
         }
         try
@@ -67,7 +67,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
         }
         catch (Exception)
         {
-            await _client.SendTextMessageAsync(dialog.ChatId, "CRON не валідний. Спробуйте знову", disableNotification: true);
+            await _client.SendTextMessageAsync(dialog.ChatId, "CRON не валідний. Спробуйте знову", disableNotification: true, messageThreadId: message.MessageThreadId);
             return false;
         }
         dialog.CRON = message.Text;
@@ -78,7 +78,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
 
     private async Task<bool> Start(AddJobDialog dialog, Message message)
     {
-        await _client.SendTextMessageAsync(dialog.ChatId, "Дайте назву завдання", disableNotification: true);
+        await _client.SendTextMessageAsync(dialog.ChatId, "Дайте назву завдання", disableNotification: true, messageThreadId: message.MessageThreadId);
         return true;
     }
 
@@ -86,11 +86,11 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
     {
         if (string.IsNullOrEmpty(message.Text) || message.Text.StartsWith('/'))
         {
-            await _client.SendTextMessageAsync(dialog.ChatId, "Ім'я не валідне. Спробуйте знову", disableNotification: true);
+            await _client.SendTextMessageAsync(dialog.ChatId, "Ім'я не валідне. Спробуйте знову", disableNotification: true, messageThreadId: message.MessageThreadId);
             return false;
         }
         dialog.Name = message.Text;
-        await _client.SendTextMessageAsync(dialog.ChatId, "Введіть CRON", disableNotification: true);
+        await _client.SendTextMessageAsync(dialog.ChatId, "Введіть CRON", disableNotification: true, messageThreadId: message.MessageThreadId);
         return true;
 
     }

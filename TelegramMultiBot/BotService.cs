@@ -16,20 +16,26 @@ class BotService
     JobManager _jobManager;
     private readonly DialogManager _dialogManager;
     private readonly IServiceProvider _serviceProvider;
+    private readonly ImageGenearatorQueue _imageGenearatorQueue;
     public static string BotName;
-    public BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider)
+    public BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue)
     {
         _client = client;
         _logger = logger;
         _jobManager = jobManager;
         _dialogManager = dialogManager;
         _serviceProvider = serviceProvider;
+        _imageGenearatorQueue = imageGenearatorQueue;
     }
 
     public void Run(CancellationTokenSource cancellationToken)
     {
         _jobManager.Run(cancellationToken.Token);
         _jobManager.ReadyToSend += JobManager_ReadyToSend;
+
+        _imageGenearatorQueue.Run(cancellationToken.Token);
+        _imageGenearatorQueue.JobFinished += _imageGenearatorQueue_JobFinished;
+        _imageGenearatorQueue.JobFailed += _imageGenearatorQueue_JobFailed;
 
         var receiverOptions = new ReceiverOptions
         {
@@ -51,6 +57,20 @@ class BotService
         }
 
         _jobManager.Dispose();
+    }
+
+    private void _imageGenearatorQueue_JobFailed(GenerationJob obj, string error)
+    {
+        var command = (StableDiffusionCommand)_serviceProvider.GetServices<ICommand>().Single(x=>x.GetType() == typeof(StableDiffusionCommand));
+
+        command.JobFailed(obj, error);
+    }
+
+    private void _imageGenearatorQueue_JobFinished(GenerationJob obj)
+    {
+        var command = (StableDiffusionCommand)_serviceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(StableDiffusionCommand));
+
+        command.JobFinished(obj);
     }
 
     private async void JobManager_ReadyToSend(long chatId, string message)
@@ -105,11 +125,11 @@ class BotService
 
     private Task BotOnInlineQueryRecived(InlineQuery? inlineQuery)
     {
-        var commands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(inlineQuery) && x.CanHandleInlineQuery);
+        var commands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(inlineQuery) && x.CanHandleInlineQuery).Select(x => (IInlineQueryHandler)x);
 
         foreach (var item in commands)
         {
-            (item as IInlineQueryHandler).HandleInlineQuery(inlineQuery);
+            item.HandleInlineQuery(inlineQuery);
         }
 
         

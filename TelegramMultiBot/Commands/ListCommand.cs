@@ -5,7 +5,7 @@ using Telegram.Bot.Types;
 
 namespace TelegramMultiBot.Commands
 {
-    [Command("list")]
+    [ServiceKey("list")]
     class ListCommand : BaseCommand
     {
         private readonly ILogger<ListCommand> _logger;
@@ -25,10 +25,11 @@ namespace TelegramMultiBot.Commands
             var response = string.Join('\n', jobs.Select(x => $"{x.Name} Наступний запуск: {x.NextExecution} Текст: {x.Message}"));
             if (string.IsNullOrEmpty(response))
             {
-                await _client.SendTextMessageAsync(message.Chat, "Завдань не знайдено", disableNotification: true);
+                await _client.SendTextMessageAsync(message.Chat, "Завдань не знайдено", disableNotification: true, messageThreadId: message.MessageThreadId);
+                
                 return;
             }
-            await _client.SendTextMessageAsync(message.Chat, response, disableWebPagePreview: true, disableNotification: true);
+            await _client.SendTextMessageAsync(message.Chat, response, disableWebPagePreview: true, disableNotification: true, messageThreadId: message.MessageThreadId);
         }
     }
 }

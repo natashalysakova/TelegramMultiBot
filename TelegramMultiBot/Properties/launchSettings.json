@@ -1,0 +1,16 @@
+{
+  "profiles": {
+    "BoberBot.Dev": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ENV_NAME": "dev"
+      }
+    },
+    "BoberBot.Prod": {
+      "commandName": "Project",
+      "environmentVariables": {
+        "ENV_NAME": "prod"
+      }
+    }
+  }
+}

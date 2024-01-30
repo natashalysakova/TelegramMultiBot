@@ -7,7 +7,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 
 namespace TelegramMultiBot.Commands
 {
-    [Command("delete")]
+    [ServiceKey("delete")]
     class DeleteCommand : BaseCommand, ICallbackHandler
     {
         private readonly ILogger<DeleteCommand> _logger;
@@ -34,12 +34,12 @@ namespace TelegramMultiBot.Commands
                 }
                 InlineKeyboardMarkup inlineKeyboard = new InlineKeyboardMarkup(buttons);
                 _logger.LogDebug("Sending list of available jobs");
-                await _client.SendTextMessageAsync(message.Chat, "Виберіть завдання, яке треба видалити", replyMarkup: inlineKeyboard, disableNotification: true);
+                await _client.SendTextMessageAsync(message.Chat, "Виберіть завдання, яке треба видалити", replyMarkup: inlineKeyboard, disableNotification: true, messageThreadId: message.MessageThreadId);
             }
             else
             {
                 _logger.LogDebug("No jobs found");
-                await _client.SendTextMessageAsync(message.Chat, "Завдань не знайдено", disableNotification: true);
+                await _client.SendTextMessageAsync(message.Chat, "Завдань не знайдено", disableNotification: true, messageThreadId: message.MessageThreadId);
             }
         }
 

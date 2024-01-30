@@ -5,8 +5,6 @@ using Telegram.Bot.Types;
 
 namespace TelegramMultiBot.Commands
 {
-    [Command("")]
-
     class FixUrlCommand : BaseCommand
     {
         private readonly ILogger _logger;
@@ -54,12 +52,12 @@ namespace TelegramMultiBot.Commands
                 }
 
                 newMessage = $"\U0001f9ab {name}: {oldMessage}\n";
-                await _client.SendTextMessageAsync(message.Chat, newMessage, disableNotification: false);
+                await _client.SendTextMessageAsync(message.Chat, newMessage, disableNotification: false, messageThreadId: message.MessageThreadId);
             }
             catch (Exception)
             {
                 newMessage = $"🦫 Дякую, я не зміг видалити твоє повідомлення, тому ось твій лінк: {newlink}";
-                await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
+                await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true, messageThreadId: message.MessageThreadId);
             }
 
 

@@ -4,7 +4,7 @@ using Telegram.Bot.Types;
 
 namespace TelegramMultiBot.Commands
 {
-    [Command("add")]
+    [ServiceKey("add")]
     class AddCommand : BaseCommand
     {
         private readonly DialogManager _dialogManager;
