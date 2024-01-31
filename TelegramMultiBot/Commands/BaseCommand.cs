@@ -21,7 +21,7 @@ namespace TelegramMultiBot.Commands
 
         public virtual bool CanHandle(CallbackData callbackData)
         {
-            return callbackData.comand == this.GetType().Name;
+            return callbackData.command == this.GetType().Name;
         }
 
         public abstract Task Handle(Message message);

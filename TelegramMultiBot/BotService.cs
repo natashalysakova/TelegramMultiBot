@@ -8,6 +8,8 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramMultiBot;
 using TelegramMultiBot.Commands;
+using TelegramMultiBot.ImageGenerators;
+using TelegramMultiBot.ImageGenerators.Automatic1111;
 
 class BotService
 {
@@ -39,7 +41,7 @@ class BotService
 
         var receiverOptions = new ReceiverOptions
         {
-            AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery }
+            AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery,  }
         };
 
         _client.StartReceiving(
@@ -61,16 +63,29 @@ class BotService
 
     private void _imageGenearatorQueue_JobFailed(GenerationJob obj, string error)
     {
-        var command = (StableDiffusionCommand)_serviceProvider.GetServices<ICommand>().Single(x=>x.GetType() == typeof(StableDiffusionCommand));
+        try
+        {
+            var command = (ImagineCommand)_serviceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
+            command.JobFailed(obj, error);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, ex.Message);
+        }
 
-        command.JobFailed(obj, error);
     }
 
     private void _imageGenearatorQueue_JobFinished(GenerationJob obj)
     {
-        var command = (StableDiffusionCommand)_serviceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(StableDiffusionCommand));
-
-        command.JobFinished(obj);
+        try
+        {
+            var command = (ImagineCommand)_serviceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
+            command.JobFinished(obj);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, ex.Message);
+        }
     }
 
     private async void JobManager_ReadyToSend(long chatId, string message)
@@ -185,6 +200,7 @@ class BotService
         }
         else
         {
+            
             var applicableComands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(message));
 
             foreach (var command in applicableComands)

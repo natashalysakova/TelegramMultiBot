@@ -1,6 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Microsoft.Extensions.Logging;
-using TelegramMultiBot;
+using TelegramMultiBot.Reminder;
 
 internal class JobManager : Manager<Job>, IDisposable
 {

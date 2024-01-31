@@ -1,14 +1,14 @@
 ﻿using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 
-namespace TelegramMultiBot
+namespace TelegramMultiBot.Reminder
 {
     internal abstract class Manager<T>
     {
         protected readonly ILogger _logger;
         protected List<T> list;
         protected CancellationToken token;
-        abstract protected string fileName {  get; }
+        abstract protected string fileName { get; }
 
         public Manager(ILogger<Manager<T>> logger)
         {

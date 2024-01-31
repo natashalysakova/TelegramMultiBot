@@ -1,9 +1,9 @@
 ﻿// See https://aka.ms/new-console-template for more information
-public record CallbackData(long chatId, string comand, object data)
+public record CallbackData(long chatId, string command, object data)
 {
     public override string ToString()
     {
-        return $"{chatId}|{comand}|{data}";
+        return $"{chatId}|{command}|{data}";
     }
 
     public static CallbackData FromData(string data)

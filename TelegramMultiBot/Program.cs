@@ -9,12 +9,22 @@ using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot;
 using TelegramMultiBot.Commands;
+using TelegramMultiBot.ImageGenerators;
+using TelegramMultiBot.ImageGenerators.Automatic1111;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 
 internal class Program
 {
     public static void Main(string[] args)
     {
+        if(args.Length == 0)
+        {
+            Console.WriteLine("provide argument for env (prod or dev)");
+            return;
+        }
+
+        Console.WriteLine("Welcome to Bober " + args[0]);
+
         ServiceProvider serviceProvider = RegisterServices(args);
 
         var bot = serviceProvider.GetService<BotService>();
@@ -50,6 +60,7 @@ internal class Program
         serviceCollection.AddScoped<ImageGenerator>();
 
         RegisterMyServices<IDialogHandler>(serviceCollection);
+        RegisterMyServices<IDiffusor>(serviceCollection);
         RegisterMyKeyedServices<ICommand>(serviceCollection);
 
         serviceCollection.AddScoped<DialogHandlerFactory>();
@@ -68,10 +79,8 @@ internal class Program
             if (key != null)
             {
                 services.AddKeyedScoped(typeof(T), key, item);
-
             }
         }
-
     }
 
     private static IEnumerable<Type> GetTypes<T>()
@@ -98,15 +107,19 @@ internal class Program
 
     private static IConfiguration SetupConfiguration(string[] args)
     {
-        var environment = Environment.GetEnvironmentVariable("ENV_NAME");
-        if (string.IsNullOrEmpty(environment))
-        {
-            Console.WriteLine("set export ENV_NAME=prod\\dev");
-        }
+        //var environment = Environment.GetEnvironmentVariable("ENV_NAME");
+        //if (string.IsNullOrEmpty(environment))
+        //{
+        //    Console.WriteLine("add 'export ENV_NAME=({prod or dev})' to fix this");
+        //}
+
+        var environment = args[0];
 
         return new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile($"tokens.json", false, true)
             .AddJsonFile($"tokens.{environment}.json", false, true)
+            .AddJsonFile($"appsettings.json", false, true)
             .AddJsonFile($"appsettings.{environment}.json", false, true)
             .AddEnvironmentVariables()
             .AddCommandLine(args)
