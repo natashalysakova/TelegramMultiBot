@@ -53,8 +53,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 markup.Selective = true;
 
                 var reply =
-@"Я сприймаю повідомлення в наступному форматі 
+@"Привіт, я бобер\-художник, і я сприймаю повідомлення в наступному форматі 
 `/imagine cat driving a bike`
+Доступні хештеги\: `\#xl` `\#file` `\#info`
 Щоб дізнатися більше /help";
 
                 using (var stream = new MemoryStream(Properties.Resources.artist))
@@ -105,19 +106,21 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         {
                             mediaInputMedia = new InputMediaPhoto(InputFile.FromStream(stream, Path.GetFileName(stream.Name)));
                         }
-                        if (obj.PostInfo)
-                        {
-                            try
-                            {
-                                string info = $"Render time {obj.Elapsed}\n" + System.IO.File.ReadAllText(stream.Name + ".txt");
-                                mediaInputMedia.Caption = info.Length > 1024 ? info.Substring(0, 1024) : info;
-                            }
-                            catch { }
-                        }
+
+                        mediaInputMedia.Caption = Path.GetFileName(stream.Name);
+
                         media.Add(mediaInputMedia);
+
+                        
                     }
 
-                    await _client.SendMediaGroupAsync(new ChatId(obj.OriginalChatId), media, messageThreadId: obj.OriginalMessageThreadId, replyToMessageId: obj.OriginalMessageId);
+                    var message = await _client.SendMediaGroupAsync(new ChatId(obj.OriginalChatId), media, messageThreadId: obj.OriginalMessageThreadId, replyToMessageId: obj.OriginalMessageId);
+
+                    if (obj.PostInfo)
+                    {
+                        var info = string.Join('\n', streams.Select(x => $"```{Path.GetFileName(x.Name)}\nRender time {obj.Elapsed}\n{System.IO.File.ReadAllText(x.Name + ".txt")}```"));
+                        await _client.SendTextMessageAsync(new ChatId(obj.OriginalChatId), info, messageThreadId: obj.OriginalMessageThreadId, replyToMessageId: obj.OriginalMessageId, parseMode: ParseMode.MarkdownV2);    
+                    }
                 }
                 await _client.DeleteMessageAsync(obj.BotMessage.Chat.Id, obj.BotMessage.MessageId);
             }

@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 
 namespace TelegramMultiBot.Commands
@@ -36,7 +37,9 @@ namespace TelegramMultiBot.Commands
             newlink = CutTrackingInfo(newlink);
 
             string newMessage;
-            try
+            var bot = await _client.GetChatMemberAsync(message.Chat.Id, _client.BotId.Value);
+            var canDeleteMessages = bot.Status == ChatMemberStatus.Administrator;
+            if(canDeleteMessages)
             {
                 await _client.DeleteMessageAsync(message.Chat, message.MessageId);
                 var oldMessage = message.Text.Replace(link, newlink);
@@ -54,9 +57,9 @@ namespace TelegramMultiBot.Commands
                 newMessage = $"\U0001f9ab {name}: {oldMessage}\n";
                 await _client.SendTextMessageAsync(message.Chat, newMessage, disableNotification: false, messageThreadId: message.MessageThreadId);
             }
-            catch (Exception)
+            else
             {
-                newMessage = $"🦫 Дякую, я не зміг видалити твоє повідомлення, тому ось твій лінк: {newlink}";
+                newMessage = $"🦫 Дякую, я не можу видалити твоє повідомлення, тримай лінк: {newlink}";
                 await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true, messageThreadId: message.MessageThreadId);
             }
 
