@@ -41,7 +41,7 @@ class BotService
 
         var receiverOptions = new ReceiverOptions
         {
-            AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery,  }
+            AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery  }
         };
 
         _client.StartReceiving(
@@ -156,20 +156,20 @@ class BotService
     {
         try
         {
-            var callbackData = CallbackData.FromData(callbackQuery.Data);
+            var callbackData = CallbackData.FromString(callbackQuery.Data);
             var commands = _serviceProvider.GetServices<ICommand>().Where(x=>x.CanHandleCallback && x.CanHandle(callbackData)).Select(x=> (ICallbackHandler)x );
 
             foreach (var command in commands)
             {
                 _logger.LogDebug($"callback {command}");
                 command.HandleCallback(callbackQuery);
-
             }
 
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, ex.Message);
+            _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message);
         }
 
         return Task.CompletedTask;
@@ -200,8 +200,16 @@ class BotService
         }
         else
         {
-            
-            var applicableComands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(message));
+
+            // var applicableComands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(message));
+            var applicableComands = new List<ICommand>();
+            foreach (var item in _serviceProvider.GetServices<ICommand>())
+            {
+                if (item.CanHandle(message))
+                {
+                    applicableComands.Add(item);
+                }
+            }
 
             foreach (var command in applicableComands)
             {

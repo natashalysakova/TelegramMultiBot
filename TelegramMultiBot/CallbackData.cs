@@ -1,14 +1,28 @@
 ﻿// See https://aka.ms/new-console-template for more information
-public record CallbackData(long chatId, string command, object data)
+using System.Runtime.CompilerServices;
+
+public record CallbackData
 {
-    public override string ToString()
+    public string[] Data { get; set; }
+    public string Command { get; set; }
+    public string DataString { get => $"{Command}|{string.Join('|', Data)}"; }
+
+    /// <summary>
+    /// 
+    /// </summary>
+    /// <param name="chatId"></param>
+    /// <param name="command"></param>
+    /// <param name="data">data parameters are separated by '|' sign</param>
+
+    public CallbackData(string command, string data)
     {
-        return $"{chatId}|{command}|{data}";
+        Command = command;
+        Data = data.Split('|', StringSplitOptions.RemoveEmptyEntries);
     }
 
-    public static CallbackData FromData(string data)
+    public static CallbackData FromString(string data)
     {
-        var info = data.Split('|');
-        return new CallbackData(long.Parse(info[0]), info[1], info[2]);
+        var info = data.Split('|', StringSplitOptions.RemoveEmptyEntries);
+        return new CallbackData(info[0], info[1]);
     }
 }

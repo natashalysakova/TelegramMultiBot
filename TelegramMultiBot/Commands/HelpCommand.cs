@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace TelegramMultiBot.Commands
 {
@@ -24,26 +25,29 @@ namespace TelegramMultiBot.Commands
         {
             var html =
 @"
-⏰ *Reminder*
-[/add](/add) \- add new reminder job for chat
-[/delete](/delete) \- delete existing reminder
-[/list](/list) \- show all active jobs
+⏰ *Бобер\-нагадувач*
+[/reminder](/reminder)
+Бобер\-нагадувач може нагадувати про щось в чаті, згідно зі встановленим графіком нагадування \(CRON\)
+Більше про CRON можна дізнатися за посиланням 
+https\:\/\/crontab\.guru
 
-🤖 Image Generation
-[/imagine](/imagine cat driving a bike) \- generate image using the prompt \(not always awailable\)\. 
->Use `\#xl` in your prompt to run slower but better SDXL model
->Use `\#file` to get original output without compression
+🤖 *Бобер\-художник*
+[/imagine](/imagine cat driving a bike) \- малює картинки за вказаним описом \(не завжди доступно\)\. 
+>Додай `\#xl` до опису, щоб використовувати повільнішу, але кращу модель SDXL
+>Додай `\#file` щоб отримати оригінальний файл без компресії
+>Додай `\#info` щоб побачити в описі параметри генерації
  
-🛠 *Other*
-[/cancel](/cancel) \- cancel current operation
-[/help](/help) \- show help
+🛠 *Інше*
+[/delete](/delete) \- використай цю команду у відповіді до бота, щоб той видалив своє повідомлення\.
+[/cancel](/cancel) \- перервати поточний діалог
+[/help](/help) \- показати допомогу
 
-🗒 Beside that, *all* links to __twitter__ or __instagram__ will be formatted to show preview in the chat\.
-This functionality can be laggy or don't work for some links cause it's heavily depended on 3rd party services\.
+🗒 Окрім того, *усі* посилання на __twitter__ та __instagram__ будуть відформатовані, щоб показати превью в чат\.
+Цей функціонал мже не працювати як потрібно або не працювати взагалі, бо він залежить від сторонніх сервісів\.
 ";
 
 
-            _client.SendTextMessageAsync(message.Chat.Id, html, parseMode: Telegram.Bot.Types.Enums.ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId);
+            _client.SendTextMessageAsync(message.Chat.Id, html, parseMode: ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId, disableWebPagePreview: true);
 
             return Task.CompletedTask;
         }

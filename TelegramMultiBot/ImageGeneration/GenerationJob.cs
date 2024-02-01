@@ -17,6 +17,8 @@ namespace TelegramMultiBot.ImageGenerators
 
             AsFile = Prompt.Contains("#file");
             AsSDXL = Prompt.Contains("#xl");
+            PostInfo = Prompt.Contains("#info");
+            
 
             var hashtags = Prompt.Split(" ").Where(x => x.StartsWith("#"));
             foreach (var hasthag in hashtags)
@@ -37,5 +39,6 @@ namespace TelegramMultiBot.ImageGenerators
         public string TmpDir { get; internal set; }
         public bool AsFile { get; set; }
         public bool AsSDXL { get; set; }
+        public bool PostInfo { get; set; }
     }
 }

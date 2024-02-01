@@ -15,6 +15,7 @@ using System.Text;
 using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Commands;
@@ -45,16 +46,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         public override async Task Handle(Message message)
         {
-            //if(message.Chat.Type != Telegram.Bot.Types.Enums.ChatType.Private)
-            //{
-            //    await _client.SendTextMessageAsync(message.Chat.Id, "tag /imagine works only in private messages");
-            //    return;
-            //}
-
-
-
-
-
             if (message.Text == "/imagine" || message.Text == $"/imagine@{BotService.BotName}")
             {
                 var markup = new ForceReplyMarkup();
@@ -66,7 +57,14 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 `/imagine cat driving a bike`
 Щоб дізнатися більше /help";
 
-                await _client.SendTextMessageAsync(message.Chat.Id, reply, replyMarkup: markup, parseMode: Telegram.Bot.Types.Enums.ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId);
+                using (var stream = new MemoryStream(Properties.Resources.artist))
+                {
+                    var photo = InputFile.FromStream(stream, "beaver.png");
+                    await _client.SendPhotoAsync(message.Chat, photo, message.MessageThreadId, reply, ParseMode.MarkdownV2,  replyMarkup: markup);
+                }
+
+
+                //await _client.SendTextMessageAsync(message.Chat.Id, reply, replyMarkup: markup, parseMode: Telegram.Bot.Types.Enums.ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId);
             }
             else
             {
@@ -107,13 +105,15 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         {
                             mediaInputMedia = new InputMediaPhoto(InputFile.FromStream(stream, Path.GetFileName(stream.Name)));
                         }
-
-                        try
+                        if (obj.PostInfo)
                         {
-                            string info = $"Render time {obj.Elapsed}\n" + System.IO.File.ReadAllText(stream.Name + ".txt");
-                            mediaInputMedia.Caption = info.Length > 1024 ? info.Substring(0, 1024) : info;
+                            try
+                            {
+                                string info = $"Render time {obj.Elapsed}\n" + System.IO.File.ReadAllText(stream.Name + ".txt");
+                                mediaInputMedia.Caption = info.Length > 1024 ? info.Substring(0, 1024) : info;
+                            }
+                            catch { }
                         }
-                        catch { }
                         media.Add(mediaInputMedia);
                     }
 

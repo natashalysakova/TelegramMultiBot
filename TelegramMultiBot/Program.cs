@@ -11,6 +11,7 @@ using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
+using TelegramMultiBot.Properties;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 
 internal class Program

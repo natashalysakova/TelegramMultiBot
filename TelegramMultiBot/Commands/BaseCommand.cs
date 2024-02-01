@@ -1,5 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 
 namespace TelegramMultiBot.Commands
 {
@@ -11,7 +12,20 @@ namespace TelegramMultiBot.Commands
 
         public virtual bool CanHandle(Message message)
         {
-            return message.Text.StartsWith("/" + Command, StringComparison.InvariantCultureIgnoreCase);
+            if(message.Entities!=null && message.Entities.Any() && message.Entities[0].Type == MessageEntityType.BotCommand && message.Text.StartsWith("/"))
+            {
+                var value = message.EntityValues.ElementAt(0);
+                if (value.Contains("@"))
+                {
+                    return value.Equals($"/{Command}@{BotService.BotName}");
+                }
+                else
+                {
+                    return value.StartsWith("/" + Command);
+                }
+            }
+            
+            return false;
         }
 
         public virtual bool CanHandle(InlineQuery query)
@@ -21,7 +35,7 @@ namespace TelegramMultiBot.Commands
 
         public virtual bool CanHandle(CallbackData callbackData)
         {
-            return callbackData.command == this.GetType().Name;
+            return callbackData.Command == Command;
         }
 
         public abstract Task Handle(Message message);

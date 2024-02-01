@@ -49,7 +49,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
         dialog.IsFinished = true;
 
         _jobManager.AddJob(dialog.ChatId, dialog.Name, dialog.CRON, dialog.Text);
-        await _client.SendTextMessageAsync(dialog.ChatId, "Завдання додано: ", disableNotification: true, messageThreadId: message.MessageThreadId);
+        await _client.SendTextMessageAsync(dialog.ChatId, $"Завдання додано: {dialog.Name} ({dialog.CRON}) з текстом: {dialog.Text}", disableNotification: true, messageThreadId: message.MessageThreadId);
 
         return true;
     }
@@ -67,7 +67,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
         }
         catch (Exception)
         {
-            await _client.SendTextMessageAsync(dialog.ChatId, "CRON не валідний. Спробуйте знову", disableNotification: true, messageThreadId: message.MessageThreadId);
+            await _client.SendTextMessageAsync(dialog.ChatId, "CRON не валідний. Спробуйте знову. Більше про CRON можна дізнатися за посиланням https://crontab.guru", disableNotification: true, messageThreadId: message.MessageThreadId, disableWebPagePreview: true);
             return false;
         }
         dialog.CRON = message.Text;

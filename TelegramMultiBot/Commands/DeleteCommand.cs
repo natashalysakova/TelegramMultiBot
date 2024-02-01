@@ -1,60 +1,52 @@
 ﻿using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
+using System;
+using System.Collections.Generic;
+using System.Linq;
+using System.Text;
+using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
-using Telegram.Bot.Types.ReplyMarkups;
-
 
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("delete")]
-    class DeleteCommand : BaseCommand, ICallbackHandler
+    internal class DeleteCommand : BaseCommand
     {
-        private readonly ILogger<DeleteCommand> _logger;
-        private readonly JobManager _jobManager;
         private readonly TelegramBotClient _client;
+        private readonly ILogger<DeleteCommand> _logger;
 
-        public DeleteCommand(ILogger<DeleteCommand> logger, JobManager jobManager, TelegramBotClient client)
+        public DeleteCommand(TelegramBotClient client, ILogger<DeleteCommand> logger)
         {
-            _logger = logger;
-            _jobManager = jobManager;
             _client = client;
+            _logger = logger;
         }
 
-        public override async Task Handle(Message message)
+        public async override Task Handle(Message message)
         {
-            var buttons = new List<InlineKeyboardButton[]>();
-            var jobs = _jobManager.GetJobsByChatId(message.Chat.Id);
-            if (jobs.Any())
+            if(message.ReplyToMessage == null || message.ReplyToMessage.Type == Telegram.Bot.Types.Enums.MessageType.ForumTopicCreated)
             {
-                foreach (var job in jobs)
-                {
-                    var data = new CallbackData(message.Chat.Id, nameof(DeleteCommand), job.Id).ToString();
-                    buttons.Add([InlineKeyboardButton.WithCallbackData(job.Name, data)]);
-                }
-                InlineKeyboardMarkup inlineKeyboard = new InlineKeyboardMarkup(buttons);
-                _logger.LogDebug("Sending list of available jobs");
-                await _client.SendTextMessageAsync(message.Chat, "Виберіть завдання, яке треба видалити", replyMarkup: inlineKeyboard, disableNotification: true, messageThreadId: message.MessageThreadId);
-            }
-            else
-            {
-                _logger.LogDebug("No jobs found");
-                await _client.SendTextMessageAsync(message.Chat, "Завдань не знайдено", disableNotification: true, messageThreadId: message.MessageThreadId);
-            }
-        }
-
-        public async Task HandleCallback(CallbackQuery callbackQuery)
-        {
-            var callbackData = CallbackData.FromData(callbackQuery.Data);
-
-            _logger.LogDebug("Deleting job: " + callbackData.data);
-
-            var jobId = callbackData.data.ToString();
-            if (jobId is null)
+                await _client.SendTextMessageAsync(message.Chat.Id, "Не знаю що видаляти. Надішли повідомлення з командою у відповідь на повідомлення бота", messageThreadId: message.MessageThreadId);
                 return;
+            }
 
-            _jobManager.DeleteJob(long.Parse(jobId));
-            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдання видалено", showAlert: true) ;
+
+            if (!message.ReplyToMessage.From.IsBot || message.ReplyToMessage.From.Id != _client.BotId)
+            {
+
+                await _client.SendTextMessageAsync(message.Chat.Id, "Я можу видалити лише власні повідомлення", messageThreadId: message.IsTopicMessage == true ? message.MessageThreadId : null );
+                return;
+            }
+
+            await _client.DeleteMessageAsync(message.ReplyToMessage.Chat.Id, message.ReplyToMessage.MessageId);
+
+            try
+            {
+                await _client.DeleteMessageAsync(message.Chat, message.MessageId);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogTrace(ex, "Bot has no rights");
+            }
         }
     }
 }
