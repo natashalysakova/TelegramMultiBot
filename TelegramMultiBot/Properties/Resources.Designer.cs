@@ -73,6 +73,16 @@ namespace TelegramMultiBot.Properties {
         /// <summary>
         ///   Looks up a localized resource of type System.Byte[].
         /// </summary>
+        internal static byte[] asleep {
+            get {
+                object obj = ResourceManager.GetObject("asleep", resourceCulture);
+                return ((byte[])(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Looks up a localized resource of type System.Byte[].
+        /// </summary>
         internal static byte[] reminder {
             get {
                 object obj = ResourceManager.GetObject("reminder", resourceCulture);

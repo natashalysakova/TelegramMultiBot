@@ -51,7 +51,7 @@ namespace TelegramMultiBot.Commands
         {
             var callbackData = CallbackData.FromString(callbackQuery.Data);
 
-            if (Enum.TryParse<ReminderCommands>(callbackData.Data[0], out var result))
+            if (Enum.TryParse<ReminderCommands>(callbackData.Data.ElementAt(0), out var result))
             {
                 switch (result)
                 {
@@ -118,12 +118,12 @@ namespace TelegramMultiBot.Commands
 
         private async Task DeleteJob(CallbackQuery callbackQuery, CallbackData callbackData)
         {
-            if(callbackData.Data.Length <= 1) {
+            if(callbackData.Data.Count() <= 1) {
                 throw new Exception("invalid callback data " + callbackData.ToString());
             }
-            var jobId = callbackData.Data[1].ToString();
+            var jobId = callbackData.Data.ElementAt(1).ToString();
 
-            _logger.LogDebug("Deleting job: " + callbackData.Data[1]);
+            _logger.LogDebug("Deleting job: " + callbackData.Data.ElementAt(1));
             _jobManager.DeleteJob(long.Parse(jobId));
             await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдання видалено", showAlert: true);
         }

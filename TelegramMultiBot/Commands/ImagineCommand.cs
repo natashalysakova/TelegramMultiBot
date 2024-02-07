@@ -81,10 +81,23 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
         }
 
-        internal async void JobFailed(GenerationJob obj, string error)
+        internal async void JobFailed(GenerationJob obj, Exception exception)
         {
-            await _client.EditMessageTextAsync(obj.BotMessage.Chat.Id, obj.BotMessage.MessageId, "Помилка: " + error);
-            Directory.Delete(obj.TmpDir, true);
+            if(exception is SystemException)
+            {
+                using (var stream = new MemoryStream(Properties.Resources.asleep))
+                {
+                    var photo = InputFile.FromStream(stream, "beaver.png");
+                    await _client.SendPhotoAsync(obj.OriginalChatId, photo, messageThreadId: obj.OriginalMessageThreadId, caption: exception.Message);
+                }
+                await _client.DeleteMessageAsync(obj.OriginalChatId, obj.BotMessage.MessageId);
+            }
+            else
+            {
+                await _client.EditMessageTextAsync(obj.BotMessage.Chat.Id, obj.BotMessage.MessageId, "Помилка: " + exception.Message);
+                Directory.Delete(obj.TmpDir, true);
+            }
+
         }
 
         internal async void JobFinished(GenerationJob obj)

@@ -48,12 +48,10 @@ namespace TelegramMultiBot.ImageGenerators
                                     await _imageGenerator.Run(job);
                                     JobFinished?.Invoke(job);
                                     _logger.LogDebug("Finished " + job.Prompt);
-
-
                                 }
                                 catch (Exception ex)
                                 {
-                                    JobFailed?.Invoke(job, ex.Message);
+                                    JobFailed?.Invoke(job, ex);
                                     _logger.LogDebug("Failed " + job.Prompt);
 
                                 }
@@ -86,6 +84,6 @@ namespace TelegramMultiBot.ImageGenerators
         }
 
         public event Action<GenerationJob> JobFinished;
-        public event Action<GenerationJob, string> JobFailed;
+        public event Action<GenerationJob, Exception> JobFailed;
     }
 }

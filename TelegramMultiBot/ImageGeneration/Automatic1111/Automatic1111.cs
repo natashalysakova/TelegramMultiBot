@@ -26,11 +26,18 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         }
 
         public string UI { get => nameof(Automatic1111); }
+
         public bool isAvailable()
         {
             var hosts = _configuration.GetSection("Hosts").Get<IEnumerable<HostSettings>>().Where(x => x.UI == nameof(Automatic1111));
             foreach (var host in hosts)
             {
+                if (!host.Enabled)
+                {
+                    _logger.LogTrace($"{host.Uri} disabled");
+                    continue;
+                }
+
                 var httpClient = new HttpClient();
                 httpClient.BaseAddress = host.Uri;
                 httpClient.Timeout = TimeSpan.FromSeconds(5);
@@ -44,10 +51,14 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         activeHost = host;
                         return true;
                     }
+                    else
+                    {
+                        _logger.LogTrace($"{host.Uri} api disabled");
+                    }
                 }
                 catch (Exception)
                 {
-
+                    _logger.LogTrace($"{host.Uri} not available");
                 }
             }
             return false;
@@ -61,9 +72,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             Directory.CreateDirectory(job.TmpDir);
 
             await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, $"Рендер запущено на хосту [{activeHost.UI}]");
-
+            _logger.LogTrace(activeHost.Uri.ToString());
             var inputMedia = new List<string>();
-
+             
 
             using (HttpClient httpClient = new HttpClient()
             {

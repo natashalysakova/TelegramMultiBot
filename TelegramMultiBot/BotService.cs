@@ -61,12 +61,12 @@ class BotService
         _jobManager.Dispose();
     }
 
-    private void _imageGenearatorQueue_JobFailed(GenerationJob obj, string error)
+    private void _imageGenearatorQueue_JobFailed(GenerationJob obj, Exception exception)
     {
         try
         {
             var command = (ImagineCommand)_serviceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
-            command.JobFailed(obj, error);
+            command.JobFailed(obj, exception);
         }
         catch (Exception ex)
         {

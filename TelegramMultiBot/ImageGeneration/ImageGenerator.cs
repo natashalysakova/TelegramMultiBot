@@ -40,7 +40,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 }
             }
 
-            throw new Exception("В бобра втомились лапки, він не може зараз малювати бо спить - спробуй пізніше");
+            throw new SystemException("В бобра втомились лапки, він не може зараз малювати бо спить - спробуй пізніше");
         }
     }
 }
