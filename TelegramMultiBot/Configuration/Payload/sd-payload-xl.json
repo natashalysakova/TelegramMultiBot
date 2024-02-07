@@ -2,11 +2,10 @@
   "prompt": "{USER_PROMPT}",
   "steps": 5,
   "batch_size": 1,
-  "negative_prompt": "",
+  "negative_prompt": "{NEGATIVE_USER_PROMPT}",
   "seed": -1,
   "sampler_name": "DPM++ SDE Karras",
   "cfg_scale": 2,
-  
   "width": 1024,
   "height": 1024,
   "override_settings": {

@@ -2,29 +2,61 @@
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    class GenerationJob
+    public class GenerationJob
     {
         public IEnumerable<string>? Images { get; internal set; }
 
+        // /imagine@bober blah blah positive #negative 
+        
         public GenerationJob(Message message)
         {
-            Prompt = message.Text.Substring(message.Text.IndexOf(' '));
+            var text = message.Text;
+
+            if (text.Contains("#negative"))
+            {
+                var startOfNegative = text.IndexOf("#negative");
+                Prompt = text.Substring(text.IndexOf(' '), startOfNegative-9).Trim();
+                NegativePrompt = text.Substring(startOfNegative+9).Trim();
+            }
+            else
+            {
+                Prompt = text.Substring(text.IndexOf(' '));
+                NegativePrompt = string.Empty;
+            }
+
+            for (int i = 1; i <= 4; i++)
+            {
+                string hashtag = $"#{i}";
+                if (text.Contains(hashtag))
+                {
+                    BatchCount = i;
+                    break;
+                }
+            }
+
             UserId = message.From.Id;
             OriginalChatId = message.Chat.Id;
             OriginalMessageId = message.MessageId;
             OriginalMessageThreadId = message.MessageThreadId;
             TmpDirName = $"{OriginalChatId}_{OriginalMessageId}";
 
-            AsFile = Prompt.Contains("#file");
-            AsSDXL = Prompt.Contains("#xl");
-            PostInfo = Prompt.Contains("#info");
-            
+            AsFile = text.Contains("#file");
+            AsSD15 = text.Contains("#sd");
+            PostInfo = text.Contains("#info");
 
-            var hashtags = Prompt.Split(" ").Where(x => x.StartsWith("#"));
+            Prompt = RemoveHashtags(Prompt);
+            NegativePrompt = RemoveHashtags(NegativePrompt);
+
+        }
+
+        private static string RemoveHashtags(string text)
+        {
+            var hashtags = text.Split(" ").Where(x => x.StartsWith("#"));
             foreach (var hasthag in hashtags)
             {
-                Prompt = Prompt.Replace(hasthag, string.Empty);
+                text = text.Replace(hasthag, string.Empty);
             }
+            return text;
         }
 
         public long UserId { get; private set; }
@@ -34,11 +66,14 @@ namespace TelegramMultiBot.ImageGenerators
 
         public Message BotMessage { get; internal set; }
         public string Prompt { get; private set; }
+        public string NegativePrompt { get; private set; }
+
         public TimeSpan Elapsed { get; internal set; }
         public string TmpDirName { get; private set; }
         public string TmpDir { get; internal set; }
         public bool AsFile { get; set; }
-        public bool AsSDXL { get; set; }
+        public bool AsSD15 { get; set; }
         public bool PostInfo { get; set; }
+        public int BatchCount { get; internal set; }
     }
 }

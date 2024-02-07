@@ -55,7 +55,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 var reply =
 @"Привіт, я бобер\-художник, і я сприймаю повідомлення в наступному форматі 
 `/imagine cat driving a bike`
-Доступні хештеги\: `\#xl` `\#file` `\#info`
+Доступні хештеги\: `\#sd` `\#file` `\#info`
 Щоб дізнатися більше /help";
 
                 using (var stream = new MemoryStream(Properties.Resources.artist))
@@ -121,10 +121,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         }
 
                         mediaInputMedia.Caption = Path.GetFileName(stream.Name);
-
-                        media.Add(mediaInputMedia);
-
-                        
+                        media.Add(mediaInputMedia);                     
                     }
 
                     var message = await _client.SendMediaGroupAsync(new ChatId(obj.OriginalChatId), media, messageThreadId: obj.OriginalMessageThreadId, replyToMessageId: obj.OriginalMessageId);

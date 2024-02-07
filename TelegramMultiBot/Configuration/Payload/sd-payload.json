@@ -2,7 +2,7 @@
   "prompt": "masterpiece, high quality, highres , artwork, 3 d render , hyper realism, high detail, octane render, 8k, {USER_PROMPT}",
   "steps": 20,
   "batch_size": 1,
-  "negative_prompt": "(bad_prompt:0.8), blurry eyes, extra hands, extra ears, extra legs, creepy, distortion",
+  "negative_prompt": "bad_prompt, blurry eyes, extra hands, extra ears, extra legs, creepy, distortion, {NEGATIVE_USER_PROMPT}",
   "seed": -1,
   "width": 512,
   "height": 512,

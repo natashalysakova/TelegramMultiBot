@@ -67,6 +67,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         public async Task<GenerationJob> Run(GenerationJob job, string directory)
         {
             var prompt = job.Prompt;
+            var negativePrompt = job.NegativePrompt;
             var botMessage = job.BotMessage;
             job.TmpDir = Path.Combine(directory, job.TmpDirName);
             Directory.CreateDirectory(job.TmpDir);
@@ -86,10 +87,15 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 var batch_count = settings.BatchCount;
                 var confName = "sd-payload";
 
-                if (job.AsSDXL)
+                if (!job.AsSD15)
                 {
                     confName += "-xl";
                     batch_count = settings.HiResBatchCount;
+                }
+
+                if(job.BatchCount != 0)
+                {
+                    batch_count = job.BatchCount;
                 }
 
                 var payload = File.ReadAllText(Path.Combine(settings.PayloadPath, confName + ".json"));
@@ -97,11 +103,12 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 Stopwatch s = new Stopwatch();
                 s.Start();
 
-
+                var progressPerItem = 100.0 / batch_count;
                 for (int i = 0; i < batch_count; i++)
                 {
 
                     var jsonPayload = payload.Replace("{USER_PROMPT}", prompt);
+                    jsonPayload = jsonPayload.Replace("{NEGATIVE_USER_PROMPT}", negativePrompt);
                     var result = httpClient.PostAsync(path, new StringContent(jsonPayload, null, "application/json"));
 
                     try
@@ -111,8 +118,8 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
 
                         while (!result.IsCompleted)
-                        {
-                            await Task.Delay(5000);
+                        { 
+                            await Task.Delay(2000);
 
                             using (HttpClient progressHttpClient = new HttpClient()
                             {
@@ -124,13 +131,15 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                 localProgress = progressobj.progress;
                                 var eta = progressobj.eta_relative;
 
-                                var progress = (localProgress * 100 + i * 100) / batch_count;
+                                //var progress = (localProgress * 100 + i * 100) / batch_count;
+                                localProgress = localProgress == 0 ? 1 : localProgress;
+                                var progress = (progressPerItem * i) + (localProgress * 100 / batch_count);
                                 _logger.LogTrace($"{botMessage.Chat.Id} {botMessage.MessageId} - {Math.Round(progress, 2)}%");
 
                                 if (progress != oldProgress)
                                 {
                                     var timespan = TimeSpan.FromSeconds(eta).ToString("hh\\:mm\\:ss");
-                                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, $"Працюю... Прогресс: {Math.Round(progress, 2)}% ETA: {timespan}");
+                                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, $"Працюю... {i+1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
                                     oldProgress = progress;
                                 }
 
