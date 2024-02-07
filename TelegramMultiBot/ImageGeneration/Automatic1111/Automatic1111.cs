@@ -3,6 +3,9 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Diagnostics;
+using System.Text;
+using System.Text.Json;
+using System.Text.RegularExpressions;
 using Telegram.Bot;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.ImageGenerators.Automatic1111.Api;
@@ -64,10 +67,15 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             return false;
         }
 
+        private string ClearPrompt(string prompt)
+        {
+            return JsonEncodedText.Encode(prompt).Value;
+        }
+
         public async Task<GenerationJob> Run(GenerationJob job, string directory)
         {
-            var prompt = job.Prompt;
-            var negativePrompt = job.NegativePrompt;
+            var prompt = ClearPrompt(job.Prompt);
+            var negativePrompt = ClearPrompt(job.NegativePrompt);
             var botMessage = job.BotMessage;
             job.TmpDir = Path.Combine(directory, job.TmpDirName);
             Directory.CreateDirectory(job.TmpDir);
