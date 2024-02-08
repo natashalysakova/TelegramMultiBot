@@ -15,7 +15,8 @@ namespace TelegramMultiBot.ImageGenerators
             if (text.Contains("#negative"))
             {
                 var startOfNegative = text.IndexOf("#negative");
-                Prompt = text.Substring(text.IndexOf(' '), startOfNegative-9).Trim();
+                var indexOfPrompt = text.IndexOf(' ');
+                Prompt = text.Substring(indexOfPrompt, startOfNegative-9-indexOfPrompt).Trim();
                 NegativePrompt = text.Substring(startOfNegative+9).Trim();
             }
             else
