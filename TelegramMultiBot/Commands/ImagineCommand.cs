@@ -19,6 +19,7 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Commands;
+using TelegramMultiBot.ImageGeneration;
 using static System.Net.Mime.MediaTypeNames;
 using static System.Net.WebRequestMethods;
 using static System.Runtime.InteropServices.JavaScript.JSType;
@@ -27,7 +28,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 {
     [ServiceKey("imagine")]
 
-    internal class ImagineCommand : BaseCommand
+    internal class ImagineCommand : BaseCommand, ICallbackHandler
     {
         private readonly TelegramBotClient _client;
         private readonly IConfiguration _configuration;
@@ -61,7 +62,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 using (var stream = new MemoryStream(Properties.Resources.artist))
                 {
                     var photo = InputFile.FromStream(stream, "beaver.png");
-                    await _client.SendPhotoAsync(message.Chat, photo, message.MessageThreadId, reply, ParseMode.MarkdownV2,  replyMarkup: markup);
+                    await _client.SendPhotoAsync(message.Chat, photo, message.MessageThreadId, reply, ParseMode.MarkdownV2, replyMarkup: markup);
                 }
 
 
@@ -71,7 +72,8 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             {
                 try
                 {
-                    var job = _imageGenearatorQueue.AddJob(message);
+                    var job = new GenerationJob(message);
+                    _imageGenearatorQueue.AddJob(job);
                     job.BotMessage = await _client.SendTextMessageAsync(message.Chat.Id, $"Твій шедевр в черзі. Чекай", messageThreadId: message.MessageThreadId, replyToMessageId: message.MessageId);
                 }
                 catch (InvalidOperationException ex)
@@ -81,9 +83,30 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
         }
 
-        internal async void JobFailed(GenerationJob obj, Exception exception)
+        public async Task HandleCallback(CallbackQuery callbackQuery)
         {
-            if(exception is SystemException)
+            var callbackData = CallbackData.FromString(callbackQuery.Data);
+
+            if (callbackData.Data.Contains("upscale"))
+            {
+                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "DoingUpscale");
+                _imageGenearatorQueue.AddJob(new UpscaleJob(callbackQuery));
+            }
+            else if (callbackData.Data.Contains("hiresfx"))
+            {
+                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "DoingHiresfix");
+                _imageGenearatorQueue.AddJob(new GenerationJob(callbackQuery));
+            }
+            else
+            {
+                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Unknown command");
+            }
+        }
+
+
+        internal async void JobFailed(IJob obj, Exception exception)
+        {
+            if (exception is SystemException)
             {
                 using (var stream = new MemoryStream(Properties.Resources.asleep))
                 {
@@ -100,18 +123,26 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         }
 
-        internal async void JobFinished(GenerationJob obj)
+        internal async void JobFinished(IJob inputJob)
         {
-            if (await OriginalMessageExists(obj.OriginalChatId, obj.OriginalMessageId))
+            if (inputJob is GenerationJob)
             {
-                using (var streams = new StreamList(obj.Images.Select(x => System.IO.File.OpenRead(x))))
+                var job = (GenerationJob)inputJob;
+
+                if (!await OriginalMessageExists(job.OriginalChatId, job.OriginalMessageId))
+                {
+                    await _client.EditMessageTextAsync(job.BotMessage.Chat.Id, job.BotMessage.MessageId, "Запит було видалено");
+                    return;
+                }
+
+                using (var streams = new StreamList(job.Results.Select(x => System.IO.File.OpenRead(x))))
                 {
                     var media = new List<IAlbumInputMedia>();
 
                     foreach (var stream in streams)
                     {
                         dynamic mediaInputMedia;
-                        if (obj.AsFile)
+                        if (job.AsFile)
                         {
                             mediaInputMedia = new InputMediaDocument(InputFile.FromStream(stream, Path.GetFileName(stream.Name)));
                         }
@@ -121,26 +152,29 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         }
 
                         mediaInputMedia.Caption = Path.GetFileName(stream.Name);
-                        media.Add(mediaInputMedia);                     
+                        media.Add(mediaInputMedia);
+
+                        //    var keys = new List<InlineKeyboardButton>
+                        //{
+                        //    InlineKeyboardButton.WithCallbackData("Upscale", new CallbackData(Command, "upscale|" + Path.GetFileName(stream.Name)).DataString),
+                        //    InlineKeyboardButton.WithCallbackData("Hires Fix", new CallbackData(Command, "hiresfx|" + Path.GetFileName(stream.Name)).DataString)
+                        //};
+                        //    var message = await _client.SendPhotoAsync(new ChatId(job.OriginalChatId), InputFile.FromStream(stream, Path.GetFileName(stream.Name)), messageThreadId: job.OriginalMessageThreadId, replyToMessageId: job.OriginalMessageId, replyMarkup: new InlineKeyboardMarkup(keys));
+
                     }
 
-                    var message = await _client.SendMediaGroupAsync(new ChatId(obj.OriginalChatId), media, messageThreadId: obj.OriginalMessageThreadId, replyToMessageId: obj.OriginalMessageId);
+                    var message = await _client.SendMediaGroupAsync(new ChatId(job.OriginalChatId), media, messageThreadId: job.OriginalMessageThreadId, replyToMessageId: job.OriginalMessageId);
 
-                    if (obj.PostInfo)
+                    if (job.PostInfo)
                     {
-                        var info = string.Join('\n', streams.Select(x => $"```{Path.GetFileName(x.Name)}\nRender time {obj.Elapsed}\n{System.IO.File.ReadAllText(x.Name + ".txt")}```"));
-                        await _client.SendTextMessageAsync(new ChatId(obj.OriginalChatId), info, messageThreadId: obj.OriginalMessageThreadId, replyToMessageId: obj.OriginalMessageId, parseMode: ParseMode.MarkdownV2);    
+                        var info = string.Join('\n', streams.Select(x => $"```{Path.GetFileName(x.Name)}\nRender time {job.Elapsed}\n{System.IO.File.ReadAllText(x.Name + ".txt")}```"));
+                        await _client.SendTextMessageAsync(new ChatId(job.OriginalChatId), info, messageThreadId: job.OriginalMessageThreadId, replyToMessageId: job.OriginalMessageId, parseMode: ParseMode.MarkdownV2);
                     }
                 }
-                await _client.DeleteMessageAsync(obj.BotMessage.Chat.Id, obj.BotMessage.MessageId);
-            }
-            else
-            {
-                await _client.EditMessageTextAsync(obj.BotMessage.Chat.Id, obj.BotMessage.MessageId, "Запит було видалено");
+                await _client.DeleteMessageAsync(job.BotMessage.Chat.Id, job.BotMessage.MessageId);
             }
 
-
-            Directory.Delete(obj.TmpDir, true);
+            Directory.Delete(inputJob.TmpDir, true);
         }
 
         private async Task<bool> OriginalMessageExists(long chatId, int messageId)

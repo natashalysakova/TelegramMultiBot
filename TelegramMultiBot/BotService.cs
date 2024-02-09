@@ -61,7 +61,7 @@ class BotService
         _jobManager.Dispose();
     }
 
-    private void _imageGenearatorQueue_JobFailed(GenerationJob obj, Exception exception)
+    private void _imageGenearatorQueue_JobFailed(IJob obj, Exception exception)
     {
         try
         {
@@ -75,7 +75,7 @@ class BotService
 
     }
 
-    private void _imageGenearatorQueue_JobFinished(GenerationJob obj)
+    private void _imageGenearatorQueue_JobFinished(IJob obj)
     {
         try
         {

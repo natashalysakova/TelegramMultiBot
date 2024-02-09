@@ -28,7 +28,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             _diffusors = diffusors;
         }
 
-        public async Task Run(GenerationJob job)
+        public async Task Run(IJob job)
         {
 
             foreach (var item in _diffusors)

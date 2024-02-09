@@ -3,11 +3,13 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Diagnostics;
+using System.IO;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using Telegram.Bot;
 using TelegramMultiBot.Configuration;
+using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGenerators.Automatic1111.Api;
 
 namespace TelegramMultiBot.ImageGenerators.Automatic1111
@@ -43,7 +45,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                 var httpClient = new HttpClient();
                 httpClient.BaseAddress = host.Uri;
-                httpClient.Timeout = TimeSpan.FromSeconds(5);
+                httpClient.Timeout = TimeSpan.FromSeconds(10);
                 try
                 {
                     var resp = httpClient.GetAsync(pingPath);
@@ -72,7 +74,26 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             return JsonEncodedText.Encode(prompt).Value;
         }
 
-        public async Task<GenerationJob> Run(GenerationJob job, string directory)
+        public async Task<IJob> Run(IJob job, string directory)
+        {
+            if(job is GenerationJob)
+            {
+                return await TextToImage(job as GenerationJob, directory);
+            }
+            if(job is UpscaleJob)
+            {
+                return await ImageToImageUpscale(job as UpscaleJob, directory);
+            }
+
+            return null;
+        }
+
+        private Task<UpscaleJob> ImageToImageUpscale(UpscaleJob? upscaleJob, string directory)
+        {
+            throw new NotImplementedException();
+        }
+
+        private async Task<GenerationJob> TextToImage(GenerationJob? job, string directory)
         {
             var prompt = ClearPrompt(job.Prompt);
             var negativePrompt = ClearPrompt(job.NegativePrompt);
@@ -83,7 +104,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, $"Рендер запущено на хосту [{activeHost.UI}]");
             _logger.LogTrace(activeHost.Uri.ToString());
             var inputMedia = new List<string>();
-             
+
 
             using (HttpClient httpClient = new HttpClient()
             {
@@ -101,7 +122,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     batch_count = settings.HiResBatchCount;
                 }
 
-                if(job.BatchCount != 0)
+                if (job.BatchCount != 0)
                 {
                     batch_count = job.BatchCount;
                 }
@@ -126,7 +147,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
 
                         while (!result.IsCompleted)
-                        { 
+                        {
                             await Task.Delay(2000);
 
                             using (HttpClient progressHttpClient = new HttpClient()
@@ -147,7 +168,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                 if (progress != oldProgress)
                                 {
                                     var timespan = TimeSpan.FromSeconds(eta).ToString("hh\\:mm\\:ss");
-                                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, $"Працюю... {i+1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
+                                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, $"Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
                                     oldProgress = progress;
                                 }
 
@@ -195,9 +216,10 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Готово. Прогрес 100%. Збираю та відправляю зображення");
             }
 
-            job.Images = inputMedia;
+            job.Results = inputMedia;
 
             return job;
+
         }
     }
 }

@@ -6,7 +6,7 @@ namespace TelegramMultiBot.Commands
 {
     abstract class BaseCommand : ICommand
     {
-        public bool CanHandleInlineQuery { get => this.GetType().IsAssignableTo(typeof(IInlineQueryHandler)); }
+        public bool CanHandleInlineQuery { get => this.GetType().IsAssignableTo(typeof(ICallbackHandler)); }
         public bool CanHandleCallback { get => this.GetType().IsAssignableTo(typeof(ICallbackHandler)); }
         public string Command { get => this.GetType().GetAttributeValue((ServiceKeyAttribute att) => { return att.Command; }); }
 

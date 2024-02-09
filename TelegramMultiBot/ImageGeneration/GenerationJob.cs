@@ -2,14 +2,16 @@
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    public class GenerationJob
+    public class GenerationJob : IJob
     {
-        public IEnumerable<string>? Images { get; internal set; }
+        public IEnumerable<string>? Results { get; set; }
 
         // /imagine@bober blah blah positive #negative 
         
-        public GenerationJob(Message message)
+        public GenerationJob(Message message) 
         {
+            Id = Guid.NewGuid().ToString();
+
             var text = message.Text;
 
             if (text.Contains("#negative"))
@@ -50,6 +52,11 @@ namespace TelegramMultiBot.ImageGenerators
 
         }
 
+        public GenerationJob(CallbackQuery callbackQuery)
+        {
+            
+        }
+
         private static string RemoveHashtags(string text)
         {
             var hashtags = text.Split(" ").Where(x => x.StartsWith("#"));
@@ -65,16 +72,18 @@ namespace TelegramMultiBot.ImageGenerators
         public long OriginalChatId { get; private set; }
         public int? OriginalMessageThreadId { get; private set; }
 
-        public Message BotMessage { get; internal set; }
+        public Message BotMessage { get; set; }
+
         public string Prompt { get; private set; }
         public string NegativePrompt { get; private set; }
 
-        public TimeSpan Elapsed { get; internal set; }
+        public TimeSpan Elapsed { get; set; }
         public string TmpDirName { get; private set; }
-        public string TmpDir { get; internal set; }
+        public string TmpDir { get; set; }
         public bool AsFile { get; set; }
         public bool AsSD15 { get; set; }
         public bool PostInfo { get; set; }
         public int BatchCount { get; internal set; }
+        public string Id { get; set ; }
     }
 }

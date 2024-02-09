@@ -9,8 +9,8 @@ namespace TelegramMultiBot.ImageGenerators
 {
     class ImageGenearatorQueue
     {
-        Queue<GenerationJob> _jobs = new Queue<GenerationJob>();
-        List<GenerationJob> _activeJobs = new List<GenerationJob>();
+        Queue<IJob> _jobs = new Queue<IJob>();
+        List<IJob> _activeJobs = new List<IJob>();
         private readonly ILogger<ImageGenearatorQueue> _logger;
         private readonly ImageGenerator _imageGenerator;
         private readonly IConfiguration _configuration;
@@ -41,18 +41,18 @@ namespace TelegramMultiBot.ImageGenerators
                             }
                             var task = Task.Run(async () =>
                             {
-                                _logger.LogDebug("Starting " + job.Prompt);
+                                _logger.LogDebug("Starting " + job.Id);
 
                                 try
                                 {
                                     await _imageGenerator.Run(job);
                                     JobFinished?.Invoke(job);
-                                    _logger.LogDebug("Finished " + job.Prompt);
+                                    _logger.LogDebug("Finished " + job.Id);
                                 }
                                 catch (Exception ex)
                                 {
                                     JobFailed?.Invoke(job, ex);
-                                    _logger.LogDebug("Failed " + job.Prompt);
+                                    _logger.LogDebug("Failed " + job.Id);
 
                                 }
                                 lock (locker)
@@ -71,19 +71,17 @@ namespace TelegramMultiBot.ImageGenerators
             }, cancellationToken);
         }
 
-        internal GenerationJob AddJob(Message message)
+        internal void AddJob(IJob job)
         {
             var jobLimit = _configuration.GetSection("ImageGeneation:BotSettings").Get<BotSettings>().JobLimitPerUser;
-            if (_jobs.Union(_activeJobs).Where(x => x.UserId == message.From.Id).Count() >= jobLimit)
+            if (_jobs.Union(_activeJobs).Where(x => x.UserId == job.UserId).Count() >= jobLimit)
             {
                 throw new InvalidOperationException($"Ти вже маєш {jobLimit} активні завдання на рендер. Спробуй пізніше");
             }
-            var job = new GenerationJob(message);
             _jobs.Enqueue(job);
-            return job;
         }
 
-        public event Action<GenerationJob> JobFinished;
-        public event Action<GenerationJob, Exception> JobFailed;
+        public event Action<IJob> JobFinished;
+        public event Action<IJob, Exception> JobFailed;
     }
 }
