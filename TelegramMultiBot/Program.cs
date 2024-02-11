@@ -1,14 +1,18 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
+using MySqlConnector;
 using System;
 using System.Reflection;
 using Telegram.Bot;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot;
 using TelegramMultiBot.Commands;
+using TelegramMultiBot.Database;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 using TelegramMultiBot.Properties;
@@ -28,6 +32,9 @@ internal class Program
 
         ServiceProvider serviceProvider = RegisterServices(args);
 
+        var context = serviceProvider.GetRequiredService<BoberDbContext>();
+        context.Database.Migrate();
+
         var bot = serviceProvider.GetService<BotService>();
 
         CancellationTokenSource cancellationToken = new CancellationTokenSource();
@@ -45,6 +52,15 @@ internal class Program
             loggerBuilder.ClearProviders();
             loggerBuilder.AddConsole();
         });
+
+        string connectionString = configuration["ConnectionString"];
+        var serverVersion = GetServerVersion(connectionString);
+
+        serviceCollection.AddDbContext<BoberDbContext>(options =>
+        {
+            options.UseMySql(connectionString, serverVersion);
+        });
+
 
         serviceCollection.AddSingleton(configuration);
 
@@ -67,6 +83,36 @@ internal class Program
         serviceCollection.AddScoped<DialogHandlerFactory>();
 
         return serviceCollection.BuildServiceProvider();
+    }
+
+    private static ServerVersion GetServerVersion(string? connectionString)
+    {
+        ServerVersion version = default;
+
+        do
+        {
+            try
+            {
+                Console.WriteLine("connecting to " + connectionString);
+                version = ServerVersion.AutoDetect(connectionString);
+                Console.WriteLine("Success");
+            }
+            catch (MySqlException ex)
+            {
+                if (ex.Message.Contains("Unable to connect to any of the specified MySQL hosts"))
+                {
+                    Console.WriteLine(ex.Message);
+                    Console.WriteLine("Trying in 5 seconds");
+                    Thread.Sleep(5000);
+                }
+                else
+                {
+                    throw ex;
+                }
+            }
+        }
+        while (version is null);
+        return version;
     }
 
     private static void RegisterMyKeyedServices<T>(IServiceCollection serviceCollection)

@@ -363,3 +363,4 @@ MigrationBackup/
 FodyWeavers.xsd
 /TelegramMultiBot/tokens.json
 /TelegramMultiBot/tokens.*.json
+/TelegramMultiBot.Database/devsettings.json
