@@ -47,6 +47,20 @@ namespace TelegramMultiBot.ImageGenerators
             AsSD15 = text.Contains("#sd");
             PostInfo = text.Contains("#info");
 
+            if (text.Contains("#model"))
+            {
+                int indexOfModel = text.IndexOf("#model") + 6;
+                int nextSpace = text.IndexOf(' ', indexOfModel);
+                if(nextSpace != -1)
+                {
+                    Model = text.Substring(indexOfModel + 1, nextSpace - indexOfModel).Trim();
+                }
+                else
+                {
+                    Model = text.Substring(indexOfModel+1).Trim();
+                }
+            }
+
             Prompt = RemoveHashtags(Prompt);
             NegativePrompt = RemoveHashtags(NegativePrompt);
 
@@ -85,5 +99,6 @@ namespace TelegramMultiBot.ImageGenerators
         public bool PostInfo { get; set; }
         public int BatchCount { get; internal set; }
         public string Id { get; set ; }
+        public string Model { get; internal set; }
     }
 }

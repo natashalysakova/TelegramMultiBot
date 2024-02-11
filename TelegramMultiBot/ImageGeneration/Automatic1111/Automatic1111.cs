@@ -113,6 +113,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             })
             {
                 var settings = _configuration.GetSection("ImageGeneation:Automatic1111").Get<Automatic1111Settings>();
+
                 var batch_count = settings.BatchCount;
                 var confName = "sd-payload";
 
@@ -127,7 +128,24 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     batch_count = job.BatchCount;
                 }
 
-                var payload = File.ReadAllText(Path.Combine(settings.PayloadPath, confName + ".json"));
+                if (!string.IsNullOrEmpty(job.Model))
+                {
+                    confName += "-" + job.Model;
+                }
+                else
+                {
+                    confName += "-" + settings.DefaultModel;
+                }
+
+                string payload;
+                try
+                {
+                    payload = File.ReadAllText(Path.Combine(settings.PayloadPath, confName + ".json"));
+                }
+                catch (Exception)
+                {
+                    throw new Exception("Unknown model");
+                }
 
                 Stopwatch s = new Stopwatch();
                 s.Start();

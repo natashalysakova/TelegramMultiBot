@@ -65,10 +65,16 @@
 
 		
   <ItemGroup>
+    <None Update="Configuration\Payload\sd-payload-xl-juggernaut.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Configuration\Payload\sd-payload-xl-unstable.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Properties\launchSettings.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
-    <None Update="Configuration\Payload\sd-payload-xl.json">
+    <None Update="Configuration\Payload\sd-payload-xl-dreamshaper.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="Configuration\Payload\sd-payload.json">

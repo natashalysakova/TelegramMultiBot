@@ -1,0 +1,16 @@
+{
+  "prompt": "{USER_PROMPT}",
+  "steps": 7,
+  "batch_size": 1,
+  "negative_prompt": "{NEGATIVE_USER_PROMPT}",
+  "seed": -1,
+  "sampler_name": "Euler a",
+  "cfg_scale": 2,
+  "width": 1024,
+  "height": 1024,
+  "override_settings": {
+    "sd_model_checkpoint": "SDXL\\sdxlUnstableDiffusers_v10TURBOEDITION.safetensors [6d5732c731]",
+    "CLIP_stop_at_last_layers": 1
+  },
+  "override_settings_restore_afterwards": true
+}

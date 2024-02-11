@@ -18,7 +18,7 @@
         public string PayloadPath { get; set; }
         public int HiResBatchCount { get; set; }
         public int BatchCount { get; set; }
-
+        public string DefaultModel { get; set; }
     }
     class ComfyUISettings
     {
