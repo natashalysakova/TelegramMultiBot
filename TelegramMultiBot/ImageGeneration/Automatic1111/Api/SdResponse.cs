@@ -8,4 +8,5 @@
 
         public Detail[] detail { get; set; }
     }
+
 }

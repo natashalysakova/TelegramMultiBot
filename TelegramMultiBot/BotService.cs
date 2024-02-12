@@ -61,7 +61,7 @@ class BotService
         _jobManager.Dispose();
     }
 
-    private void _imageGenearatorQueue_JobFailed(IJob obj, Exception exception)
+    private void _imageGenearatorQueue_JobFailed(ImageJob obj, Exception exception)
     {
         try
         {
@@ -75,7 +75,7 @@ class BotService
 
     }
 
-    private void _imageGenearatorQueue_JobFinished(IJob obj)
+    private void _imageGenearatorQueue_JobFinished(ImageJob obj)
     {
         try
         {
@@ -165,6 +165,7 @@ class BotService
                 command.HandleCallback(callbackQuery);
             }
 
+            _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Queued");
         }
         catch (Exception ex)
         {

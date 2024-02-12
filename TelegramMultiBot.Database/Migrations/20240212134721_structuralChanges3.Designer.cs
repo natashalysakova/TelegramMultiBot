@@ -2,6 +2,7 @@
 using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TelegramMultiBot.Database;
 
@@ -10,9 +11,11 @@ using TelegramMultiBot.Database;
 namespace TelegramMultiBot.Database.Migrations
 {
     [DbContext(typeof(BoberDbContext))]
-    partial class BoberDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240212134721_structuralChanges3")]
+    partial class structuralChanges3
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -31,9 +34,6 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Property<long>("ChatId")
                         .HasColumnType("bigint");
 
-                    b.Property<DateTime>("Created")
-                        .HasColumnType("datetime(6)");
-
                     b.Property<DateTime>("Finised")
                         .HasColumnType("datetime(6)");
 
@@ -43,11 +43,17 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Property<int?>("MessageThreadId")
                         .HasColumnType("int");
 
+                    b.Property<string>("NegativePrompt")
+                        .HasColumnType("longtext");
+
                     b.Property<bool>("PostInfo")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<Guid?>("PreviousJobResultId")
                         .HasColumnType("char(36)");
+
+                    b.Property<string>("Prompt")
+                        .HasColumnType("longtext");
 
                     b.Property<TimeSpan>("RenderTime")
                         .HasColumnType("time(6)");
@@ -63,9 +69,6 @@ namespace TelegramMultiBot.Database.Migrations
 
                     b.Property<int>("Type")
                         .HasColumnType("int");
-
-                    b.Property<double>("UpscaleModifyer")
-                        .HasColumnType("double");
 
                     b.Property<long>("UserId")
                         .HasColumnType("bigint");

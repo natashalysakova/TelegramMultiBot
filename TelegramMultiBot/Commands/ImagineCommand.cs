@@ -1,18 +1,10 @@
 ﻿
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Collections;
-using System.Collections.Generic;
-using System.IO;
-using System.Linq;
-using System.Net;
-using System.Reflection.Metadata;
-using System.Runtime.CompilerServices;
-using System.Runtime.InteropServices.Marshalling;
-using System.Text;
-using System.Threading.Tasks;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -20,9 +12,8 @@ using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.ImageGeneration;
-using static System.Net.Mime.MediaTypeNames;
-using static System.Net.WebRequestMethods;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using TelegramMultiBot.ImageGeneration.Exceptions;
+using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 
 namespace TelegramMultiBot.ImageGenerators.Automatic1111
 {
@@ -34,13 +25,15 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private readonly IConfiguration _configuration;
         private readonly ILogger<ImagineCommand> _logger;
         private readonly ImageGenearatorQueue _imageGenearatorQueue;
-        string activeHost = string.Empty;
-        public ImagineCommand(TelegramBotClient client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue)
+        private readonly IServiceProvider _serviceProvider;
+
+        public ImagineCommand(TelegramBotClient client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IServiceProvider serviceProvider)
         {
             _client = client;
             _configuration = configuration;
             _logger = logger;
             _imageGenearatorQueue = imageGenearatorQueue;
+            _serviceProvider = serviceProvider;
         }
 
 
@@ -72,9 +65,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             {
                 try
                 {
-                    var job = new GenerationJob(message);
-                    _imageGenearatorQueue.AddJob(job);
-                    job.BotMessage = await _client.SendTextMessageAsync(message.Chat.Id, $"Твій шедевр в черзі. Чекай", messageThreadId: message.MessageThreadId, replyToMessageId: message.MessageId);
+                    var botMessage = await _client.SendTextMessageAsync(message.Chat.Id, $"Твій шедевр в черзі. Чекай", messageThreadId: message.MessageThreadId, replyToMessageId: message.MessageId);
+                    _imageGenearatorQueue.AddJob(message, botMessage.MessageId);
+
                 }
                 catch (InvalidOperationException ex)
                 {
@@ -87,94 +80,145 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         {
             var callbackData = CallbackData.FromString(callbackQuery.Data);
 
-            if (callbackData.Data.Contains("upscale"))
+            if (callbackData.Data.ElementAt(0) == JobType.Seed.ToString())
             {
-                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "DoingUpscale");
-                _imageGenearatorQueue.AddJob(new UpscaleJob(callbackQuery));
+                var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
+                var result = databaseService.GetJobResult(callbackData.Data.ElementAt(1));
+                long seed = new UpscaleParams(result).Seed;
+
+
+                //await _client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, $"`#seed:{seed}`", messageThreadId: callbackQuery.Message.MessageThreadId, replyToMessageId: callbackQuery.Message.MessageId, parseMode: ParseMode.MarkdownV2);
+
+                var keys = new List<InlineKeyboardButton>();
+                keys.Add(InlineKeyboardButton.WithCallbackData($"Hires Fix", new CallbackData(Command, $"{JobType.HiresFix}|{result.Id}").DataString));
+                keys.Add(InlineKeyboardButton.WithCallbackData("Upscale x2", new CallbackData(Command, $"{JobType.Upscale}|{result.Id}|2").DataString));
+                keys.Add(InlineKeyboardButton.WithCallbackData("Upscale x4", new CallbackData(Command, $"{JobType.Upscale}|{result.Id}|4").DataString));
+
+
+                var media = new InputMediaPhoto(InputFile.FromFileId(callbackQuery.Message.Photo.Last().FileId));
+                media.Caption = $"#seed:{seed}";
+
+                await _client.EditMessageMediaAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, media, new InlineKeyboardMarkup(keys));
+                return;
             }
-            else if (callbackData.Data.Contains("hiresfx"))
+
+            Message botMessage = default;
+            try
             {
-                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "DoingHiresfix");
-                _imageGenearatorQueue.AddJob(new GenerationJob(callbackQuery));
+                botMessage = await _client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, $"Картинка в черзі. Чекай", messageThreadId: callbackQuery.Message.MessageThreadId, replyToMessageId: callbackQuery.Message.MessageId);
+                _imageGenearatorQueue.AddJob(callbackQuery, botMessage.MessageId);
             }
-            else
+            catch (Exception ex)
             {
-                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Unknown command");
+                if (botMessage != null)
+                {
+                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, ex.Message);
+                }
+                throw;
             }
+
+            //else
+            //{
+            //    await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Unknown command");
+            //}
         }
 
 
-        internal async void JobFailed(IJob obj, Exception exception)
+        internal async void JobFailed(ImageJob job, Exception exception)
         {
-            if (exception is SystemException)
+            switch (exception)
             {
-                using (var stream = new MemoryStream(Properties.Resources.asleep))
-                {
-                    var photo = InputFile.FromStream(stream, "beaver.png");
-                    await _client.SendPhotoAsync(obj.OriginalChatId, photo, messageThreadId: obj.OriginalMessageThreadId, caption: exception.Message);
-                }
-                await _client.DeleteMessageAsync(obj.OriginalChatId, obj.BotMessage.MessageId);
-            }
-            else
-            {
-                await _client.EditMessageTextAsync(obj.BotMessage.Chat.Id, obj.BotMessage.MessageId, "Помилка: " + exception.Message);
-                Directory.Delete(obj.TmpDir, true);
-            }
-
-        }
-
-        internal async void JobFinished(IJob inputJob)
-        {
-            if (inputJob is GenerationJob)
-            {
-                var job = (GenerationJob)inputJob;
-
-                if (!await OriginalMessageExists(job.OriginalChatId, job.OriginalMessageId))
-                {
-                    await _client.EditMessageTextAsync(job.BotMessage.Chat.Id, job.BotMessage.MessageId, "Запит було видалено");
-                    return;
-                }
-
-                using (var streams = new StreamList(job.Results.Select(x => System.IO.File.OpenRead(x))))
-                {
-                    var media = new List<IAlbumInputMedia>();
-
-                    foreach (var stream in streams)
+                case SdNotAvailableException:
                     {
-                        dynamic mediaInputMedia;
-                        if (job.AsFile)
+                        using (var stream = new MemoryStream(Properties.Resources.asleep))
                         {
-                            mediaInputMedia = new InputMediaDocument(InputFile.FromStream(stream, Path.GetFileName(stream.Name)));
+                            var photo = InputFile.FromStream(stream, "beaver.png");
+                            await _client.SendPhotoAsync(job.ChatId, photo, messageThreadId: job.MessageThreadId, caption: exception.Message);
                         }
-                        else
-                        {
-                            mediaInputMedia = new InputMediaPhoto(InputFile.FromStream(stream, Path.GetFileName(stream.Name)));
-                        }
-
-                        mediaInputMedia.Caption = Path.GetFileName(stream.Name);
-                        media.Add(mediaInputMedia);
-
-                        //    var keys = new List<InlineKeyboardButton>
-                        //{
-                        //    InlineKeyboardButton.WithCallbackData("Upscale", new CallbackData(Command, "upscale|" + Path.GetFileName(stream.Name)).DataString),
-                        //    InlineKeyboardButton.WithCallbackData("Hires Fix", new CallbackData(Command, "hiresfx|" + Path.GetFileName(stream.Name)).DataString)
-                        //};
-                        //    var message = await _client.SendPhotoAsync(new ChatId(job.OriginalChatId), InputFile.FromStream(stream, Path.GetFileName(stream.Name)), messageThreadId: job.OriginalMessageThreadId, replyToMessageId: job.OriginalMessageId, replyMarkup: new InlineKeyboardMarkup(keys));
-
+                        await _client.DeleteMessageAsync(job.ChatId, job.BotMessageId);
+                        break;
                     }
+                case InputException:
+                    await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Помилка в запиті. " + exception.Message + ". Перевір свій запит та спробуй ще");
+                    break;
+                case RenderFailedException:
+                    {
+                        await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Рендер невдалий. Спробуйте ще");
+                        break;
+                    }
+                case AlreadyRunningException:
+                    {
+                        await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, exception.Message);
+                        break;
+                    }
+                default:
+                    await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Невідома помилка");
+                    _logger.LogError(exception, "JobFailed Exception");
+                    //Directory.Delete(obj.TmpDir, true);
+                    break;
+            }
 
-                    var message = await _client.SendMediaGroupAsync(new ChatId(job.OriginalChatId), media, messageThreadId: job.OriginalMessageThreadId, replyToMessageId: job.OriginalMessageId);
+        }
 
+        internal async void JobFinished(ImageJob inputJob)
+        {
+
+            var job = inputJob;
+
+            if (!await OriginalMessageExists(job.ChatId, job.MessageId))
+            {
+                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Запит було видалено");
+                return;
+            }
+
+            using (var streams = new StreamList(job.Results.Select(x => System.IO.File.OpenRead(x.FilePath))))
+            {
+                foreach (var stream in streams)
+                {
+                    var media = InputFile.FromStream(stream, Path.GetFileName(stream.Name));
+                    var item = job.Results.Single(x => x.FilePath == stream.Name);
+                   
+                    string? info = null;
                     if (job.PostInfo)
                     {
-                        var info = string.Join('\n', streams.Select(x => $"```{Path.GetFileName(x.Name)}\nRender time {job.Elapsed}\n{System.IO.File.ReadAllText(x.Name + ".txt")}```"));
-                        await _client.SendTextMessageAsync(new ChatId(job.OriginalChatId), info, messageThreadId: job.OriginalMessageThreadId, replyToMessageId: job.OriginalMessageId, parseMode: ParseMode.MarkdownV2);
+                        info = item.Info;
+                    }
+
+                    switch (job.Type)
+                    {
+                        case JobType.Upscale:
+                            await _client.SendDocumentAsync(job.ChatId, media, messageThreadId: job.MessageThreadId, caption: info, replyToMessageId: job.MessageId);
+                            break;
+                        case JobType.HiresFix:
+                            {
+                                var keys = new List<InlineKeyboardButton>();
+                                keys.Add(InlineKeyboardButton.WithCallbackData("Upscale x2", new CallbackData(Command, $"{JobType.Upscale}|{item.Id}|2").DataString));
+                                //file too big
+                                //keys.Add(InlineKeyboardButton.WithCallbackData("Upscale x4", new CallbackData(Command, $"{JobType.Upscale}|{callbackInfo}|4").DataString));
+
+                                await _client.SendDocumentAsync(job.ChatId, media, messageThreadId: job.MessageThreadId, caption: info, replyToMessageId: job.MessageId, replyMarkup: new InlineKeyboardMarkup(keys));
+                                break;
+                            }
+
+                        case JobType.Text2Image:
+                            {
+
+
+                                var keys = new List<InlineKeyboardButton>();
+                                keys.Add(InlineKeyboardButton.WithCallbackData("Seed", new CallbackData(Command, $"{JobType.Seed}|{item.Id}").DataString));
+                                keys.Add(InlineKeyboardButton.WithCallbackData($"Hires Fix", new CallbackData(Command, $"{JobType.HiresFix}|{item.Id}").DataString));
+                                keys.Add(InlineKeyboardButton.WithCallbackData("Upscale x2", new CallbackData(Command, $"{JobType.Upscale}|{item.Id}|2").DataString));
+                                keys.Add(InlineKeyboardButton.WithCallbackData("Upscale x4", new CallbackData(Command, $"{JobType.Upscale}|{item.Id}|4").DataString));
+
+
+                                await _client.SendPhotoAsync(job.ChatId, media, messageThreadId: job.MessageThreadId, caption: info, replyToMessageId: job.MessageId, replyMarkup: new InlineKeyboardMarkup(keys));
+                                break;
+                            }
                     }
                 }
-                await _client.DeleteMessageAsync(job.BotMessage.Chat.Id, job.BotMessage.MessageId);
             }
 
-            Directory.Delete(inputJob.TmpDir, true);
+            await _client.DeleteMessageAsync(job.ChatId, job.BotMessageId);
         }
 
         private async Task<bool> OriginalMessageExists(long chatId, int messageId)

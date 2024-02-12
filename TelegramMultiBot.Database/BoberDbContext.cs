@@ -3,6 +3,7 @@ using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using MySqlConnector;
+using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using System.Diagnostics.Metrics;
 
@@ -14,7 +15,8 @@ namespace TelegramMultiBot.Database
         {
         }
 
-        public virtual DbSet<Job> Jobs { get; set; }
+        public virtual DbSet<ImageJob> Jobs { get; set; }
+        public virtual DbSet<JobResult> JobResult { get; set; }
 
     }
 
@@ -69,22 +71,69 @@ namespace TelegramMultiBot.Database
     }
 }
 
-public class Job
+public class ImageJob
 {
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public Guid ID { get; set; }
+    public ImageJob()
+    {
+        Created = DateTime.Now;
+    }
 
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public Guid Id { get; set; }
+
+    public DateTime Created { get; set; }
+    public DateTime Started { get; set; }
+    public DateTime Finised { get; set; }
+    public ImageJobStatus Status { get; set; }
+
+    public long UserId { get; set; }
     public virtual ICollection<JobResult> Results { get; set; } = new List<JobResult>();
+    public long ChatId { get; set; }
+    public int MessageId { get; set; }
+    public int? MessageThreadId { get; set; }
+    public string? Text { get; set; }
+    public int BotMessageId { get; set; }
+    public bool PostInfo { get; set; }
+    public TimeSpan RenderTime { get; set; }
+    public  JobType Type { get; set; }
+
+    public Guid? PreviousJobResultId { get; set; }
+    public double UpscaleModifyer { get; set; }
 }
 
-public class JobResult
+public enum ImageJobStatus
 {
+    Queued, Running , Succseeded , Failed
+}
+public enum JobType
+{
+    Text2Image,
+    HiresFix,
+    Upscale,
+    Seed,
+}
+public class JobResult
+{ 
+
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }
     public Guid JobId { get; set; }
-    public virtual Job? Job { get; set; }
-
-    public string Info { get; set; }
+    public virtual ImageJob? Job { get; set; }
+    public string? FilePath { get; set; }
+    public string? Info { get; set; }
     public int Index { get; set; }
+
+}
+
+
+public class Reminder
+{
+    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+    public Guid Id { get; }
+    public string Name { get; }
+    public string Message { get; }
+    public string Config { get; }
+    public long ChatId { get; }
+
 }
 

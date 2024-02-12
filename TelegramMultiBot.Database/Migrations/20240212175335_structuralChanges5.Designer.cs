@@ -11,8 +11,8 @@ using TelegramMultiBot.Database;
 namespace TelegramMultiBot.Database.Migrations
 {
     [DbContext(typeof(BoberDbContext))]
-    [Migration("20240211122235_Init")]
-    partial class Init
+    [Migration("20240212175335_structuralChanges5")]
+    partial class structuralChanges5
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -22,13 +22,55 @@ namespace TelegramMultiBot.Database.Migrations
                 .HasAnnotation("ProductVersion", "8.0.1")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
-            modelBuilder.Entity("Job", b =>
+            modelBuilder.Entity("ImageJob", b =>
                 {
-                    b.Property<Guid>("ID")
+                    b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.HasKey("ID");
+                    b.Property<int>("BotMessageId")
+                        .HasColumnType("int");
+
+                    b.Property<long>("ChatId")
+                        .HasColumnType("bigint");
+
+                    b.Property<DateTime>("Finised")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("MessageId")
+                        .HasColumnType("int");
+
+                    b.Property<int?>("MessageThreadId")
+                        .HasColumnType("int");
+
+                    b.Property<bool>("PostInfo")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid?>("PreviousJobResultId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<TimeSpan>("RenderTime")
+                        .HasColumnType("time(6)");
+
+                    b.Property<DateTime>("Started")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Text")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("Type")
+                        .HasColumnType("int");
+
+                    b.Property<double>("UpscaleModifyer")
+                        .HasColumnType("double");
+
+                    b.Property<long>("UserId")
+                        .HasColumnType("bigint");
+
+                    b.HasKey("Id");
 
                     b.ToTable("Jobs");
                 });
@@ -39,11 +81,13 @@ namespace TelegramMultiBot.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("FilePath")
+                        .HasColumnType("longtext");
+
                     b.Property<int>("Index")
                         .HasColumnType("int");
 
                     b.Property<string>("Info")
-                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<Guid>("JobId")
@@ -58,7 +102,7 @@ namespace TelegramMultiBot.Database.Migrations
 
             modelBuilder.Entity("JobResult", b =>
                 {
-                    b.HasOne("Job", "Job")
+                    b.HasOne("ImageJob", "Job")
                         .WithMany("Results")
                         .HasForeignKey("JobId")
                         .OnDelete(DeleteBehavior.Cascade)
@@ -67,7 +111,7 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Navigation("Job");
                 });
 
-            modelBuilder.Entity("Job", b =>
+            modelBuilder.Entity("ImageJob", b =>
                 {
                     b.Navigation("Results");
                 });

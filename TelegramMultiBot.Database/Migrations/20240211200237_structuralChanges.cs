@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TelegramMultiBot.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class Init : Migration
+    public partial class structuralChanges : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
@@ -18,11 +18,26 @@ namespace TelegramMultiBot.Database.Migrations
                 name: "Jobs",
                 columns: table => new
                 {
-                    ID = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci")
+                    Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
+                    Started = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    Finised = table.Column<DateTime>(type: "datetime(6)", nullable: false),
+                    Status = table.Column<int>(type: "int", nullable: false),
+                    UserId = table.Column<long>(type: "bigint", nullable: false),
+                    ChatId = table.Column<long>(type: "bigint", nullable: false),
+                    MessageId = table.Column<int>(type: "int", nullable: false),
+                    MessageThreadId = table.Column<int>(type: "int", nullable: true),
+                    Text = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    BotMessageId = table.Column<int>(type: "int", nullable: false),
+                    AsFile = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    PostInfo = table.Column<bool>(type: "tinyint(1)", nullable: false),
+                    RenderTime = table.Column<TimeSpan>(type: "time(6)", nullable: false),
+                    Type = table.Column<int>(type: "int", nullable: false),
+                    PreviousJobResultId = table.Column<Guid>(type: "char(36)", nullable: true, collation: "ascii_general_ci")
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Jobs", x => x.ID);
+                    table.PrimaryKey("PK_Jobs", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
@@ -32,7 +47,9 @@ namespace TelegramMultiBot.Database.Migrations
                 {
                     Id = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
                     JobId = table.Column<Guid>(type: "char(36)", nullable: false, collation: "ascii_general_ci"),
-                    Info = table.Column<string>(type: "longtext", nullable: false)
+                    FilePath = table.Column<string>(type: "longtext", nullable: true)
+                        .Annotation("MySql:CharSet", "utf8mb4"),
+                    Info = table.Column<string>(type: "longtext", nullable: true)
                         .Annotation("MySql:CharSet", "utf8mb4"),
                     Index = table.Column<int>(type: "int", nullable: false)
                 },
@@ -43,7 +60,7 @@ namespace TelegramMultiBot.Database.Migrations
                         name: "FK_JobResult_Jobs_JobId",
                         column: x => x.JobId,
                         principalTable: "Jobs",
-                        principalColumn: "ID",
+                        principalColumn: "Id",
                         onDelete: ReferentialAction.Cascade);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");

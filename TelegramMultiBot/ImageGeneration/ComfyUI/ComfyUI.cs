@@ -13,7 +13,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             return false;
         }
 
-        public Task<IJob> Run(IJob job, string directory)
+        public Task<ImageJob> Run(ImageJob job, string directory)
         {
             throw new NotImplementedException();
         }

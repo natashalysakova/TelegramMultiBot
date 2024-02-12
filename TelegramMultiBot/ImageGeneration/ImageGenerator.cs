@@ -2,45 +2,38 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Telegram.Bot;
+using TelegramMultiBot.ImageGeneration.Exceptions;
 
 namespace TelegramMultiBot.ImageGenerators.Automatic1111
 {
     class ImageGenerator
     {
-        private readonly ILogger<ImageGenerator> _logger;
-        private readonly TelegramBotClient _client;
         private readonly IEnumerable<IDiffusor> _diffusors;
-        private readonly IConfiguration _configuration;
         string directory;
 
-        public ImageGenerator(ILogger<ImageGenerator> logger, IConfiguration configuration, TelegramBotClient client, IEnumerable<IDiffusor> diffusors)
+        public ImageGenerator(IEnumerable<IDiffusor> diffusors)
         {
 
-            directory = Path.Combine(Directory.GetCurrentDirectory(), "tmp");
+            directory = Path.Combine(Directory.GetCurrentDirectory(), "images", DateTime.Today.ToString("yyyyMMdd"));
             if (!Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
             }
-
-            _logger = logger;
-            _configuration = configuration;
-            _client = client;
             _diffusors = diffusors;
         }
 
-        public async Task Run(IJob job)
+        public async Task<ImageJob?> Run(ImageJob job)
         {
 
             foreach (var item in _diffusors)
             {
                 if (item.isAvailable())
                 {
-                    await item.Run(job, directory);
-                    return;
+                    return await item.Run(job, directory);
                 }
             }
 
-            throw new SystemException("В бобра втомились лапки, він не може зараз малювати бо спить - спробуй пізніше");
+            throw new SdNotAvailableException("В бобра втомились лапки, він не може зараз малювати бо спить - спробуй пізніше");
         }
     }
 }

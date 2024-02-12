@@ -1,8 +1,8 @@
 {
-  "prompt": "{USER_PROMPT}",
+  "prompt": "",
   "steps": 35,
   "batch_size": 1,
-  "negative_prompt": "{NEGATIVE_USER_PROMPT}",
+  "negative_prompt": "",
   "seed": -1,
   "sampler_name": "DPM++ 2M Karras",
   "cfg_scale": 4,

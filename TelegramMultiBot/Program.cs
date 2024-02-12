@@ -13,6 +13,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Database;
+using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 using TelegramMultiBot.Properties;
@@ -45,6 +46,7 @@ internal class Program
     {
         IConfiguration configuration = SetupConfiguration(args);
         var serviceCollection = new ServiceCollection();
+        serviceCollection.AddSingleton(configuration);
 
         serviceCollection.AddLogging(loggerBuilder =>
         {
@@ -59,10 +61,10 @@ internal class Program
         serviceCollection.AddDbContext<BoberDbContext>(options =>
         {
             options.UseMySql(connectionString, serverVersion);
+            options.LogTo(Console.WriteLine, LogLevel.Warning);
         });
+        serviceCollection.AddSingleton<ImageDatabaseService>();
 
-
-        serviceCollection.AddSingleton(configuration);
 
         var botKey = configuration["token"];
         if (string.IsNullOrEmpty(botKey))
