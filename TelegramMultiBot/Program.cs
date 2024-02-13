@@ -23,7 +23,7 @@ internal class Program
 {
     public static void Main(string[] args)
     {
-        if(args.Length == 0)
+        if (args.Length == 0)
         {
             Console.WriteLine("provide argument for env (prod or dev)");
             return;
@@ -70,7 +70,7 @@ internal class Program
         if (string.IsNullOrEmpty(botKey))
             throw new KeyNotFoundException("token");
 
-        serviceCollection.AddSingleton(new TelegramBotClient(botKey));
+        serviceCollection.AddSingleton(new TelegramBotClient(botKey) { Timeout = TimeSpan.FromSeconds(600)});
 
         serviceCollection.AddSingleton<BotService>();
         serviceCollection.AddSingleton<JobManager>();

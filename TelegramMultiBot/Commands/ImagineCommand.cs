@@ -84,23 +84,49 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             {
                 var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
                 var result = databaseService.GetJobResult(callbackData.Data.ElementAt(1));
-                long seed = new UpscaleParams(result).Seed;
 
 
-                //await _client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, $"`#seed:{seed}`", messageThreadId: callbackQuery.Message.MessageThreadId, replyToMessageId: callbackQuery.Message.MessageId, parseMode: ParseMode.MarkdownV2);
+                var media = new InputMediaPhoto(InputFile.FromFileId(callbackQuery.Message.Photo.Last().FileId));
+                if(result == null)
+                {
+                    media.Caption = "Це дуже стара картинка. Інформаця про неї загубилась";
+                }
+                else
+                {
+                    long seed = new UpscaleParams(result).Seed;
+                    media.Caption = $"#seed:{seed}";
+                }
 
                 var keys = new List<InlineKeyboardButton>
                 {
+                    InlineKeyboardButton.WithCallbackData("Original", new CallbackData(Command, $"{JobType.Original}|{result.Id}").DataString),
                     InlineKeyboardButton.WithCallbackData($"Hires Fix", new CallbackData(Command, $"{JobType.HiresFix}|{result.Id}").DataString),
                     InlineKeyboardButton.WithCallbackData("Upscale x2", new CallbackData(Command, $"{JobType.Upscale}|{result.Id}|2").DataString),
                     InlineKeyboardButton.WithCallbackData("Upscale x4", new CallbackData(Command, $"{JobType.Upscale}|{result.Id}|4").DataString)
                 };
 
-
-                var media = new InputMediaPhoto(InputFile.FromFileId(callbackQuery.Message.Photo.Last().FileId));
-                media.Caption = $"#seed:{seed}";
-
                 await _client.EditMessageMediaAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, media, new InlineKeyboardMarkup(keys));
+                return;
+            }
+
+            if(callbackData.Data.ElementAt(0) == JobType.Original.ToString())
+            {
+                var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
+                var result = databaseService.GetJobResult(callbackData.Data.ElementAt(1));
+                var message = callbackQuery.Message;
+
+                if(result == null)
+                {
+                    await _client.SendTextMessageAsync(message.Chat.Id, "Це дуже стара каринка, бобер загубив оригінал", message.MessageThreadId, replyToMessageId: message.MessageId);
+                    return;
+                }
+
+                using(var stream = System.IO.File.OpenRead(result.FilePath))
+                {
+                    var media = InputFile.FromStream(stream, Path.GetFileName(result.FilePath));
+                    await _client.SendDocumentAsync(message.Chat.Id, media, messageThreadId: message.MessageThreadId, replyToMessageId: message.MessageId);
+                }
+
                 return;
             }
 
@@ -189,14 +215,28 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     switch (job.Type)
                     {
                         case JobType.Upscale:
-                            await _client.SendDocumentAsync(job.ChatId, media, messageThreadId: job.MessageThreadId, caption: info, replyToMessageId: job.MessageId);
-                            break;
+                            {
+                                
+                                //var keys = new List<InlineKeyboardButton>
+                                //{
+                                //    //InlineKeyboardButton.WithCallbackData("Original", new CallbackData(Command, $"{JobType.Original}|{item.Id}").DataString)
+                                //};
+
+                                //await _client.SendPhotoAsync(job.ChatId, media, messageThreadId: job.MessageThreadId, caption: info, replyToMessageId: job.MessageId, replyMarkup: new InlineKeyboardMarkup(keys));
+                                await _client.SendDocumentAsync(job.ChatId, media, messageThreadId: job.MessageThreadId, caption: info, replyToMessageId: job.MessageId);
+
+                                break;
+                            }
                         case JobType.HiresFix:
                             {
-                                var keys = new List<InlineKeyboardButton>();
-                                keys.Add(InlineKeyboardButton.WithCallbackData("Upscale x2", new CallbackData(Command, $"{JobType.Upscale}|{item.Id}|2").DataString));
-                                //file too big
-                                //keys.Add(InlineKeyboardButton.WithCallbackData("Upscale x4", new CallbackData(Command, $"{JobType.Upscale}|{callbackInfo}|4").DataString));
+                                var keys = new List<InlineKeyboardButton>
+                                {
+                                    //InlineKeyboardButton.WithCallbackData("Original", new CallbackData(Command, $"{JobType.Original}|{item.Id}").DataString),
+                                    InlineKeyboardButton.WithCallbackData("Upscale x2", new CallbackData(Command, $"{JobType.Upscale}|{item.Id}|2").DataString),
+                                    //InlineKeyboardButton.WithCallbackData("Upscale x4", new CallbackData(Command, $"{JobType.Upscale}|{item.Id}|4").DataString)
+
+                                };
+                                //await _client.SendPhotoAsync(job.ChatId, media, messageThreadId: job.MessageThreadId, caption: info, replyToMessageId: job.MessageId, replyMarkup: new InlineKeyboardMarkup(keys));
 
                                 await _client.SendDocumentAsync(job.ChatId, media, messageThreadId: job.MessageThreadId, caption: info, replyToMessageId: job.MessageId, replyMarkup: new InlineKeyboardMarkup(keys));
                                 break;
@@ -205,17 +245,23 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         case JobType.Text2Image:
                             {
 
-
-                                var keys = new List<InlineKeyboardButton>
+                                var keys = new List<List<InlineKeyboardButton>>
                                 {
-                                    InlineKeyboardButton.WithCallbackData($"Hires Fix", new CallbackData(Command, $"{JobType.HiresFix}|{item.Id}").DataString),
-                                    InlineKeyboardButton.WithCallbackData("Upscale x2", new CallbackData(Command, $"{JobType.Upscale}|{item.Id}|2").DataString),
-                                    InlineKeyboardButton.WithCallbackData("Upscale x4", new CallbackData(Command, $"{JobType.Upscale}|{item.Id}|4").DataString)
+                                    new List<InlineKeyboardButton>
+                                    {
+                                         InlineKeyboardButton.WithCallbackData("Original", new CallbackData(Command, $"{JobType.Original}|{item.Id}").DataString),
+                                    },
+                                    new List<InlineKeyboardButton>
+                                    {
+                                        InlineKeyboardButton.WithCallbackData($"Hires Fix", new CallbackData(Command, $"{JobType.HiresFix}|{item.Id}").DataString),
+                                        InlineKeyboardButton.WithCallbackData("Upscale x2", new CallbackData(Command, $"{JobType.Upscale}|{item.Id}|2").DataString),
+                                        InlineKeyboardButton.WithCallbackData("Upscale x4", new CallbackData(Command, $"{JobType.Upscale}|{item.Id}|4").DataString)
+                                    }
                                 };
 
                                 if (!job.PostInfo)
                                 {
-                                    keys.Insert(0, InlineKeyboardButton.WithCallbackData("Seed", new CallbackData(Command, $"{JobType.Seed}|{item.Id}").DataString));
+                                    keys[0].Insert(0,InlineKeyboardButton.WithCallbackData("Seed", new CallbackData(Command, $"{JobType.Seed}|{item.Id}").DataString));
                                 }
 
 

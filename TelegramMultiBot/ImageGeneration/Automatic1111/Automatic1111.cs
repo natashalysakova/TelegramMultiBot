@@ -224,7 +224,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         {
                             var response = JsonConvert.DeserializeObject<UpscaleResponce>(str.Result);
                             byte[] imageBytes = Convert.FromBase64String(response.image);
-                            var fileName = $"{DateTime.Now.ToString("yyyyMMddhhmmssfff")}_{job.ChatId}_{job.MessageId}.png";
+                            var fileName = $"{DateTime.Now.ToString("yyyyMMddhhmmssfff")}_{job.Type}.png";
                             var filePath = Path.Combine(directory, fileName);
 
                             File.WriteAllBytes(filePath, imageBytes);
@@ -245,7 +245,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                             {
                                 string? item = response.images[j];
                                 byte[] imageBytes = Convert.FromBase64String(item);
-                                var fileName = $"{DateTime.Now.ToString("yyyyMMddhhmmssfff")}_{job.ChatId}_{job.MessageId}.png";
+                                var fileName = $"{DateTime.Now.ToString("yyyyMMddhhmmssfff")}_{job.Type}.png";
                                 var filePath = Path.Combine(directory, fileName);
 
                                 File.WriteAllBytes(filePath, imageBytes);

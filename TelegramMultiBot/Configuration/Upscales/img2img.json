@@ -9,5 +9,29 @@
   "include_init_images": true,
   "init_images": [
     "string"
+  ],
+  "script_name": "ultimate sd upscale",
+  "script_args": [
+    "", //'_'
+    512, //'tile_width'
+    0, //'tile_height'
+    16, //'mask_blur'
+    32, //'padding'
+    0, //'seams_fix_width'
+    0, //'seams_fix_denoise'
+    0, //'seams_fix_padding'
+    3, //'upscaler_index'
+    true, //'save_upscaled_image'
+    0, //'redraw_mode'
+    false, //'save_seams_fix_image'
+    8, //'seams_fix_mask_blur'
+    0, //'seams_fix_type'
+    0, //'target_size_type'
+    0, //'custom_width'
+    0, //'custom_height'
+    0 //'custom_scale'
   ]
 }
+
+//"script_args": ["",64,"ESRGAN_4x",1.875],
+//"script_name": "SD upscale"

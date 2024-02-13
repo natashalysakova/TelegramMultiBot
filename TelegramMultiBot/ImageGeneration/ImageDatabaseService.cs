@@ -155,6 +155,7 @@ namespace TelegramMultiBot.ImageGeneration
                     x.PreviousJobResultId == job.PreviousJobResultId
                     && (x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running)
                     && x.Type == job.Type
+                    && (x.UpscaleModifyer == job.UpscaleModifyer)
                     ))
                 {
                     throw new AlreadyRunningException("Апскейл для цього зображення вже в роботі");
@@ -165,18 +166,23 @@ namespace TelegramMultiBot.ImageGeneration
             }
         }
 
-        internal JobResult GetJobResult(string guid)
+        internal JobResult? GetJobResult(string guid)
         {
             return GetJobResult(Guid.Parse(guid));
         }
-        internal JobResult GetJobResult(Guid? guid)
+        internal JobResult? GetJobResult(Guid? guid)
         {
             lock (locker)
             {
+                
                 var result = _context.JobResult.Find(guid);
+                if (result == null)
+                {
+                    return null;
+                }
+
                 _context.Entry(result).Reference(x => x.Job).Load();
                 return result;
-
             }
         }
 
@@ -206,20 +212,29 @@ namespace TelegramMultiBot.ImageGeneration
         {
             lock (locker)
             {
-                if (_context.Jobs.Any(x => x.Status == ImageJobStatus.Queued))
+                try
                 {
-                    var queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
-                    var ordered = queued.OrderBy(x => x.Created);
+                    if (_context.Jobs.Any(x => x.Status == ImageJobStatus.Queued))
+                    {
+                        var queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
+                        var ordered = queued.OrderBy(x => x.Created);
 
-                    job = queued.FirstOrDefault();
+                        job = queued.FirstOrDefault();
 
-                    job.Started = DateTime.Now;
-                    job.Status = ImageJobStatus.Running;
-                    _context.SaveChanges();
+                        job.Started = DateTime.Now;
+                        job.Status = ImageJobStatus.Running;
+                        _context.SaveChanges();
 
-                    return true;
+                        return true;
+                    }
+                    else
+                    {
+                        job = default;
+                        return false;
+                    }
+
                 }
-                else
+                catch (Exception)
                 {
                     job = default;
                     return false;

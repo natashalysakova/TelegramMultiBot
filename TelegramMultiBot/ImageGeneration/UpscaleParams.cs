@@ -62,7 +62,10 @@ namespace TelegramMultiBot.ImageGeneration
             Version = ParseParemeter(split.Single(x => x.Contains("Version:")));
 
             CFGScale = double.Parse(ParseParemeter(split.Single(x => x.Contains("CFG scale:"))), CultureInfo.InvariantCulture);
-            Denoising = double.Parse(ParseParemeter(split.Single(x => x.Contains("Denoising strength:"))), CultureInfo.InvariantCulture);
+            if(split.Any(x => x.Contains("Denoising strength:")))
+            {
+                Denoising = double.Parse(ParseParemeter(split.Single(x => x.Contains("Denoising strength:"))), CultureInfo.InvariantCulture);
+            }
 
             var size = ParseParemeter(split.Single(x => x.Contains("Size:")));
             var splitSize = size.Split('x', StringSplitOptions.RemoveEmptyEntries);

@@ -111,6 +111,7 @@ public enum JobType
     HiresFix,
     Upscale,
     Seed,
+    Original,
 }
 public class JobResult
 { 
