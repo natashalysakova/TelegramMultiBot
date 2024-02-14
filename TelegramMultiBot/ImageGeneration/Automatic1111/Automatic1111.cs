@@ -83,8 +83,20 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         public async Task<ImageJob?> Run(ImageJob job, string directory)
         {
-            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Запущено на [{activeHost.UI}]");
             _logger.LogTrace(activeHost.Uri.ToString());
+            string text = $"Запущено на [{activeHost.UI}]";
+
+            if (job.BotMessageId != -1)
+            {
+                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, text);
+            }
+            else
+            {
+                var botMessage = await _client.SendTextMessageAsync(job.ChatId, text, job.MessageThreadId, replyToMessageId: job.MessageId);
+                job.BotMessageId = botMessage.MessageId;
+                var dbService = _serviceProvider.GetService<ImageDatabaseService>();
+                dbService.SaveChanges();
+            }
 
             switch (job.Type)
             {
@@ -127,7 +139,10 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
             JObject json = JObject.Parse(payload);
             json["prompt"] = upscaleparams.Prompt;
-            json["negative_prompt"] = upscaleparams.NegativePrompt;
+            if(upscaleparams.NegativePrompt != null)
+            {
+                json["negative_prompt"] = upscaleparams.NegativePrompt;
+            }
             json["width"] = upscaleparams.Width * settings.UpscaleMultiplier;
             json["height"] = upscaleparams.Height * settings.UpscaleMultiplier;
             json["sampler_name"] = upscaleparams.Sampler;
@@ -203,17 +218,18 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             })
             {
 
-                Stopwatch s = new Stopwatch();
-                s.Start();
 
                 var progressPerItem = 100.0 / batch_count;
                 for (int i = 0; i < batch_count; i++)
                 {
+                    Stopwatch s = new Stopwatch();
+                    s.Start();
 
                     var result = httpClient.PostAsync(path, new StringContent(json, null, "application/json"));
 
                     await MonitorProgress(job, batch_count, progressPerItem, i, result);
 
+                    s.Stop();
                     var taskResult = result.Result;
 
                     if (taskResult.StatusCode == System.Net.HttpStatusCode.OK)
@@ -234,7 +250,8 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                 FilePath = filePath,
                                 Info = Regex.Replace(response.html_info, "<.*?>", String.Empty),
                                 Index = 1,
-                            });
+                                RenderTime = s.Elapsed
+                            }) ;
 
                         }
                         else
@@ -258,6 +275,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                     FilePath = filePath,
                                     Info = info.infotexts[j],
                                     Index = i * response.images.Length + j + 1,
+                                    RenderTime = s.Elapsed
                                 });
                             }
 
@@ -269,9 +287,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         throw new RenderFailedException(taskResult.ReasonPhrase);
                     }
                 }
-
-                s.Stop();
-                job.RenderTime = s.Elapsed;
 
                 await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готово. Прогрес 100%. Збираю та відправляю зображення");
             }
@@ -305,7 +320,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         if (progress != oldProgress)
                         {
                             var timespan = TimeSpan.FromSeconds(eta).ToString("hh\\:mm\\:ss");
-                            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Працюю... {job.Type} {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
+                            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"{job.Type} - Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
                             oldProgress = progress;
                         }
 

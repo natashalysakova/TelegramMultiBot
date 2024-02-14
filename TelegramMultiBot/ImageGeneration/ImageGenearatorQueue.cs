@@ -113,13 +113,23 @@ namespace TelegramMultiBot.ImageGenerators
             databaseService.Enqueue(message, botMessageId);
         }
 
-        internal void AddJob(CallbackQuery callbackQuery, int botMessageId)
+        internal void AddJob(CallbackQuery callbackQuery)
         {
             var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
 
             CheckLimits(callbackQuery.Message, databaseService);
-            databaseService.Enqueue(callbackQuery, botMessageId);
+            databaseService.Enqueue(callbackQuery);
         }
+
+        //private void CheckLimits(Message message, ImageDatabaseService databaseService)
+        //{
+        //    var jobLimit = _configuration.GetSection("ImageGeneation:BotSettings").Get<BotSettings>().JobLimitPerUser;
+        //    if (databaseService.ActiveJobs.Where(x => x.UserId == message.From.Id).Count() >= jobLimit)
+        //    {
+        //        throw new AlreadyRunningException($"Ти вже маєш {jobLimit} активні завдання на рендер. Спробуй пізніше");
+        //    }
+
+        //}
 
         private void CheckLimits(Message message, ImageDatabaseService databaseService)
         {

@@ -7,7 +7,7 @@
   "width": 256,
   "height": 256,
   "override_settings": {
-    "sd_model_checkpoint": "1.5\\elldrethsStolendreams_stolenDreams.safetensors [a44bfd7a75]",
+    "sd_model_checkpoint": "1.5/elldrethsStolendreams_stolenDreams.safetensors [a44bfd7a75]",
     "CLIP_stop_at_last_layers": 1
   },
   "override_settings_restore_afterwards": true

@@ -9,6 +9,7 @@ using System.Net.Http.Headers;
 using System.Text;
 using System.Threading.Tasks;
 using Telegram.Bot.Types;
+using TelegramMultiBot.Commands.CallbackDataTypes;
 using TelegramMultiBot.Database;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 using TelegramMultiBot.ImageGenerators;
@@ -124,29 +125,29 @@ namespace TelegramMultiBot.ImageGeneration
             }
         }
 
-        internal void Enqueue(CallbackQuery query, int botMessageId)
+        internal void Enqueue(CallbackQuery query)
         {
             var job = new ImageJob();
             job.UserId = query.Message.From.Id;
             job.ChatId = query.Message.Chat.Id;
             job.MessageId = query.Message.MessageId;
             job.MessageThreadId = query.Message.MessageThreadId;
-            job.BotMessageId = botMessageId;
+            //job.BotMessageId = botMessageId;
             job.Status = ImageJobStatus.Queued;
 
 
-            var data = CallbackData.FromString(query.Data).Data;
-            if (data.Count() == 3)
+            var data = ImagineCallbackData.FromString(query.Data);
+            if (data.Upscale != null)
             {
-                job.UpscaleModifyer = double.Parse(data.ElementAt(2));
+                job.UpscaleModifyer = data.Upscale.Value;
             }
 
-            job.Type = Enum.Parse<JobType>(data.ElementAt(0));
+            job.Type = data.JobType;
 
 
             lock (locker)
             {
-                var result = _context.JobResult.Include(x=>x.Job).Single(x => x.Id.ToString() == data.ElementAt(1));
+                var result = _context.JobResult.Include(x=>x.Job).Single(x => x.Id.ToString() == data.Id);
 
                 job.PostInfo = result.Job.PostInfo;
                 job.PreviousJobResultId = result.Id;
@@ -162,8 +163,10 @@ namespace TelegramMultiBot.ImageGeneration
                 }
 
                 _context.Jobs.Add(job);
-                _context.SaveChanges();
             }
+
+            SaveChanges();
+
         }
 
         internal JobResult? GetJobResult(string guid)
@@ -191,10 +194,7 @@ namespace TelegramMultiBot.ImageGeneration
             job.Status = ImageJobStatus.Failed;
             job.Finised = DateTime.Now;
 
-            lock (locker)
-            {
-                _context.SaveChanges();
-            }
+            SaveChanges();
         }
 
         internal void JobFinished(ImageJob job)
@@ -202,6 +202,11 @@ namespace TelegramMultiBot.ImageGeneration
             job.Status = ImageJobStatus.Succseeded;
             job.Finised = DateTime.Now;
 
+            SaveChanges();
+        }
+
+        internal void SaveChanges()
+        {
             lock (locker)
             {
                 _context.SaveChanges();

@@ -9,8 +9,8 @@
   "width": 1024,
   "height": 1024,
   "override_settings": {
-    "sd_model_checkpoint": "SDXL\\dreamshaperXL_v2TurboDpmppSDE.safetensors [4726d3bab1]",
+    "sd_model_checkpoint": "SDXL/dreamshaperXL_v2TurboDpmppSDE.safetensors [4726d3bab1]",
     "CLIP_stop_at_last_layers": 1
   },
-  "override_settings_restore_afterwards": true
+  "override_settings_restore_afterwards": false
 }

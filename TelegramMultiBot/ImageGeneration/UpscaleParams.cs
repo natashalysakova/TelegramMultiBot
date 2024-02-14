@@ -22,6 +22,8 @@ namespace TelegramMultiBot.ImageGeneration
         public int Width { get; set; }
         public int Height { get; set; }
         public string Model { get; set; }
+        public string ModelHash { get; set; }
+
         public double Denoising { get; set; }
         public string Version { get; set; }
 
@@ -59,6 +61,8 @@ namespace TelegramMultiBot.ImageGeneration
 
             Sampler = ParseParemeter(split.Single(x => x.Contains("Sampler:")));
             Model = ParseParemeter(split.Single(x => x.Contains("Model:")));
+            ModelHash = ParseParemeter(split.Single(x => x.Contains("Model hash:")));
+
             Version = ParseParemeter(split.Single(x => x.Contains("Version:")));
 
             CFGScale = double.Parse(ParseParemeter(split.Single(x => x.Contains("CFG scale:"))), CultureInfo.InvariantCulture);

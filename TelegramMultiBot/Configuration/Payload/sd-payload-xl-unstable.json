@@ -9,7 +9,7 @@
   "width": 1024,
   "height": 1024,
   "override_settings": {
-    "sd_model_checkpoint": "SDXL\\sdxlUnstableDiffusers_v10TURBOEDITION.safetensors [6d5732c731]",
+    "sd_model_checkpoint": "SDXL/sdxlUnstableDiffusers_v10TURBOEDITION.safetensors [6d5732c731]",
     "CLIP_stop_at_last_layers": 1
   },
   "override_settings_restore_afterwards": true

@@ -156,16 +156,13 @@ class BotService
     {
         try
         {
-            var callbackData = CallbackData.FromString(callbackQuery.Data);
-            var commands = _serviceProvider.GetServices<ICommand>().Where(x=>x.CanHandleCallback && x.CanHandle(callbackData)).Select(x=> (ICallbackHandler)x );
+            var commands = _serviceProvider.GetServices<ICommand>().Where(x=>x.CanHandleCallback && x.CanHandle(callbackQuery.Data)).Select(x=> (ICallbackHandler)x );
 
             foreach (var command in commands)
             {
                 _logger.LogDebug($"callback {command}");
                 command.HandleCallback(callbackQuery);
             }
-
-            _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Queued");
         }
         catch (Exception ex)
         {

@@ -33,9 +33,9 @@ namespace TelegramMultiBot.Commands
             return query.Query.StartsWith("/" + Command, StringComparison.InvariantCultureIgnoreCase);
         }
 
-        public virtual bool CanHandle(CallbackData callbackData)
+        public virtual bool CanHandle(string query)
         {
-            return callbackData.Command == Command;
+            return query.Split("|", StringSplitOptions.RemoveEmptyEntries)[0] == Command;
         }
 
         public abstract Task Handle(Message message);

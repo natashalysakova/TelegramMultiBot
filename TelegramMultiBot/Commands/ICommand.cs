@@ -15,7 +15,7 @@ namespace TelegramMultiBot.Commands
 
         bool CanHandle(Message message);
         bool CanHandle(InlineQuery query);
-        bool CanHandle(CallbackData callbackData);
+        bool CanHandle(string query);
         Task Handle(Message message);
         bool CanHandleInlineQuery { get; }
         bool CanHandleCallback { get; }

@@ -76,6 +76,7 @@ public class ImageJob
     public ImageJob()
     {
         Created = DateTime.Now;
+        BotMessageId = -1;
     }
 
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
@@ -94,7 +95,6 @@ public class ImageJob
     public string? Text { get; set; }
     public int BotMessageId { get; set; }
     public bool PostInfo { get; set; }
-    public TimeSpan RenderTime { get; set; }
     public  JobType Type { get; set; }
 
     public Guid? PreviousJobResultId { get; set; }
@@ -110,8 +110,9 @@ public enum JobType
     Text2Image,
     HiresFix,
     Upscale,
-    Seed,
+    Info,
     Original,
+    Actions,
 }
 public class JobResult
 { 
@@ -120,9 +121,10 @@ public class JobResult
     public Guid Id { get; set; }
     public Guid JobId { get; set; }
     public virtual ImageJob? Job { get; set; }
-    public string? FilePath { get; set; }
+    public string FilePath { get; set; }
     public string? Info { get; set; }
     public int Index { get; set; }
+    public TimeSpan RenderTime { get; set; }
 
 }
 
