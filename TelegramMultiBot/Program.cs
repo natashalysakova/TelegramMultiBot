@@ -55,16 +55,6 @@ internal class Program
             loggerBuilder.AddConsole();
         });
 
-        string connectionString = configuration["ConnectionString"];
-        var serverVersion = GetServerVersion(connectionString);
-
-        serviceCollection.AddDbContext<BoberDbContext>(options =>
-        {
-            options.UseMySql(connectionString, serverVersion);
-            options.LogTo(Console.WriteLine, LogLevel.Warning);
-        });
-        serviceCollection.AddScoped<ImageDatabaseService>();
-        serviceCollection.AddScoped<CleanupService>();
 
 
         var botKey = configuration["token"];
@@ -88,35 +78,6 @@ internal class Program
         return serviceCollection.BuildServiceProvider();
     }
 
-    private static ServerVersion GetServerVersion(string? connectionString)
-    {
-        ServerVersion version = default;
-
-        do
-        {
-            try
-            {
-                Console.WriteLine("connecting to " + connectionString);
-                version = ServerVersion.AutoDetect(connectionString);
-                Console.WriteLine("Success");
-            }
-            catch (MySqlException ex)
-            {
-                if (ex.Message.Contains("Unable to connect to any of the specified MySQL hosts"))
-                {
-                    Console.WriteLine(ex.Message);
-                    Console.WriteLine("Trying in 5 seconds");
-                    Thread.Sleep(5000);
-                }
-                else
-                {
-                    throw ex;
-                }
-            }
-        }
-        while (version is null);
-        return version;
-    }
 
     private static void RegisterMyKeyedServices<T>(IServiceCollection serviceCollection)
     {
@@ -155,24 +116,5 @@ internal class Program
         return serviceCollection;
     }
 
-    private static IConfiguration SetupConfiguration(string[] args)
-    {
-        //var environment = Environment.GetEnvironmentVariable("ENV_NAME");
-        //if (string.IsNullOrEmpty(environment))
-        //{
-        //    Console.WriteLine("add 'export ENV_NAME=({prod or dev})' to fix this");
-        //}
-
-        var environment = args[0];
-
-        return new ConfigurationBuilder()
-            .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile($"tokens.json", false, true)
-            .AddJsonFile($"tokens.{environment}.json", false, true)
-            .AddJsonFile($"appsettings.json", false, true)
-            .AddJsonFile($"appsettings.{environment}.json", false, true)
-            .AddEnvironmentVariables()
-            .AddCommandLine(args)
-            .Build();
-    }
+    
 }

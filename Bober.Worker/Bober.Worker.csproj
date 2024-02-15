@@ -1,0 +1,66 @@
+<Project Sdk="Microsoft.NET.Sdk.Worker">
+
+  <PropertyGroup>
+    <TargetFramework>net8.0</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>enable</ImplicitUsings>
+    <UserSecretsId>dotnet-Bober.Worker-94d88d21-50e1-4439-9dba-bfef9deb1310</UserSecretsId>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <Content Remove="ImageGeneration\Automatic1111\Payload\sd-payload-stolendreams.json" />
+    <Content Remove="ImageGeneration\Automatic1111\Payload\sd-payload-xl-dreamshaper.json" />
+    <Content Remove="ImageGeneration\Automatic1111\Payload\sd-payload-xl-juggernaut.json" />
+    <Content Remove="ImageGeneration\Automatic1111\Payload\sd-payload-xl-unstable.json" />
+    <Content Remove="ImageGeneration\Automatic1111\Upscales\extras-single.json" />
+    <Content Remove="ImageGeneration\Automatic1111\Upscales\img2img.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="ImageGeneration\Automatic1111\Payload\sd-payload-stolendreams.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="ImageGeneration\Automatic1111\Payload\sd-payload-xl-dreamshaper.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="ImageGeneration\Automatic1111\Payload\sd-payload-xl-juggernaut.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="ImageGeneration\Automatic1111\Payload\sd-payload-xl-unstable.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Include="ImageGeneration\Automatic1111\Upscales\extras-single.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+    <None Include="ImageGeneration\Automatic1111\Upscales\img2img.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bober.Database\Bober.Database.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="appsettings.prod.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <DependentUpon>appsettings.json</DependentUpon>
+    </Content>
+    <Content Update="tokens.dev.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <DependentUpon>tokens.json</DependentUpon>
+    </Content>
+    <Content Update="tokens.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </Content>
+    <Content Update="tokens.prod.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <DependentUpon>tokens.json</DependentUpon>
+    </Content>
+  </ItemGroup>
+</Project>

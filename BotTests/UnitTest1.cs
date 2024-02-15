@@ -1,5 +1,5 @@
+using Bober.Worker.ImageGeneration;
 using Microsoft.VisualStudio.TestTools.UnitTesting;
-using TelegramMultiBot.ImageGeneration;
 
 namespace BotTests
 {

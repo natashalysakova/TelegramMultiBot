@@ -7,7 +7,13 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TelegramMultiBot", "Telegra
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BotTests", "BotTests\BotTests.csproj", "{04C3F4F0-9D75-4650-97CF-C6663A0C395C}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TelegramMultiBot.Database", "TelegramMultiBot.Database\TelegramMultiBot.Database.csproj", "{AF2F4D80-4EF4-4D3D-9B82-D716FC7BC4FD}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bober.Database", "Bober.Database\Bober.Database.csproj", "{AF2F4D80-4EF4-4D3D-9B82-D716FC7BC4FD}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bober.API", "Bober.API\Bober.API.csproj", "{EB2F9A48-AF75-46A8-9491-14A43CF1D7E1}"
+EndProject
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bober.Worker", "Bober.Worker\Bober.Worker.csproj", "{B59CAF40-C4B3-43C0-B118-A36CCD03E169}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bober.Library", "Bober.Library\Bober.Library.csproj", "{DBC23C34-6617-4802-AEF4-89714F3F776B}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -27,6 +33,18 @@ Global
 		{AF2F4D80-4EF4-4D3D-9B82-D716FC7BC4FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{AF2F4D80-4EF4-4D3D-9B82-D716FC7BC4FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{AF2F4D80-4EF4-4D3D-9B82-D716FC7BC4FD}.Release|Any CPU.Build.0 = Release|Any CPU
+		{EB2F9A48-AF75-46A8-9491-14A43CF1D7E1}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{EB2F9A48-AF75-46A8-9491-14A43CF1D7E1}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{EB2F9A48-AF75-46A8-9491-14A43CF1D7E1}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{EB2F9A48-AF75-46A8-9491-14A43CF1D7E1}.Release|Any CPU.Build.0 = Release|Any CPU
+		{B59CAF40-C4B3-43C0-B118-A36CCD03E169}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{B59CAF40-C4B3-43C0-B118-A36CCD03E169}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{B59CAF40-C4B3-43C0-B118-A36CCD03E169}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{B59CAF40-C4B3-43C0-B118-A36CCD03E169}.Release|Any CPU.Build.0 = Release|Any CPU
+		{DBC23C34-6617-4802-AEF4-89714F3F776B}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{DBC23C34-6617-4802-AEF4-89714F3F776B}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{DBC23C34-6617-4802-AEF4-89714F3F776B}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{DBC23C34-6617-4802-AEF4-89714F3F776B}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

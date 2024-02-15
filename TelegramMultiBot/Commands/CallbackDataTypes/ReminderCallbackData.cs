@@ -1,6 +1,6 @@
 ﻿namespace TelegramMultiBot.Commands.CallbackDataTypes
 {
-    class ReminderCallbackData : CallbackData<ReminderCommands>
+    class ReminderCallbackData : TelegramCallbackData<ReminderCommands>
     {
         public ReminderCallbackData(string command, ReminderCommands type, int id) : base(command, type, id.ToString(), null)
         {

@@ -1,0 +1,26 @@
+{
+  "ConnectionString": "server=192.168.0.107;user id=bober-dev;password=2k.TpoQZYqD9PLY9uzxB;database=boberBase-dev",
+  "Hosts": [
+    {
+      "Enabled": true,
+      "Host": "192.168.0.102",
+      "Port": 7860,
+      "UI": "Automatic1111",
+      "Protocol": "http"
+    },
+    {
+      "Enabled": true,
+      "Host": "192.168.0.102",
+      "Port": 8188,
+      "UI": "ComfyUI",
+      "Protocol": "http"
+    },
+    {
+      "Enabled": false,
+      "Host": "192.168.0.133",
+      "Port": 7860,
+      "UI": "Automatic1111",
+      "Protocol": "http"
+    }
+  ]
+}

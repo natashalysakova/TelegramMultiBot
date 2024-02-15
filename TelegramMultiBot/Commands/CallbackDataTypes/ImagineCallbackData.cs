@@ -1,10 +1,12 @@
-﻿namespace TelegramMultiBot.Commands.CallbackDataTypes
+﻿using TelegramMultiBot.ImageGenerators.Automatic1111;
+
+namespace TelegramMultiBot.Commands.CallbackDataTypes
 {
-    class ImagineCallbackData : CallbackData<JobType>
+    class ImagineCallbackData : TelegramCallbackData<ImagineCommands>
     {
         public double? Upscale { get; set; }
 
-        public ImagineCallbackData(string command, JobType type, string? id = null, double? upscale = null) : base(command, type, id, new object?[] { upscale })
+        public ImagineCallbackData(string command, ImagineCommands type, string? id = null, double? upscale = null) : base(command, type, id, new object?[] { upscale })
         {
             Upscale = upscale;
         }

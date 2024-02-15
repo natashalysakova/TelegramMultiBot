@@ -8,10 +8,9 @@ using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using TelegramMultiBot;
+
 using TelegramMultiBot.Commands;
-using TelegramMultiBot.Configuration;
-using TelegramMultiBot.ImageGenerators;
+
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 
 class BotService
@@ -21,22 +20,22 @@ class BotService
     JobManager _jobManager;
     private readonly DialogManager _dialogManager;
     private readonly IServiceProvider _serviceProvider;
-    private readonly ImageGenearatorQueue _imageGenearatorQueue;
-    private readonly IConfiguration _configuration;
+    //private readonly ImageGenearatorQueue _imageGenearatorQueue;
+    //private readonly IConfiguration _configuration;
     public static string BotName;
 
-    System.Timers.Timer _timer;
+    //System.Timers.Timer _timer;
 
 
-    public BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, IConfiguration configuration)
+    public BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider,  IConfiguration configuration)
     {
         _client = client;
         _logger = logger;
         _jobManager = jobManager;
         _dialogManager = dialogManager;
         _serviceProvider = serviceProvider;
-        _imageGenearatorQueue = imageGenearatorQueue;
-        _configuration = configuration;
+        //_imageGenearatorQueue = imageGenearatorQueue;
+        //_configuration = configuration;
     }
 
     public void Run(CancellationTokenSource cancellationToken)
@@ -44,17 +43,17 @@ class BotService
         _jobManager.Run(cancellationToken.Token);
         _jobManager.ReadyToSend += JobManager_ReadyToSend;
 
-        _imageGenearatorQueue.Run(cancellationToken.Token);
-        _imageGenearatorQueue.JobFinished += _imageGenearatorQueue_JobFinished;
-        _imageGenearatorQueue.JobFailed += _imageGenearatorQueue_JobFailed;
+        //_imageGenearatorQueue.Run(cancellationToken.Token);
+        //_imageGenearatorQueue.JobFinished += _imageGenearatorQueue_JobFinished;
+        //_imageGenearatorQueue.JobFailed += _imageGenearatorQueue_JobFailed;
 
-        var interval = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().DatabaseCleanupInterval * 1000;
+        //var interval = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().DatabaseCleanupInterval * 1000;
 
-        _timer = new System.Timers.Timer(interval);
-        _timer.AutoReset = true;
+        //_timer = new System.Timers.Timer(interval);
+        //_timer.AutoReset = true;
 
-        _timer.Elapsed += RunCleanup;
-        _timer.Start();
+        //_timer.Elapsed += RunCleanup;
+        //_timer.Start();
 
 
         var receiverOptions = new ReceiverOptions
@@ -77,17 +76,17 @@ class BotService
         }
 
         _jobManager.Dispose();
-        _timer.Stop();
-        _timer.Elapsed -= RunCleanup;
-        _timer.Dispose();
+        //_timer.Stop();
+        //_timer.Elapsed -= RunCleanup;
+        //_timer.Dispose();
 
     }
 
-    private async void RunCleanup(object? sender, ElapsedEventArgs e)
-    {
-        var cleanupService = _serviceProvider.GetService<CleanupService>();
-        await cleanupService.Run();
-    }
+    //private async void RunCleanup(object? sender, ElapsedEventArgs e)
+    //{
+    //    var cleanupService = _serviceProvider.GetService<CleanupService>();
+    //    await cleanupService.Run();
+    //}
 
 
     private void _imageGenearatorQueue_JobFailed(ImageJob obj, Exception exception)
