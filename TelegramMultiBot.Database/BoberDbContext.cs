@@ -98,7 +98,7 @@ public class ImageJob
     public  JobType Type { get; set; }
 
     public Guid? PreviousJobResultId { get; set; }
-    public double UpscaleModifyer { get; set; }
+    public double? UpscaleModifyer { get; set; }
 }
 
 public enum ImageJobStatus
@@ -113,6 +113,7 @@ public enum JobType
     Info,
     Original,
     Actions,
+    Repeat,
 }
 public class JobResult
 { 

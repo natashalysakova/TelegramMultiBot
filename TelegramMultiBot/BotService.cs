@@ -1,13 +1,16 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Timers;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramMultiBot;
 using TelegramMultiBot.Commands;
+using TelegramMultiBot.Configuration;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 
@@ -19,8 +22,13 @@ class BotService
     private readonly DialogManager _dialogManager;
     private readonly IServiceProvider _serviceProvider;
     private readonly ImageGenearatorQueue _imageGenearatorQueue;
+    private readonly IConfiguration _configuration;
     public static string BotName;
-    public BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue)
+
+    System.Timers.Timer _timer;
+
+
+    public BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, IConfiguration configuration)
     {
         _client = client;
         _logger = logger;
@@ -28,6 +36,7 @@ class BotService
         _dialogManager = dialogManager;
         _serviceProvider = serviceProvider;
         _imageGenearatorQueue = imageGenearatorQueue;
+        _configuration = configuration;
     }
 
     public void Run(CancellationTokenSource cancellationToken)
@@ -38,6 +47,15 @@ class BotService
         _imageGenearatorQueue.Run(cancellationToken.Token);
         _imageGenearatorQueue.JobFinished += _imageGenearatorQueue_JobFinished;
         _imageGenearatorQueue.JobFailed += _imageGenearatorQueue_JobFailed;
+
+        var interval = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().DatabaseCleanupInterval * 1000;
+
+        _timer = new System.Timers.Timer(interval);
+        _timer.AutoReset = true;
+
+        _timer.Elapsed += RunCleanup;
+        _timer.Start();
+
 
         var receiverOptions = new ReceiverOptions
         {
@@ -59,7 +77,18 @@ class BotService
         }
 
         _jobManager.Dispose();
+        _timer.Stop();
+        _timer.Elapsed -= RunCleanup;
+        _timer.Dispose();
+
     }
+
+    private async void RunCleanup(object? sender, ElapsedEventArgs e)
+    {
+        var cleanupService = _serviceProvider.GetService<CleanupService>();
+        await cleanupService.Run();
+    }
+
 
     private void _imageGenearatorQueue_JobFailed(ImageJob obj, Exception exception)
     {
@@ -152,25 +181,28 @@ class BotService
         return Task.CompletedTask;
     }
 
-    private Task BotOnCallbackRecived(CallbackQuery? callbackQuery)
+    private async Task BotOnCallbackRecived(CallbackQuery? callbackQuery)
     {
         try
         {
-            var commands = _serviceProvider.GetServices<ICommand>().Where(x=>x.CanHandleCallback && x.CanHandle(callbackQuery.Data)).Select(x=> (ICallbackHandler)x );
+            var commands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandleCallback && x.CanHandle(callbackQuery.Data)).Select(x => (ICallbackHandler)x);
 
             foreach (var command in commands)
             {
                 _logger.LogDebug($"callback {command}");
-                command.HandleCallback(callbackQuery);
+                await command.HandleCallback(callbackQuery);
             }
+        }
+        catch (Telegram.Bot.Exceptions.ApiRequestException ex)
+        {
+            _logger.LogError(ex, ex.Message);
+            _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message, showAlert: true);
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, ex.Message);
-            _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message);
+            _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message, showAlert: true);
         }
-
-        return Task.CompletedTask;
     }
 
 

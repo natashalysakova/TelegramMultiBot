@@ -96,7 +96,7 @@ namespace TelegramMultiBot.Commands
             else
             {
                 _logger.LogDebug("No jobs found");
-                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдань не знайдено");
+                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдань не знайдено", showAlert: true);
             }
 
         }
@@ -108,7 +108,7 @@ namespace TelegramMultiBot.Commands
             if (string.IsNullOrEmpty(response))
             {
                 //await _client.SendTextMessageAsync(message.Chat, "Завдань не знайдено", disableNotification: true, messageThreadId: message.MessageThreadId);
-                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдань не знайдено");
+                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдань не знайдено", showAlert: true);
 
 
                 return;

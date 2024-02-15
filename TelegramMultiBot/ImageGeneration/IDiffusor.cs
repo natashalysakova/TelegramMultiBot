@@ -4,6 +4,6 @@
     {
         public string UI { get; }
         bool isAvailable();
-        Task<ImageJob?> Run(ImageJob job, string directory);
+        Task<ImageJob?> Run(ImageJob job);
     }
 }

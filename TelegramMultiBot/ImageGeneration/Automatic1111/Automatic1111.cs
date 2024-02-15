@@ -81,7 +81,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
 
 
-        public async Task<ImageJob?> Run(ImageJob job, string directory)
+        public async Task<ImageJob?> Run(ImageJob job)
         {
             _logger.LogTrace(activeHost.Uri.ToString());
             string text = $"Запущено на [{activeHost.UI}]";
@@ -96,6 +96,15 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 job.BotMessageId = botMessage.MessageId;
                 var dbService = _serviceProvider.GetService<ImageDatabaseService>();
                 dbService.SaveChanges();
+            }
+
+            var baseDir = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().BaseOutputDirectory;
+            var outputDir = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>().OutputDirectory;
+            var directory = Path.Combine(outputDir, outputDir, DateTime.Today.ToString("yyyyMMdd"));
+
+            if(!Directory.Exists(directory))
+            {
+                Directory.CreateDirectory(directory);
             }
 
             switch (job.Type)
@@ -116,7 +125,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             var previousResult = _serviceProvider.GetService<ImageDatabaseService>().GetJobResult(job.PreviousJobResultId);
             var upscaleparams = new UpscaleParams(previousResult);
 
-            var settings = _configuration.GetSection("ImageGeneation:Automatic1111").Get<Automatic1111Settings>();
+            var settings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
             var payload = File.ReadAllText(Path.Combine(settings.UpscalePath, "extras-single.json"));
 
             JObject json = JObject.Parse(payload);
@@ -134,7 +143,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             var previousResult = _serviceProvider.GetService<ImageDatabaseService>().GetJobResult(job.PreviousJobResultId);
             var upscaleparams = new UpscaleParams(previousResult);
 
-            var settings = _configuration.GetSection("ImageGeneation:Automatic1111").Get<Automatic1111Settings>();
+            var settings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
             var payload = File.ReadAllText(Path.Combine(settings.UpscalePath, "img2img.json"));
 
             JObject json = JObject.Parse(payload);
@@ -161,7 +170,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private async Task<ImageJob> TextToImage(ImageJob job, string directory)
         {
             var genParams = new GenerationParams(job);
-            var settings = _configuration.GetSection("ImageGeneation:Automatic1111").Get<Automatic1111Settings>();
+            var settings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
 
             var batchCount = settings.BatchCount;
             var confName = "sd-payload-xl";

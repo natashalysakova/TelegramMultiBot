@@ -71,25 +71,25 @@
 
 		
   <ItemGroup>
-    <None Update="Configuration\Payload\sd-payload-xl-juggernaut.json">
+    <None Update="ImageGeneration\Automatic1111\Payload\sd-payload-xl-juggernaut.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Configuration\Payload\sd-payload-xl-unstable.json">
+    <None Update="ImageGeneration\Automatic1111\Payload\sd-payload-xl-unstable.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Configuration\Upscales\extras-single.json">
+    <None Update="ImageGeneration\Automatic1111\Upscales\extras-single.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
-    <None Update="Configuration\Upscales\img2img.json">
+    <None Update="ImageGeneration\Automatic1111\Upscales\img2img.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
     <None Update="Properties\launchSettings.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
     </None>
-    <None Update="Configuration\Payload\sd-payload-xl-dreamshaper.json">
+    <None Update="ImageGeneration\Automatic1111\Payload\sd-payload-xl-dreamshaper.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="Configuration\Payload\sd-payload-stolendreams.json">
+    <None Update="ImageGeneration\Automatic1111\Payload\sd-payload-stolendreams.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="start.sh">

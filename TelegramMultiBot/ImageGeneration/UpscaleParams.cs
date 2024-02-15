@@ -26,6 +26,7 @@ namespace TelegramMultiBot.ImageGeneration
 
         public double Denoising { get; set; }
         public string Version { get; set; }
+        public double Score { get; set; }
 
         public string FilePath { get; internal set; }
 
@@ -66,6 +67,9 @@ namespace TelegramMultiBot.ImageGeneration
             Version = ParseParemeter(split.Single(x => x.Contains("Version:")));
 
             CFGScale = double.Parse(ParseParemeter(split.Single(x => x.Contains("CFG scale:"))), CultureInfo.InvariantCulture);
+
+            //Score = double.Parse(split.Single(x => x.Contains("Score:")));
+
             if(split.Any(x => x.Contains("Denoising strength:")))
             {
                 Denoising = double.Parse(ParseParemeter(split.Single(x => x.Contains("Denoising strength:"))), CultureInfo.InvariantCulture);

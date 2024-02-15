@@ -14,7 +14,7 @@ using TelegramMultiBot.ImageGenerators.Automatic1111;
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    class ImageGenearatorQueue : IDisposable
+    class ImageGenearatorQueue 
     {
         //Queue<IJob> _jobs = new Queue<IJob>();
         private readonly ILogger<ImageGenearatorQueue> _logger;
@@ -22,7 +22,6 @@ namespace TelegramMultiBot.ImageGenerators
         private readonly IConfiguration _configuration;
         private readonly IServiceProvider _serviceProvider;
 
-        System.Timers.Timer _timer;
 
         public ImageGenearatorQueue(ILogger<ImageGenearatorQueue> logger, ImageGenerator imageGenerator, IConfiguration configuration, IServiceProvider serviceProvider)
         {
@@ -39,25 +38,8 @@ namespace TelegramMultiBot.ImageGenerators
 
 
 
-            var interval = _configuration.GetSection("ImageGeneation").Get<ImageGeneationSettings>().DatabaseCleanupInterval * 1000;
-
-            _timer = new System.Timers.Timer(interval);
-            _timer.AutoReset = true;
-
-            _timer.Elapsed += RunCleanup;
-            _timer.Start();
         }
 
-        private void RunCleanup(object? sender, ElapsedEventArgs e)
-        {
-            _logger.LogDebug("Cleanup Started");
-            var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
-
-            var settings = _configuration.GetSection("ImageGeneation").Get<ImageGeneationSettings>();
-
-            databaseService.CleanupOldJobs(settings.JobAge, settings.RemoveFiles );
-            _logger.LogDebug("Cleanup Ended");
-        }
 
         public void Run(CancellationToken cancellationToken)
         {
@@ -105,6 +87,11 @@ namespace TelegramMultiBot.ImageGenerators
             }, cancellationToken);
         }
 
+
+        internal void AddJob(Message message)
+        {
+            AddJob(message, -1);
+        }
         internal void AddJob(Message message, int botMessageId)
         {
             var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
@@ -133,7 +120,7 @@ namespace TelegramMultiBot.ImageGenerators
 
         private void CheckLimits(Message message, ImageDatabaseService databaseService)
         {
-            var jobLimit = _configuration.GetSection("ImageGeneation:BotSettings").Get<BotSettings>().JobLimitPerUser;
+            var jobLimit = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().JobLimitPerUser;
             if (databaseService.ActiveJobs.Where(x => x.UserId == message.From.Id).Count() >= jobLimit)
             {
                 throw new AlreadyRunningException($"Ти вже маєш {jobLimit} активні завдання на рендер. Спробуй пізніше");
@@ -141,12 +128,12 @@ namespace TelegramMultiBot.ImageGenerators
 
         }
 
-        public void Dispose()
-        {
-            _timer.Stop();
-            _timer.Elapsed -= RunCleanup;
-            _timer.Dispose();
-        }
+        //public void Dispose()
+        //{
+        //    _timer.Stop();
+        //    _timer.Elapsed -= RunCleanup;
+        //    _timer.Dispose();
+        //}
 
         public event Action<ImageJob> JobFinished;
         public event Action<ImageJob, Exception> JobFailed;

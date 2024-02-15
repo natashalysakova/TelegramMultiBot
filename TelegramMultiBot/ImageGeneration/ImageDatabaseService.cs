@@ -20,7 +20,7 @@ namespace TelegramMultiBot.ImageGeneration
     {
         private readonly BoberDbContext _context;
         private readonly ILogger<ImageDatabaseService> _logger;
-        object locker= new object();
+        object locker = new object();
 
         public ImageDatabaseService(BoberDbContext context, ILogger<ImageDatabaseService> logger)
         {
@@ -66,44 +66,6 @@ namespace TelegramMultiBot.ImageGeneration
             }
         }
 
-        internal void CleanupOldJobs(int jobAge, bool removeFiles)
-        {
-            lock (locker)
-            {
-                var date = DateTime.Now.Subtract(TimeSpan.FromSeconds(jobAge));
-                var jobsToDelete = _context.Jobs.Include(x => x.Results).Where(x => x.Created < date);
-                _logger.LogDebug("Jobs to cleanup:" + jobsToDelete.Count());
-                if (removeFiles)
-                {
-                    foreach (var item in jobsToDelete)
-                    {
-                        foreach (var res in item.Results)
-                        {
-                            try
-                            {
-                                _logger.LogDebug("Removing file:" + res.FilePath);
-                                System.IO.File.Delete(res.FilePath);
-
-                                var directory = Path.GetDirectoryName(res.FilePath);
-
-                                if (!Directory.GetFiles(directory).Any())
-                                {
-                                    Directory.Delete(directory);
-                                }
-                            }
-                            catch (Exception)
-                            {
-                                _logger.LogError("Failed to remove:" + res.FilePath);
-                            }
-
-                        }
-                    }
-                }
-
-                _context.Jobs.RemoveRange(jobsToDelete);
-                _context.SaveChanges();
-            }
-        }
 
         internal void Enqueue(Message message, int botMessageId)
         {
@@ -137,17 +99,15 @@ namespace TelegramMultiBot.ImageGeneration
 
 
             var data = ImagineCallbackData.FromString(query.Data);
-            if (data.Upscale != null)
-            {
-                job.UpscaleModifyer = data.Upscale.Value;
-            }
+            job.UpscaleModifyer = data.Upscale;
+
 
             job.Type = data.JobType;
 
 
             lock (locker)
             {
-                var result = _context.JobResult.Include(x=>x.Job).Single(x => x.Id.ToString() == data.Id);
+                var result = _context.JobResult.Include(x => x.Job).Single(x => x.Id.ToString() == data.Id);
 
                 job.PostInfo = result.Job.PostInfo;
                 job.PreviousJobResultId = result.Id;
@@ -177,7 +137,7 @@ namespace TelegramMultiBot.ImageGeneration
         {
             lock (locker)
             {
-                
+
                 var result = _context.JobResult.Find(guid);
                 if (result == null)
                 {
@@ -187,6 +147,11 @@ namespace TelegramMultiBot.ImageGeneration
                 _context.Entry(result).Reference(x => x.Job).Load();
                 return result;
             }
+        }
+
+        internal IEnumerable<ImageJob> GetJobsOlderThan(DateTime date)
+        {
+            return _context.Jobs.Include(x => x.Results).Where(x => x.Created < date);
         }
 
         internal void JobFailed(ImageJob job)
@@ -205,12 +170,16 @@ namespace TelegramMultiBot.ImageGeneration
             SaveChanges();
         }
 
-        internal void SaveChanges()
+        internal Task RemoveJobs(IEnumerable<ImageJob> jobsToDelete)
         {
-            lock (locker)
-            {
-                _context.SaveChanges();
-            }
+
+            _context.Jobs.RemoveRange(jobsToDelete);
+            return SaveChanges();
+        }
+
+        internal async Task SaveChanges()
+        {
+            await _context.SaveChangesAsync();
         }
 
         internal bool TryDequeue(out ImageJob? job)
