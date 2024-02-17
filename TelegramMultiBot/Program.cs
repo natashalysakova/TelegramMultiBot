@@ -2,25 +2,17 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
-using MySqlConnector;
-using System;
-using System.Reflection;
 using Telegram.Bot;
-using Telegram.Bot.Types.ReplyMarkups;
-using TelegramMultiBot;
 using TelegramMultiBot.Commands;
-using TelegramMultiBot.Database;
-using TelegramMultiBot.ImageGeneration;
-using TelegramMultiBot.ImageGenerators;
-using TelegramMultiBot.ImageGenerators.Automatic1111;
-using TelegramMultiBot.Properties;
+using Microsoft.AspNetCore.Builder;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
+using Bober.Library.Contract;
+using TelegramMultiBot;
 
 internal class Program
 {
+
     public static void Main(string[] args)
     {
         if (args.Length == 0)
@@ -29,17 +21,65 @@ internal class Program
             return;
         }
 
+        var builder = WebApplication.CreateBuilder();
         Console.WriteLine("Welcome to Bober " + args[0]);
 
-        ServiceProvider serviceProvider = RegisterServices(args);
+        IConfiguration configuration = SetupConfiguration(args);
+        builder.Services.AddSingleton(configuration);
 
-        var context = serviceProvider.GetRequiredService<BoberDbContext>();
-        context.Database.Migrate();
+        builder.Services.AddLogging(loggerBuilder =>
+        {
+            loggerBuilder.AddConfiguration(configuration.GetSection("Logging"));
+            loggerBuilder.ClearProviders();
+            loggerBuilder.AddConsole();
+        });
 
-        var bot = serviceProvider.GetService<BotService>();
 
-        CancellationTokenSource cancellationToken = new CancellationTokenSource();
-        bot.Run(cancellationToken);
+
+        var botKey = configuration["token"];
+        if (string.IsNullOrEmpty(botKey))
+            throw new KeyNotFoundException("token");
+
+        builder.Services.AddSingleton(new TelegramBotClient(botKey) { Timeout = TimeSpan.FromSeconds(600) });
+        builder.Services.AddHostedService<BotService>();
+
+        builder.Services.AddScoped<BoberApiClient>();
+        builder.Services.AddScoped<JobManager>();
+        builder.Services.AddScoped<DialogManager>();
+
+        RegisterMyServices<IDialogHandler>(builder.Services);
+        RegisterMyKeyedServices<ICommand>(builder.Services);
+
+        builder.Services.AddScoped<DialogHandlerFactory>();
+
+        var app = builder.Build();
+
+        app.MapPost(BoberApiClient.successCallback, (object payload, ILogger<Program> logger, BotService bot) =>
+        {
+            logger.LogInformation("Received payload: {payload}", payload);
+            bot.JobFinished(payload as JobInfo);
+        });
+        app.MapPost(BoberApiClient.failureCallback, (object payload, Exception ex, ILogger<Program> logger, BotService bot) =>
+        {
+            logger.LogInformation("Received payload: {payload}", payload);
+            bot.JobFailed(payload as JobInfo, ex);
+        });
+        app.MapPost(BoberApiClient.progressCallback, (object payload, Exception ex, ILogger<Program> logger, BotService bot) =>
+        {
+            logger.LogInformation("Received payload: {payload}", payload);
+            bot.JobProgress(payload as JobInfo, ex);
+        });
+
+        app.UseHttpsRedirection();
+        app.Run();
+
+
+        //var bot = app.Services.GetService<BotService>();
+        //CancellationTokenSource cancellationToken = new CancellationTokenSource();
+        //bot.Run(cancellationToken);
+
+
+
     }
 
     private static ServiceProvider RegisterServices(string[] args)
@@ -66,11 +106,8 @@ internal class Program
         serviceCollection.AddScoped<BotService>();
         serviceCollection.AddScoped<JobManager>();
         serviceCollection.AddScoped<DialogManager>();
-        serviceCollection.AddScoped<ImageGenearatorQueue>();
-        serviceCollection.AddScoped<ImageGenerator>();
 
         RegisterMyServices<IDialogHandler>(serviceCollection);
-        RegisterMyServices<IDiffusor>(serviceCollection);
         RegisterMyKeyedServices<ICommand>(serviceCollection);
 
         serviceCollection.AddScoped<DialogHandlerFactory>();
@@ -116,5 +153,24 @@ internal class Program
         return serviceCollection;
     }
 
-    
+    private static IConfiguration SetupConfiguration(string[] args)
+    {
+        //var environment = Environment.GetEnvironmentVariable("ENV_NAME");
+        //if (string.IsNullOrEmpty(environment))
+        //{
+        //    Console.WriteLine("add 'export ENV_NAME=({prod or dev})' to fix this");
+        //}
+
+        var environment = args[0];
+
+        return new ConfigurationBuilder()
+            .SetBasePath(Directory.GetCurrentDirectory())
+            .AddJsonFile($"tokens.json", false, true)
+            .AddJsonFile($"tokens.{environment}.json", false, true)
+            .AddJsonFile($"appsettings.json", false, true)
+            .AddJsonFile($"appsettings.{environment}.json", false, true)
+            .AddEnvironmentVariables()
+            .AddCommandLine(args)
+            .Build();
+    }
 }

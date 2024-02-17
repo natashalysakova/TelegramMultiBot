@@ -2,6 +2,7 @@
 using System.Web;
 using Bober.Worker.Configuration;
 using Bober.Worker.Interfaces;
+using Bober.Library.Contract;
 
 namespace Bober.Worker.ImageGeneration.ComfyUI
 {
@@ -14,7 +15,7 @@ namespace Bober.Worker.ImageGeneration.ComfyUI
             return false;
         }
 
-        public Task<ImageJob> Run(ImageJob job)
+        public Task Run(JobInfo job)
         {
             throw new NotImplementedException();
         }

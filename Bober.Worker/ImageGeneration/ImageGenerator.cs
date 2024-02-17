@@ -4,6 +4,7 @@ using Microsoft.Extensions.Logging;
 using Bober.Worker.Configuration;
 using Bober.Worker.Interfaces;
 using Bober.Library.Exceptions;
+using Bober.Library.Contract;
 
 
 namespace Bober.Worker.ImageGeneration
@@ -22,14 +23,14 @@ namespace Bober.Worker.ImageGeneration
             _diffusors = diffusors;
         }
 
-        public async Task<ImageJob?> Run(ImageJob job)
+        public async Task Run(JobInfo job)
         {
 
             foreach (var item in _diffusors)
             {
                 if (item.isAvailable())
                 {
-                    return await item.Run(job);
+                    await item.Run(job);
                 }
             }
 

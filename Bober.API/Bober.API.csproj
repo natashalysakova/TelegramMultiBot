@@ -7,7 +7,43 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Content Remove="tokens.dev.json" />
+    <Content Remove="tokens.json" />
+    <Content Remove="tokens.prod.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <_ContentIncludedByDefault Remove="appsettings.dev.json" />
+    <_ContentIncludedByDefault Remove="appsettings.prod.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <None Include="tokens.dev.json" />
+    <None Include="tokens.json" />
+    <None Include="tokens.prod.json" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="AutoMapper" Version="13.0.1" />
     <PackageReference Include="Swashbuckle.AspNetCore" Version="6.4.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\Bober.Automapper\Bober.Automapper.csproj" />
+    <ProjectReference Include="..\Bober.Library\Bober.Library.csproj" />
+    <ProjectReference Include="..\Bober.Worker\Bober.Worker.csproj" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <Content Update="appsettings.json">
+      <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
+      <ExcludeFromSingleFile>true</ExcludeFromSingleFile>
+      <CopyToPublishDirectory>PreserveNewest</CopyToPublishDirectory>
+    </Content>
+    <Content Update="appsettings.prod.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+      <DependentUpon>appsettings.json</DependentUpon>
+    </Content>
   </ItemGroup>
 
 </Project>

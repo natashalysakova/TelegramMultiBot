@@ -16,6 +16,7 @@ using Bober.Worker.ImageGeneration.Automatic1111.Api;
 using Bober.Worker.Interfaces;
 using Bober.Database.Services;
 using Bober.Library.Exceptions;
+using Bober.Library.Contract;
 
 namespace Bober.Worker.ImageGeneration.Automatic1111
 {
@@ -80,12 +81,12 @@ namespace Bober.Worker.ImageGeneration.Automatic1111
 
 
 
-        public async Task<ImageJob?> Run(ImageJob job)
+        public async Task Run(JobInfo job)
         {
             _logger.LogTrace(activeHost.Uri.ToString());
             string text = $"Запущено на [{activeHost.UI}]";
 
-            _databaseService.PostProgress(job, 0, text);
+            _databaseService.PostProgress(job.Id, 0, text);
 
             //if (job.BotMessageId != -1)
             //{
@@ -111,17 +112,20 @@ namespace Bober.Worker.ImageGeneration.Automatic1111
             switch (job.Type)
             {
                 case ImagineCommands.Text2Image:
-                    return await TextToImage(job, directory);
+                    await TextToImage(job, directory);
+                    break;
                 case ImagineCommands.Upscale:
-                    return await PostProcessingUpscale(job, directory);
+                    await PostProcessingUpscale(job, directory);
+                    break;
                 case ImagineCommands.HiresFix:
-                    return await Img2ImgUpscale(job, directory);
+                    await Img2ImgUpscale(job, directory);
+                    break;
                 default:
-                    return null;
+                    return;
             }
         }
 
-        private async Task<ImageJob?> PostProcessingUpscale(ImageJob job, string directory)
+        private async Task PostProcessingUpscale(JobInfo job, string directory)
         {
             var previousResult = _databaseService.GetJobResult(job.PreviousJobResultId);
             var upscaleparams = new UpscaleParams(previousResult);
@@ -135,11 +139,9 @@ namespace Bober.Worker.ImageGeneration.Automatic1111
             var jsonPayload = json.ToString();
 
             await StartAndMonitorJob(job, directory, extrasPath, jsonPayload);
-
-            return job;
         }
 
-        private async Task<ImageJob> Img2ImgUpscale(ImageJob job, string directory)
+        private async Task Img2ImgUpscale(JobInfo job, string directory)
         {
             var previousResult = _databaseService.GetJobResult(job.PreviousJobResultId);
             var upscaleparams = new UpscaleParams(previousResult);
@@ -165,10 +167,8 @@ namespace Bober.Worker.ImageGeneration.Automatic1111
             var jsonPayload = json.ToString();
 
             await StartAndMonitorJob(job, directory, img2imgPath, jsonPayload);
-
-            return job;
         }
-        private async Task<ImageJob> TextToImage(ImageJob job, string directory)
+        private async Task TextToImage(JobInfo job, string directory)
         {
             var genParams = new GenerationParams(job);
             var settings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
@@ -214,12 +214,10 @@ namespace Bober.Worker.ImageGeneration.Automatic1111
             var jsonPayload = json.ToString();
             await StartAndMonitorJob(job, directory, text2imagePath, jsonPayload, batchCount);
 
-            return job;
-
         }
 
 
-        private async Task StartAndMonitorJob(ImageJob job, string directory, string path, string json, int batch_count = 1)
+        private async Task StartAndMonitorJob(JobInfo job, string directory, string path, string json, int batch_count = 1)
         {
             using (HttpClient httpClient = new HttpClient()
             {
@@ -255,14 +253,12 @@ namespace Bober.Worker.ImageGeneration.Automatic1111
 
                             File.WriteAllBytes(filePath, imageBytes);
 
-                            job.Results.Add(new JobResult()
+                            _databaseService.AddResult(job.Id, new JobResultInfo()
                             {
                                 FilePath = filePath,
                                 Info = Regex.Replace(response.html_info, "<.*?>", String.Empty),
-                                Index = 1,
-                                RenderTime = s.Elapsed
-                            }) ;
-
+                                RenderTime = s.Elapsed.Microseconds
+                            });
                         }
                         else
                         {
@@ -280,12 +276,11 @@ namespace Bober.Worker.ImageGeneration.Automatic1111
 
                                 //inputMedia.Add(filePath);
 
-                                job.Results.Add(new JobResult()
+                                _databaseService.AddResult(job.Id, new JobResultInfo()
                                 {
                                     FilePath = filePath,
                                     Info = info.infotexts[j],
-                                    Index = i * response.images.Length + j + 1,
-                                    RenderTime = s.Elapsed
+                                    RenderTime = s.Elapsed.Microseconds
                                 });
                             }
 
@@ -298,12 +293,12 @@ namespace Bober.Worker.ImageGeneration.Automatic1111
                     }
                 }
 
-                _databaseService.PostProgress(job, 100, "Готово. Прогрес 100%. Збираю та відправляю зображення");
+                _databaseService.PostProgress(job.Id, 100, "Готово. Прогрес 100%. Збираю та відправляю зображення");
                 //await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готово. Прогрес 100%. Збираю та відправляю зображення");
             }
         }
 
-        private async Task MonitorProgress(ImageJob job, int batch_count, double progressPerItem, int i, Task<HttpResponseMessage> result)
+        private async Task MonitorProgress(JobInfo job, int batch_count, double progressPerItem, int i, Task<HttpResponseMessage> result)
         {
             var oldProgress = 0.0;
 
@@ -331,7 +326,7 @@ namespace Bober.Worker.ImageGeneration.Automatic1111
                         if (progress != oldProgress)
                         {
                             var timespan = TimeSpan.FromSeconds(eta).ToString("hh\\:mm\\:ss");
-                            _databaseService.PostProgress(job, progress, $"{job.Type} - Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
+                            _databaseService.PostProgress(job.Id, progress, $"{job.Type} - Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
 
                             //await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"{job.Type} - Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
                             oldProgress = progress;
@@ -343,7 +338,7 @@ namespace Bober.Worker.ImageGeneration.Automatic1111
                 {
                     var error = "Не можу оновити прогрес, чекай на результат";
                     _logger.LogTrace(ex, error);
-                    _databaseService.PostProgress(job, -1, $"{job.Type} - Працюю... {error}");
+                    _databaseService.PostProgress(job.Id, -1, $"{job.Type} - Працюю... {error}");
 
                     //await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Працюю... {error}");
                     result.Wait();

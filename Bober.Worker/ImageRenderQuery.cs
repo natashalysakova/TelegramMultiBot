@@ -5,81 +5,98 @@ using Microsoft.Extensions.DependencyInjection;
 using System;
 using Bober.Worker.Configuration;
 using Bober.Worker.ImageGeneration;
-using Bober.Library.Contract;
 using Bober.Library.Exceptions;
+using Bober.Library.Interfaces;
+using Microsoft.Extensions.Hosting;
+using Microsoft.Extensions.Logging;
 
 namespace Bober.Worker
 {
     public class ImageRenderQuery : BackgroundService
     {
         private readonly ILogger<ImageRenderQuery> _logger;
-        private readonly ImageGenerator _imageGenerator;
+        private readonly IServiceProvider _serviceProvider;
         private readonly IConfiguration _configuration;
-        private readonly ImageDatabaseService _databaseService;
 
-        public ImageRenderQuery(ILogger<ImageRenderQuery> logger, IConfiguration configuration, ImageGenerator imageGenerator, ImageDatabaseService databaseService)
+        public ImageRenderQuery(ILogger<ImageRenderQuery> logger, IConfiguration configuration, IServiceProvider serviceProvider)
         {
             _logger = logger;
-            _imageGenerator = imageGenerator;
+            _serviceProvider = serviceProvider;
             _configuration = configuration;
-            _databaseService = databaseService;
-
-            if (databaseService.RunningJobs > 0)
-            {
-                databaseService.CancelUnfinishedJobs();
-            }
-
         }
 
         protected override async Task ExecuteAsync(CancellationToken stoppingToken)
         {
-            while (!stoppingToken.IsCancellationRequested)
+
+            using (var scope = _serviceProvider.CreateScope())
             {
-                if (_logger.IsEnabled(LogLevel.Information))
+
+                var databaseService = scope.ServiceProvider.GetService<IDatabaseService>();
+                if (databaseService.RunningJobs > 0)
                 {
-                    _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
+                    databaseService.CancelUnfinishedJobs();
                 }
 
-
-                if (_databaseService.TryDequeue(out var job))
+                while (!stoppingToken.IsCancellationRequested)
                 {
-
-                    //var task =  Task.Run(async () =>
-                    //{
-                    _logger.LogDebug("Starting " + job.Id);
-
-                    try
+                    if (_logger.IsEnabled(LogLevel.Information))
                     {
-                        var result = await _imageGenerator.Run(job);
-                        _databaseService.JobFinished(job);
-                        //JobFinished?.Invoke(job);
-                        _logger.LogDebug("Finished " + job.Id);
+                        _logger.LogInformation("Worker running at: {time}", DateTimeOffset.Now);
                     }
-                    catch (Exception ex)
-                    {
-                        _databaseService.JobFailed(job);
 
-                        //JobFailed?.Invoke(job, ex);
-                        _logger.LogDebug("Failed " + job.Id);
+
+                    if (databaseService.TryDequeue(out var job))
+                    {
+
+                        //var task =  Task.Run(async () =>
+                        //{
+                        _logger.LogDebug("Starting " + job.Id);
+                        var webhookService = scope.ServiceProvider.GetService<WebhookService>();
+
+                        try
+                        {
+                            var imageGenerator = scope.ServiceProvider.GetService<ImageGenerator>();
+                            await imageGenerator.Run(job);
+                            await webhookService.PublishMessage(WebhookService.successTopic, job);
+                            _logger.LogDebug("Finished " + job.Id);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogDebug("Failed " + job.Id);
+                            databaseService.PostProgress(job.Id, -1, "Error. " + ex.Message);
+                            job.Exception = ex;
+                            await webhookService.PublishMessage(WebhookService.failureTopic, job);
+                        }
+                        //});
                     }
-                    //});
+                    else
+                    {
+                        _logger.LogDebug("Waiting for jobs");
+                    }
+
+
+
+                    await Task.Delay(1000, stoppingToken);
                 }
-
-
-
-                await Task.Delay(1000, stoppingToken);
             }
         }
 
         internal void AddJob(IInputData message)
         {
-            var jobLimit = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().JobLimitPerUser;
-            if (_databaseService.ActiveJobs.Where(x => x.UserId == message.UserId).Count() >= jobLimit)
+            using (var scope = _serviceProvider.CreateScope())
             {
-                throw new AlreadyRunningException($"Ти вже маєш {jobLimit} активні завдання на рендер. Спробуй пізніше");
+                var databaseService = scope.ServiceProvider.GetService<IDatabaseService>();
+
+                var jobLimit = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().JobLimitPerUser;
+                if (databaseService.ActiveJobsCount(message.UserId) >= jobLimit)
+                {
+                    throw new AlreadyRunningException($"Ти вже маєш {jobLimit} активні завдання на рендер. Спробуй пізніше");
+                }
+
+                databaseService.Enqueue(message);
+
             }
 
-            _databaseService.Enqueue(message);
         }
     }
 }

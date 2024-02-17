@@ -1,11 +1,12 @@
-﻿using System.Text.Json;
+﻿using Bober.Library.Contract;
+using System.Text.Json;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace Bober.Worker.ImageGeneration
 {
     public class GenerationParams 
     {        
-        public GenerationParams(ImageJob job)
+        public GenerationParams(JobInfo job)
         {
             var text = job.Text;
 

@@ -1,5 +1,7 @@
-﻿using Bober.Library.Contract;
+﻿using AutoMapper;
+using Bober.Library.Contract;
 using Bober.Library.Exceptions;
+using Bober.Library.Interfaces;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.Extensions.Logging;
@@ -8,15 +10,17 @@ using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace Bober.Database.Services
 {
-    public class ImageDatabaseService
+    public class ImageDatabaseService : IDatabaseService
     {
         private readonly BoberDbContext _context;
         private readonly ILogger<ImageDatabaseService> _logger;
+        private readonly IMapper _mapper;
 
-        public ImageDatabaseService(BoberDbContext context, ILogger<ImageDatabaseService> logger)
+        public ImageDatabaseService(BoberDbContext context, ILogger<ImageDatabaseService> logger, IMapper mapper)
         {
             _context = context;
             _logger = logger;
+            _mapper = mapper;
         }
 
 
@@ -60,7 +64,7 @@ namespace Bober.Database.Services
 
             if(type == typeof(CallbackData))
             {
-                Enqueue(message as MessageData);
+                Enqueue(message as CallbackData);
                 return;
             }
 
@@ -133,35 +137,20 @@ namespace Bober.Database.Services
             return result;
         }
 
-        internal IEnumerable<ImageJob> GetJobsOlderThan(DateTime date)
+        public IEnumerable<JobInfo> GetJobsOlderThan(DateTime date)
         {
-            return _context.Jobs.Include(x => x.Results).Where(x => x.Created < date);
+            return _context.Jobs.Include(x => x.Results).Where(x => x.Finised < date).Select(x=> _mapper.Map<JobInfo>(x));
         }
 
-        public void JobFailed(ImageJob job)
+        public void RemoveJobs(IEnumerable<string> jobsToDelete)
         {
-            job.Status = ImageJobStatus.Failed;
-            job.Finised = DateTime.Now;
-
+            var jobs = _context.Jobs.Where(x => jobsToDelete.Contains(x.Id.ToString()));
+            
+            _context.Jobs.RemoveRange(jobs);
             _context.SaveChanges();
         }
 
-        public void JobFinished(ImageJob job)
-        {
-            job.Status = ImageJobStatus.Succseeded;
-            job.Finised = DateTime.Now;
-
-            _context.SaveChanges();
-        }
-
-        internal void RemoveJobs(IEnumerable<ImageJob> jobsToDelete)
-        {
-
-            _context.Jobs.RemoveRange(jobsToDelete);
-            _context.SaveChanges();
-        }
-
-        public bool TryDequeue(out ImageJob? job)
+        public bool TryDequeue(out JobInfo? job)
         {
             try
             {
@@ -169,12 +158,13 @@ namespace Bober.Database.Services
                 {
                     var queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
                     var ordered = queued.OrderBy(x => x.Created);
-
-                    job = queued.FirstOrDefault();
-
-                    job.Started = DateTime.Now;
-                    job.Status = ImageJobStatus.Running;
+                    var imageJob = queued.First();
+                    imageJob.Started = DateTime.Now;
+                    imageJob.Status = ImageJobStatus.Running;
                     _context.SaveChanges();
+
+                    job = _mapper.Map<JobInfo>(imageJob);
+
 
                     return true;
                 }
@@ -192,11 +182,64 @@ namespace Bober.Database.Services
             }
         }
 
-        public void PostProgress(ImageJob job, double progress, string text)
+        public void PostProgress(string jobId, double progress, string text)
         {
+            var job = _context.Jobs.Single(x => x.Id == Guid.Parse(jobId));
+
+            if (progress == 100)
+            {
+                job.Status = ImageJobStatus.Succseeded;
+                job.Finised = DateTime.Now;
+            }
+
+            if (progress == -1)
+            {
+                job.Status = ImageJobStatus.Failed;
+                job.Finised = DateTime.Now;
+            }
+
             job.Progress = progress;
             job.TextStatus = text;
             _context.SaveChanges();
+        }
+
+        public JobInfo? GetJob(string jobId)
+        {
+            if(Guid.TryParse(jobId, out var id))
+            {
+                var job = _context.Jobs.FirstOrDefault(x => x.Id == Guid.Parse(jobId));
+
+                if (job == null)
+                    return null;
+
+                return _mapper.Map<JobInfo>(job);
+
+            }
+
+            return null;
+        }
+
+
+
+
+        JobResultInfo? IDatabaseService.GetJobResult(string jobResultId)
+        {
+            var job = _context.JobResult.FirstOrDefault(x => x.Id == Guid.Parse(jobResultId));
+
+            if (job == null)
+                return null;
+
+            return _mapper.Map<JobResultInfo>(job);
+        }
+
+        public int ActiveJobsCount(long userId)
+        {
+            return ActiveJobs.Where(x => x.UserId == userId).Count();
+        }
+
+        public void AddResult(string id, JobResultInfo jobResultInfo)
+        {
+            throw new NotImplementedException();
         }
     }
 }

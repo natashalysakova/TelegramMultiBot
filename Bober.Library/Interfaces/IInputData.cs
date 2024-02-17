@@ -1,4 +1,4 @@
-﻿namespace Bober.Library.Contract
+﻿namespace Bober.Library.Interfaces
 {
     public interface IInputData
     {

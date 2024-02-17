@@ -1,4 +1,6 @@
-﻿namespace Bober.Library.Contract
+﻿using Bober.Library.Interfaces;
+
+namespace Bober.Library.Contract
 {
     public class MessageData : IInputData
     {

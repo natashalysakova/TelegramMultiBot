@@ -3,16 +3,17 @@ using Microsoft.EntityFrameworkCore.Storage;
 using Microsoft.Extensions.Logging;
 using Bober.Database.Configuration;
 using Microsoft.Extensions.Configuration;
+using Bober.Library.Interfaces;
 
 namespace Bober.Database.Services
 {
     public class CleanupService
     {
-        private readonly ImageDatabaseService _databaseService;
+        private readonly IDatabaseService _databaseService;
         private readonly IConfiguration _configuration;
         private readonly ILogger<CleanupService> _logger;
 
-        public CleanupService(ImageDatabaseService databaseService, IConfiguration configuration, ILogger<CleanupService> logger)
+        public CleanupService(IDatabaseService databaseService, IConfiguration configuration, ILogger<CleanupService> logger)
         {
             _databaseService = databaseService;
             _configuration = configuration;
@@ -57,7 +58,7 @@ namespace Bober.Database.Services
                 }
             }
 
-            _databaseService.RemoveJobs(jobsToDelete);
+            _databaseService.RemoveJobs(jobsToDelete.Select(x=>x.Id));
             _logger.LogDebug("Cleanup Ended");
 
             return jobsToDelete.Select(x => new CleanupResult(x.ChatId, x.MessageId));

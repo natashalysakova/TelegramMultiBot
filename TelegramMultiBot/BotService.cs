@@ -1,19 +1,21 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using Bober.Library.Contract;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
+using System.Threading;
 using System.Timers;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-
+using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 
-class BotService
+class BotService : BackgroundService
 {
     private readonly TelegramBotClient _client;
     private readonly ILogger _logger;
@@ -34,62 +36,9 @@ class BotService
         _jobManager = jobManager;
         _dialogManager = dialogManager;
         _serviceProvider = serviceProvider;
-        //_imageGenearatorQueue = imageGenearatorQueue;
-        //_configuration = configuration;
     }
 
-    public void Run(CancellationTokenSource cancellationToken)
-    {
-        _jobManager.Run(cancellationToken.Token);
-        _jobManager.ReadyToSend += JobManager_ReadyToSend;
-
-        //_imageGenearatorQueue.Run(cancellationToken.Token);
-        //_imageGenearatorQueue.JobFinished += _imageGenearatorQueue_JobFinished;
-        //_imageGenearatorQueue.JobFailed += _imageGenearatorQueue_JobFailed;
-
-        //var interval = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().DatabaseCleanupInterval * 1000;
-
-        //_timer = new System.Timers.Timer(interval);
-        //_timer.AutoReset = true;
-
-        //_timer.Elapsed += RunCleanup;
-        //_timer.Start();
-
-
-        var receiverOptions = new ReceiverOptions
-        {
-            AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery  }
-        };
-
-        _client.StartReceiving(
-                HandleUpdateAsync,
-                HandleErrorAsync,
-                receiverOptions,
-                cancellationToken.Token
-            );
-
-        BotName = _client.GetMeAsync().Result.Username;
-
-        while (!cancellationToken.IsCancellationRequested)
-        {
-            Thread.Sleep(1000);
-        }
-
-        _jobManager.Dispose();
-        //_timer.Stop();
-        //_timer.Elapsed -= RunCleanup;
-        //_timer.Dispose();
-
-    }
-
-    //private async void RunCleanup(object? sender, ElapsedEventArgs e)
-    //{
-    //    var cleanupService = _serviceProvider.GetService<CleanupService>();
-    //    await cleanupService.Run();
-    //}
-
-
-    private void _imageGenearatorQueue_JobFailed(ImageJob obj, Exception exception)
+    public void JobFailed(JobInfo obj, Exception exception)
     {
         try
         {
@@ -103,7 +52,7 @@ class BotService
 
     }
 
-    private void _imageGenearatorQueue_JobFinished(ImageJob obj)
+    public void JobFinished(JobInfo obj)
     {
         try
         {
@@ -204,8 +153,6 @@ class BotService
         }
     }
 
-
-
     private async Task BotOnMessageRecived(Message message)
     {
         if (message == null) { return; }
@@ -253,5 +200,44 @@ class BotService
                 }
             }
         }
+    }
+
+    protected override Task ExecuteAsync(CancellationToken stoppingToken)
+    {
+        _jobManager.Run(stoppingToken);
+        _jobManager.ReadyToSend += JobManager_ReadyToSend;
+
+        var receiverOptions = new ReceiverOptions
+        {
+            AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery }
+        };
+
+
+        var apiClient = _serviceProvider.GetService<BoberApiClient>();
+
+        apiClient.Subscribe();
+
+        _client.StartReceiving(
+                HandleUpdateAsync,
+                HandleErrorAsync,
+        receiverOptions,
+                stoppingToken
+            );
+
+        BotName = _client.GetMeAsync().Result.Username;
+
+        while (!stoppingToken.IsCancellationRequested)
+        {
+            Thread.Sleep(1000);
+        }
+
+        _jobManager.Dispose();
+
+        return Task.CompletedTask;
+    }
+
+    internal void JobProgress(JobInfo jobInfo, Exception ex)
+    {
+        _client.EditMessageTextAsync(jobInfo.ChatId, jobInfo.BotMessageId, "Progress " + jobInfo.Progress);
     }
 }
