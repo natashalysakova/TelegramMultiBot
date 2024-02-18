@@ -7,6 +7,10 @@
     "BoberBot.Prod": {
       "commandName": "Project",
       "commandLineArgs": "prod"
+    },
+    "Container (Dockerfile)": {
+      "commandName": "Docker",
+      "commandLineArgs": "dev"
     }
   }
 }

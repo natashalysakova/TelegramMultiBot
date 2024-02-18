@@ -49,6 +49,9 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Property<Guid?>("PreviousJobResultId")
                         .HasColumnType("char(36)");
 
+                    b.Property<double>("Progress")
+                        .HasColumnType("double");
+
                     b.Property<DateTime>("Started")
                         .HasColumnType("datetime(6)");
 
@@ -56,6 +59,10 @@ namespace TelegramMultiBot.Database.Migrations
                         .HasColumnType("int");
 
                     b.Property<string>("Text")
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("TextStatus")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<int>("Type")

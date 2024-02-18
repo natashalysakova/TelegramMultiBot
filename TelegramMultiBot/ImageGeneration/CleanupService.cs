@@ -5,17 +5,18 @@ using Telegram.Bot;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.ImageGeneration;
 using Microsoft.Extensions.Configuration;
+using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.ImageGenerators
 {
     internal class CleanupService
     {
-        private readonly ImageDatabaseService _databaseService;
+        private readonly IDatabaseService _databaseService;
         private readonly TelegramBotClient _client;
         private readonly IConfiguration _configuration;
         private readonly ILogger<CleanupService> _logger;
 
-        public CleanupService(ImageDatabaseService databaseService, TelegramBotClient client, IConfiguration configuration, ILogger<CleanupService> logger)
+        public CleanupService(IDatabaseService databaseService, TelegramBotClient client, IConfiguration configuration, ILogger<CleanupService> logger)
         {
             _databaseService = databaseService;
             _client = client;
@@ -69,7 +70,7 @@ namespace TelegramMultiBot.ImageGenerators
                 }
             }
 
-            await _databaseService.RemoveJobs(jobsToDelete);
+            _databaseService.RemoveJobs(jobsToDelete.Select(x=>x.Id));
             _logger.LogDebug("Cleanup Ended");
 
         }

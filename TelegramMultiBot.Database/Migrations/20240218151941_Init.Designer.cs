@@ -11,8 +11,8 @@ using TelegramMultiBot.Database;
 namespace TelegramMultiBot.Database.Migrations
 {
     [DbContext(typeof(BoberDbContext))]
-    [Migration("20240212175335_structuralChanges5")]
-    partial class structuralChanges5
+    [Migration("20240218151941_Init")]
+    partial class Init
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)
@@ -34,6 +34,9 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Property<long>("ChatId")
                         .HasColumnType("bigint");
 
+                    b.Property<DateTime>("Created")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<DateTime>("Finised")
                         .HasColumnType("datetime(6)");
 
@@ -49,8 +52,8 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Property<Guid?>("PreviousJobResultId")
                         .HasColumnType("char(36)");
 
-                    b.Property<TimeSpan>("RenderTime")
-                        .HasColumnType("time(6)");
+                    b.Property<double>("Progress")
+                        .HasColumnType("double");
 
                     b.Property<DateTime>("Started")
                         .HasColumnType("datetime(6)");
@@ -61,10 +64,14 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Property<string>("Text")
                         .HasColumnType("longtext");
 
+                    b.Property<string>("TextStatus")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<int>("Type")
                         .HasColumnType("int");
 
-                    b.Property<double>("UpscaleModifyer")
+                    b.Property<double?>("UpscaleModifyer")
                         .HasColumnType("double");
 
                     b.Property<long>("UserId")
@@ -82,6 +89,7 @@ namespace TelegramMultiBot.Database.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<string>("FilePath")
+                        .IsRequired()
                         .HasColumnType("longtext");
 
                     b.Property<int>("Index")
@@ -92,6 +100,9 @@ namespace TelegramMultiBot.Database.Migrations
 
                     b.Property<Guid>("JobId")
                         .HasColumnType("char(36)");
+
+                    b.Property<TimeSpan>("RenderTime")
+                        .HasColumnType("time(6)");
 
                     b.HasKey("Id");
 

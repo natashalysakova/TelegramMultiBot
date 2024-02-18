@@ -60,7 +60,7 @@ namespace TelegramMultiBot.Commands
             else
             {
                 newMessage = $"🦫 Дякую, я не можу видалити твоє повідомлення, тримай лінк: {newlink}";
-                await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true, messageThreadId: message.MessageThreadId);
+                await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
             }
 
 

@@ -1,12 +1,13 @@
 ﻿using System.Text.Json;
 using Telegram.Bot.Types;
+using TelegramMultiBot.Database.DTO;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace TelegramMultiBot.ImageGenerators
 {
     public class GenerationParams 
     {        
-        public GenerationParams(ImageJob job)
+        public GenerationParams(JobInfo job)
         {
             var text = job.Text;
 

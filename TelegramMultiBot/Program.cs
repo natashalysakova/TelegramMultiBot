@@ -1,4 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using AutoMapper;
+using Bober.Database.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -13,6 +15,8 @@ using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Database;
+using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.Database.Profiles;
 using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
@@ -63,7 +67,7 @@ internal class Program
             options.UseMySql(connectionString, serverVersion);
             options.LogTo(Console.WriteLine, LogLevel.Warning);
         });
-        serviceCollection.AddSingleton<ImageDatabaseService>();
+        serviceCollection.AddScoped<IDatabaseService, ImageDatabaseService>();
         serviceCollection.AddScoped<CleanupService>();
 
 
@@ -85,6 +89,14 @@ internal class Program
         RegisterMyKeyedServices<ICommand>(serviceCollection);
 
         serviceCollection.AddScoped<DialogHandlerFactory>();
+
+        var cfg = new MapperConfiguration(c =>
+        {
+            c.AddMaps(typeof(ImageJobProfile));
+        });
+        cfg.AssertConfigurationIsValid();
+        serviceCollection.AddTransient(x => { return cfg.CreateMapper(); });
+
 
         return serviceCollection.BuildServiceProvider();
     }

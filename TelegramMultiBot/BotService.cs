@@ -11,6 +11,7 @@ using Telegram.Bot.Types.Enums;
 using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Configuration;
+using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 
@@ -93,14 +94,14 @@ class BotService
     }
 
 
-    private void _imageGenearatorQueue_JobFailed(ImageJob obj, Exception exception)
+    private async void _imageGenearatorQueue_JobFailed(JobInfo obj, Exception exception)
     {
         using (var scope = _serviceProvider.CreateScope())
         {
             try
             {
                 var command = (ImagineCommand)scope.ServiceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
-                command.JobFailed(obj, exception);
+                await command.JobFailed(obj, exception);
             }
             catch (Exception ex)
             {
@@ -109,14 +110,14 @@ class BotService
         }
     }
 
-    private void _imageGenearatorQueue_JobFinished(ImageJob obj)
+    private async void _imageGenearatorQueue_JobFinished(JobInfo obj)
     {
         using (var scope = _serviceProvider.CreateScope())
         {
             try
             {
                 var command = (ImagineCommand)scope.ServiceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
-                command.JobFinished(obj);
+                await command.JobFinished(obj);
             }
             catch (Exception ex)
             {

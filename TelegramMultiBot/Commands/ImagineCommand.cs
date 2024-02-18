@@ -13,6 +13,8 @@ using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.CallbackDataTypes;
+using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
@@ -27,15 +29,18 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private readonly IConfiguration _configuration;
         private readonly ILogger<ImagineCommand> _logger;
         private readonly ImageGenearatorQueue _imageGenearatorQueue;
-        private readonly IServiceProvider _serviceProvider;
+        private readonly IDatabaseService _databaseService;
 
-        public ImagineCommand(TelegramBotClient client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IServiceProvider serviceProvider)
+        //private readonly IServiceProvider _serviceProvider;
+
+        public ImagineCommand(TelegramBotClient client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IDatabaseService databaseService)
         {
             _client = client;
             _configuration = configuration;
             _logger = logger;
             _imageGenearatorQueue = imageGenearatorQueue;
-            _serviceProvider = serviceProvider;
+            _databaseService = databaseService;
+            //_serviceProvider = serviceProvider;
         }
 
 
@@ -65,24 +70,36 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
             else
             {
-                var botMessage = await _client.SendTextMessageAsync(message.Chat.Id, $"Відправляю", messageThreadId: message.MessageThreadId, replyToMessageId: message.MessageId);
-                try
-                {
-                    _imageGenearatorQueue.AddJob(message, botMessage.MessageId);
-                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Твій шедевр в черзі. Чекай");
-                }
-                catch (AlreadyRunningException ex)
-                {
-                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, ex.Message);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, "Adding in the queue:" + ex.Message);
-                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Не можу додати в чергу - в мене лапки :(");
-
-                }
-
+                await AddJobToTheQueue(message, CreateMessageData(message));
             }
+        }
+
+        private MessageData CreateMessageData(Message message)
+        {
+            return new MessageData()
+            {
+                ChatId = message.Chat.Id,
+                JobType = JobType.Text2Image,
+                MessageId = message.MessageId,
+                MessageThreadId = message.MessageThreadId,
+                Text = message.Text,
+                UserId = message.From.Id
+            };
+        }
+
+        private CallbackData CreateCallbackData(CallbackQuery query, ImagineCallbackData data)
+        {
+            Guid.TryParse(data.Id, out var guid);
+            return new CallbackData()
+            {
+                ChatId = query.Message.Chat.Id,
+                JobType = Enum.Parse<JobType>(data.JobType.ToString()),
+                MessageId = query.Message.MessageId,
+                MessageThreadId = query.Message.MessageThreadId,
+                UserId = query.From.Id,
+                PreviousJobResultId = guid,
+                Upscale = data.Upscale,
+            };
         }
 
         private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCallbackData callbackData)
@@ -92,35 +109,47 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         private InlineKeyboardMarkup? GetReplyMarkupForJob(JobType type, string id, double? upscale)
         {
-            InlineKeyboardButton repeat = InlineKeyboardButton.WithCallbackData("Повторити", new ImagineCallbackData(Command, JobType.Repeat));
-            InlineKeyboardButton original = InlineKeyboardButton.WithCallbackData("Оригінал", new ImagineCallbackData(Command, JobType.Original, id));
-            InlineKeyboardButton hiresFix = InlineKeyboardButton.WithCallbackData($"Hires Fix", new ImagineCallbackData(Command, JobType.HiresFix, id, 0));
-            InlineKeyboardButton upscale2 = InlineKeyboardButton.WithCallbackData("Upscale x2", new ImagineCallbackData(Command, JobType.Upscale, id, 2));
-            InlineKeyboardButton upscale4 = InlineKeyboardButton.WithCallbackData("Upscale x4", new ImagineCallbackData(Command, JobType.Upscale, id, 4));
-            InlineKeyboardButton info = InlineKeyboardButton.WithCallbackData("Інфо", new ImagineCallbackData(Command, JobType.Info, id, upscale));
-            InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(Command, JobType.Actions, id));
+            if( Enum.TryParse<ImagineCommands>(type.ToString(), out var s))
+            {
+                return GetReplyMarkupForJob(s, id, upscale);
+            }
+            return null;
+        }
+
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCommands type, string id, double? upscale)
+        {
+            InlineKeyboardButton repeat = InlineKeyboardButton.WithCallbackData("Повторити", new ImagineCallbackData(Command, ImagineCommands.Repeat));
+            InlineKeyboardButton original = InlineKeyboardButton.WithCallbackData("Оригінал", new ImagineCallbackData(Command, ImagineCommands.Original, id));
+            InlineKeyboardButton hiresFix = InlineKeyboardButton.WithCallbackData($"Hires Fix", new ImagineCallbackData(Command, ImagineCommands.HiresFix, id, 0));
+            InlineKeyboardButton upscale2 = InlineKeyboardButton.WithCallbackData("Upscale x2", new ImagineCallbackData(Command, ImagineCommands.Upscale, id, 2));
+            InlineKeyboardButton upscale4 = InlineKeyboardButton.WithCallbackData("Upscale x4", new ImagineCallbackData(Command, ImagineCommands.Upscale, id, 4));
+            InlineKeyboardButton info = InlineKeyboardButton.WithCallbackData("Інфо", new ImagineCallbackData(Command, ImagineCommands.Info, id, upscale));
+            //InlineKeyboardButton style = InlineKeyboardButton.WithCallbackData("Стиль", new ImagineCallbackData(Command, ImagineCommands.Style, id));
+            InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(Command, ImagineCommands.Actions, id));
 
             switch (type)
             {
-                case JobType.Text2Image:
+                case ImagineCommands.Text2Image:
                     return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
                     {
                         actions,
                     });
-                case JobType.HiresFix:
+                case ImagineCommands.HiresFix:
                     return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
                     {
                         info,
+                        //style,
                         upscale2,
                     });
-                case JobType.Upscale:
+                case ImagineCommands.Upscale:
                     {
                         return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
                         {
-                            info
+                            info,
+                            //style
                         });
                     }
-                case JobType.Info:
+                case ImagineCommands.Info:
                     {
                         if (upscale == null) //original render
                         {
@@ -129,7 +158,8 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                 new List<InlineKeyboardButton>()
                                 {
                                     repeat,
-                                    original
+                                    original,
+                                    //style,
                                 },
                                     new List<InlineKeyboardButton>()
                                 {
@@ -146,16 +176,17 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                         return null;
                     }
-                case JobType.Original:
+                case ImagineCommands.Original:
                     return null;
-                case JobType.Actions:
+                case ImagineCommands.Actions:
                     return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
                     {
                         new List<InlineKeyboardButton>
                         {
                              info,
                              original,
-                             repeat
+                             repeat,
+                             //style
                         },
                         new List<InlineKeyboardButton>
                         {
@@ -163,6 +194,12 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                             upscale2,
                             upscale4
                         }
+                    });
+                case ImagineCommands.Style:
+                    return new InlineKeyboardMarkup(new List<InlineKeyboardButton>()
+                    {
+                        InlineKeyboardButton.WithCallbackData("Віньєтка", new ImagineCallbackData(Command, ImagineCommands.Vingette, id)),
+                        InlineKeyboardButton.WithCallbackData("Шум", new ImagineCallbackData(Command, ImagineCommands.Noise, id))
                     });
                 default:
                     return default;
@@ -176,89 +213,73 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
             switch (callbackData.JobType)
             {
-                case JobType.Info:
+                case ImagineCommands.Info:
                     {
-                        using (var scope = _serviceProvider.CreateScope())
-                        {
-                            var databaseService = scope.ServiceProvider.GetService<ImageDatabaseService>();
-                            var result = databaseService.GetJobResult(callbackData.Id);
+                        var result = _databaseService.GetJobResult(callbackData.Id);
 
-                            if (result == null)
+                        if (result == null)
+                        {
+                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара картинка. Інформаця про неї загубилась", showAlert: true);
+                            return;
+                        }
+                        else
+                        {
+
+
+                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Інформацію знайдено");
+                            var keys = GetReplyMarkupForJob(callbackData);
+
+                            InputMedia media = default;
+                            if (callbackQuery.Message.Type == MessageType.Photo)
                             {
-                                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара картинка. Інформаця про неї загубилась", showAlert: true);
-                                return;
+                                media = new InputMediaPhoto(InputFile.FromFileId(callbackQuery.Message.Photo.Last().FileId));
+                                media.Caption = $"#seed:{result.Seed}\nRender time: {result.RenderTime}\n{result.Info}";
+                            }
+                            if (callbackQuery.Message.Type == MessageType.Document)
+                            {
+                                media = new InputMediaDocument(InputFile.FromFileId(callbackQuery.Message.Document.FileId));
+                                media.Caption = $"Render time: {result.RenderTime}\n{result.Info}";
+                            }
+
+
+                            if (media.Caption.Length > 1024)
+                            {
+                                await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
+                                await _client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, media.Caption, replyMarkup: keys, replyToMessageId: callbackQuery.Message.MessageId);
                             }
                             else
                             {
-
-
-                                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Інформацію знайдено");
-                                var keys = GetReplyMarkupForJob(callbackData);
-
-                                InputMedia media = default;
-                                if (callbackQuery.Message.Type == MessageType.Photo)
-                                {
-                                    long seed = new UpscaleParams(result).Seed;
-                                    media = new InputMediaPhoto(InputFile.FromFileId(callbackQuery.Message.Photo.Last().FileId));
-                                    media.Caption = $"#seed:{seed}\nRender time: {result.RenderTime}\n{result.Info}";
-                                }
-                                if (callbackQuery.Message.Type == MessageType.Document)
-                                {
-                                    media = new InputMediaDocument(InputFile.FromFileId(callbackQuery.Message.Document.FileId));
-                                    media.Caption = $"Render time: {result.RenderTime}\n{result.Info}";
-                                }
-
-
-                                if (media.Caption.Length > 1024)
-                                {
-                                    await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
-                                    await _client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, media.Caption, replyMarkup: keys, replyToMessageId: callbackQuery.Message.MessageId);
-                                }
-                                else
-                                {
-                                    await _client.EditMessageMediaAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, media, keys);
-                                }
-
-
-
-
+                                await _client.EditMessageMediaAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, media, keys);
                             }
-                            return;
-
                         }
-
+                        return;
 
                     }
-                case JobType.Original:
+                case ImagineCommands.Original:
                     {
                         if (callbackData.Id is null)
                             throw new ArgumentException("id");
 
-                        using(var scope = _serviceProvider.CreateScope())
+                        var result = _databaseService.GetJobResult(callbackData.Id);
+                        var message = callbackQuery.Message;
+
+                        if (result == null)
                         {
-                            var databaseService = scope.ServiceProvider.GetService<ImageDatabaseService>();
-                            var result = databaseService.GetJobResult(callbackData.Id);
-                            var message = callbackQuery.Message;
-
-                            if (result == null)
-                            {
-                                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара каринка, бобер загубив оригінал", showAlert: true);
-                                return;
-                            }
-
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завантажую оригінал");
-
-                            using (var stream = System.IO.File.OpenRead(result.FilePath))
-                            {
-                                var media = InputFile.FromStream(stream, Path.GetFileName(result.FilePath));
-                                await _client.SendDocumentAsync(message.Chat.Id, media, messageThreadId: message.MessageThreadId, replyToMessageId: message.MessageId);
-                            }
-
+                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара каринка, бобер загубив оригінал", showAlert: true);
                             return;
-
                         }
+
+                        using (var stream = System.IO.File.OpenRead(result.FilePath))
+                        {
+                            var media = InputFile.FromStream(stream, Path.GetFileName(result.FilePath));
+                            await _client.SendDocumentAsync(message.Chat.Id, media, replyToMessageId: message.MessageId);
+                        }
+
+                        await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завантажую оригінал");
+                        return;
                     }
-                case JobType.Actions:
+                //case ImagineCommands.Style:
+                case ImagineCommands.Actions:
                     {
 
                         if (callbackData.Id is null)
@@ -271,45 +292,24 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                         return;
                     }
-                case JobType.HiresFix:
-                case JobType.Upscale:
-                    {
-                        try
-                        {
-                            _imageGenearatorQueue.AddJob(callbackQuery);
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Картинка в черзі. Чекай", showAlert: true);
+                case ImagineCommands.HiresFix:
+                case ImagineCommands.Upscale:
+                case ImagineCommands.Vingette:
+                case ImagineCommands.Noise:
 
-                        }
-                        catch (AlreadyRunningException ex)
-                        {
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, ex.Message, showAlert: true);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Adding in the queue:" + ex.Message);
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Не можу додати в чергу - в мене лапки :(", showAlert: true);
-                        }
+                    {
+
+                        await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
+                        await AddJobToTheQueue(callbackQuery.Message, CreateCallbackData(callbackQuery, callbackData));
+
                         break;
                     }
-                case JobType.Repeat:
+                case ImagineCommands.Repeat:
                     {
                         var message = callbackQuery.Message.ReplyToMessage;
 
-                        try
-                        {
-                            _imageGenearatorQueue.AddJob(message);
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Картинка в черзі. Чекай", showAlert: true);
+                        await AddJobToTheQueue(message, CreateMessageData(message));
 
-                        }
-                        catch (AlreadyRunningException ex)
-                        {
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, ex.Message, showAlert: true);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Adding in the queue:" + ex.Message);
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Не можу додати в чергу - в мене лапки :(", showAlert: true);
-                        }
                         break;
                     }
                 default:
@@ -318,8 +318,40 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         }
 
+        private async Task AddJobToTheQueue(Message message, IInputData data)
+        {
+            Message botMessage;
+            try
+            {
+                botMessage = await _client.SendTextMessageAsync(message.Chat.Id, $"Відправляю", replyToMessageId: message.MessageId);
+            }
+            catch (Exception ex )
+            {
+                _logger.LogError("AddJobToTheQueue" + ex.Message, ex);
+                throw;
+            }
 
-        internal async void JobFailed(ImageJob job, Exception exception)
+            data.BotMessageId = botMessage.MessageId;
+
+            try
+            {
+                _imageGenearatorQueue.AddJob(data);
+                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Твій шедевр в черзі. Чекай");
+            }
+            catch (AlreadyRunningException ex)
+            {
+                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, ex.Message);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Adding in the queue:" + ex.Message);
+                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Не можу додати в чергу - в мене лапки :(");
+
+            }
+        }
+
+
+        internal async Task JobFailed(JobInfo job, Exception exception)
         {
             switch (exception)
             {
@@ -338,7 +370,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     break;
                 case RenderFailedException:
                     {
-                        var keys = new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Спробувати ще", new ImagineCallbackData(Command, JobType.Repeat)));
+                        var keys = new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Спробувати ще", new ImagineCallbackData(Command, ImagineCommands.Repeat)));
 
                         await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Рендер невдалий. Спробуйте ще", replyMarkup: keys);
                         break;
@@ -357,7 +389,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         }
 
-        internal async void JobFinished(ImageJob inputJob)
+        internal async Task JobFinished(JobInfo inputJob)
         {
 
             var job = inputJob;
@@ -388,13 +420,13 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         case JobType.Upscale:
                         case JobType.HiresFix:
                             {
-                                await _client.SendDocumentAsync(job.ChatId, media, messageThreadId: job.MessageThreadId, caption: info, replyToMessageId: job.MessageId, replyMarkup: keys);
+                                await _client.SendDocumentAsync(job.ChatId, media, caption: info, replyToMessageId: job.MessageId, replyMarkup: keys);
                                 break;
                             }
 
                         case JobType.Text2Image:
                             {
-                                await _client.SendPhotoAsync(job.ChatId, media, messageThreadId: job.MessageThreadId, caption: info, replyToMessageId: job.MessageId, replyMarkup: keys);
+                                await _client.SendPhotoAsync(job.ChatId, media, caption: info, replyToMessageId: job.MessageId, replyMarkup: keys);
                                 break;
                             }
                         default:

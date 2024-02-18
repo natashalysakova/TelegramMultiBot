@@ -3,6 +3,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Telegram.Bot;
 using TelegramMultiBot.Configuration;
+using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 
 namespace TelegramMultiBot.ImageGenerators.Automatic1111
@@ -21,12 +22,12 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             _diffusors = diffusors;
         }
 
-        public async Task<ImageJob?> Run(ImageJob job)
+        public async Task<JobInfo> Run(JobInfo job)
         {
 
             foreach (var item in _diffusors)
             {
-                if (item.isAvailable())
+                if (item.isAvailable() && item.CanHnadle(job.Type))
                 {
                     return await item.Run(job);
                 }

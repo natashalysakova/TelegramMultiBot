@@ -2,13 +2,14 @@
 using Newtonsoft.Json.Linq;
 using System.Globalization;
 using Telegram.Bot.Types;
+using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.ImageGenerators;
 
 namespace TelegramMultiBot.ImageGeneration
 {
     public class UpscaleParams
     {
-        public UpscaleParams(JobResult previousJob) 
+        public UpscaleParams(JobResultInfo previousJob) 
         {         
             FilePath = previousJob.FilePath;
             ParseInfo(previousJob.Info);

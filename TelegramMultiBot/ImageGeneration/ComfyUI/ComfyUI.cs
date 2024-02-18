@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
 using System.Web;
 using TelegramMultiBot.Configuration;
+using TelegramMultiBot.Database.DTO;
 
 namespace TelegramMultiBot.ImageGenerators.ComfyUI
 {
@@ -8,12 +9,28 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
     {
         public string UI => throw new NotImplementedException();
 
+        public bool CanHnadle(JobType type)
+        {
+            switch (type)
+            {
+                case JobType.Text2Image:
+                case JobType.HiresFix:
+                case JobType.Upscale:
+                    return false;
+                case JobType.Vingette:
+                case JobType.Noise:
+                    return true;
+                default: return false;
+            }
+
+        }
+
         public bool isAvailable()
         {
             return false;
         }
 
-        public Task<ImageJob> Run(ImageJob job)
+        public Task<JobInfo> Run(JobInfo job)
         {
             throw new NotImplementedException();
         }

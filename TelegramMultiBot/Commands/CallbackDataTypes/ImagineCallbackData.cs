@@ -1,10 +1,10 @@
 ﻿namespace TelegramMultiBot.Commands.CallbackDataTypes
 {
-    class ImagineCallbackData : CallbackData<JobType>
+    class ImagineCallbackData : CallbackData<ImagineCommands>
     {
         public double? Upscale { get; set; }
 
-        public ImagineCallbackData(string command, JobType type, string? id = null, double? upscale = null) : base(command, type, id, new object?[] { upscale })
+        public ImagineCallbackData(string command, ImagineCommands type, string? id = null, double? upscale = null) : base(command, type, id, new object?[] { upscale })
         {
             Upscale = upscale;
         }
@@ -23,5 +23,20 @@
             }
             return callback;
         }
+
+    }
+
+    public enum ImagineCommands
+    {
+        Text2Image,
+        HiresFix,
+        Upscale,
+        Info,
+        Original,
+        Actions,
+        Repeat,
+        Style,
+        Vingette,
+        Noise,
     }
 }
