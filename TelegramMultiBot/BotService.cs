@@ -85,35 +85,43 @@ class BotService
 
     private async void RunCleanup(object? sender, ElapsedEventArgs e)
     {
-        var cleanupService = _serviceProvider.GetService<CleanupService>();
-        await cleanupService.Run();
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var cleanupService = scope.ServiceProvider.GetService<CleanupService>();
+            await cleanupService.Run();
+        }
     }
 
 
     private void _imageGenearatorQueue_JobFailed(ImageJob obj, Exception exception)
     {
-        try
+        using (var scope = _serviceProvider.CreateScope())
         {
-            var command = (ImagineCommand)_serviceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
-            command.JobFailed(obj, exception);
+            try
+            {
+                var command = (ImagineCommand)scope.ServiceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
+                command.JobFailed(obj, exception);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
         }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, ex.Message);
-        }
-
     }
 
     private void _imageGenearatorQueue_JobFinished(ImageJob obj)
     {
-        try
+        using (var scope = _serviceProvider.CreateScope())
         {
-            var command = (ImagineCommand)_serviceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
-            command.JobFinished(obj);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, ex.Message);
+            try
+            {
+                var command = (ImagineCommand)scope.ServiceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
+                command.JobFinished(obj);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, ex.Message);
+            }
         }
     }
 

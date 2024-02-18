@@ -65,16 +65,23 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
             else
             {
+                var botMessage = await _client.SendTextMessageAsync(message.Chat.Id, $"Відправляю", messageThreadId: message.MessageThreadId, replyToMessageId: message.MessageId);
                 try
                 {
-                    var botMessage = await _client.SendTextMessageAsync(message.Chat.Id, $"Твій шедевр в черзі. Чекай", messageThreadId: message.MessageThreadId, replyToMessageId: message.MessageId);
                     _imageGenearatorQueue.AddJob(message, botMessage.MessageId);
+                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Твій шедевр в черзі. Чекай");
+                }
+                catch (AlreadyRunningException ex)
+                {
+                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, ex.Message);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Adding in the queue:" + ex.Message);
+                    await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Не можу додати в чергу - в мене лапки :(");
 
                 }
-                catch (InvalidOperationException ex)
-                {
-                    await _client.SendTextMessageAsync(message.Chat.Id, ex.Message);
-                }
+
             }
         }
 
@@ -171,76 +178,85 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             {
                 case JobType.Info:
                     {
-                        var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
-                        var result = databaseService.GetJobResult(callbackData.Id);
-
-                        if (result == null)
+                        using (var scope = _serviceProvider.CreateScope())
                         {
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара картинка. Інформаця про неї загубилась", showAlert: true);
-                            return;
-                        }
-                        else
-                        {
+                            var databaseService = scope.ServiceProvider.GetService<ImageDatabaseService>();
+                            var result = databaseService.GetJobResult(callbackData.Id);
 
-
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Інформацію знайдено");
-                            var keys = GetReplyMarkupForJob(callbackData);
-
-                            InputMedia media = default;
-                            if (callbackQuery.Message.Type == MessageType.Photo)
+                            if (result == null)
                             {
-                                long seed = new UpscaleParams(result).Seed;
-                                media = new InputMediaPhoto(InputFile.FromFileId(callbackQuery.Message.Photo.Last().FileId));
-                                media.Caption = $"#seed:{seed}\nRender time: {result.RenderTime}\n{result.Info}";
-                            }
-                            if (callbackQuery.Message.Type == MessageType.Document)
-                            {
-                                media = new InputMediaDocument(InputFile.FromFileId(callbackQuery.Message.Document.FileId));
-                                media.Caption = $"Render time: {result.RenderTime}\n{result.Info}";
-                            }
-
-
-                            if (media.Caption.Length > 1024)
-                            {
-                                await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
-                                await _client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, media.Caption, replyMarkup: keys, replyToMessageId: callbackQuery.Message.MessageId);
+                                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара картинка. Інформаця про неї загубилась", showAlert: true);
+                                return;
                             }
                             else
                             {
-                                await _client.EditMessageMediaAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, media, keys);
+
+
+                                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Інформацію знайдено");
+                                var keys = GetReplyMarkupForJob(callbackData);
+
+                                InputMedia media = default;
+                                if (callbackQuery.Message.Type == MessageType.Photo)
+                                {
+                                    long seed = new UpscaleParams(result).Seed;
+                                    media = new InputMediaPhoto(InputFile.FromFileId(callbackQuery.Message.Photo.Last().FileId));
+                                    media.Caption = $"#seed:{seed}\nRender time: {result.RenderTime}\n{result.Info}";
+                                }
+                                if (callbackQuery.Message.Type == MessageType.Document)
+                                {
+                                    media = new InputMediaDocument(InputFile.FromFileId(callbackQuery.Message.Document.FileId));
+                                    media.Caption = $"Render time: {result.RenderTime}\n{result.Info}";
+                                }
+
+
+                                if (media.Caption.Length > 1024)
+                                {
+                                    await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
+                                    await _client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, media.Caption, replyMarkup: keys, replyToMessageId: callbackQuery.Message.MessageId);
+                                }
+                                else
+                                {
+                                    await _client.EditMessageMediaAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, media, keys);
+                                }
+
+
+
+
                             }
-
-
-
+                            return;
 
                         }
-                        return;
+
+
                     }
                 case JobType.Original:
                     {
                         if (callbackData.Id is null)
                             throw new ArgumentException("id");
 
-
-                        var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
-                        var result = databaseService.GetJobResult(callbackData.Id);
-                        var message = callbackQuery.Message;
-
-                        if (result == null)
+                        using(var scope = _serviceProvider.CreateScope())
                         {
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара каринка, бобер загубив оригінал", showAlert: true);
+                            var databaseService = scope.ServiceProvider.GetService<ImageDatabaseService>();
+                            var result = databaseService.GetJobResult(callbackData.Id);
+                            var message = callbackQuery.Message;
+
+                            if (result == null)
+                            {
+                                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара каринка, бобер загубив оригінал", showAlert: true);
+                                return;
+                            }
+
+                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завантажую оригінал");
+
+                            using (var stream = System.IO.File.OpenRead(result.FilePath))
+                            {
+                                var media = InputFile.FromStream(stream, Path.GetFileName(result.FilePath));
+                                await _client.SendDocumentAsync(message.Chat.Id, media, messageThreadId: message.MessageThreadId, replyToMessageId: message.MessageId);
+                            }
+
                             return;
+
                         }
-
-                        await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завантажую оригінал");
-
-                        using (var stream = System.IO.File.OpenRead(result.FilePath))
-                        {
-                            var media = InputFile.FromStream(stream, Path.GetFileName(result.FilePath));
-                            await _client.SendDocumentAsync(message.Chat.Id, media, messageThreadId: message.MessageThreadId, replyToMessageId: message.MessageId);
-                        }
-
-                        return;
                     }
                 case JobType.Actions:
                     {

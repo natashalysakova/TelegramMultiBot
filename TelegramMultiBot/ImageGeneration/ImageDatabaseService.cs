@@ -20,7 +20,6 @@ namespace TelegramMultiBot.ImageGeneration
     {
         private readonly BoberDbContext _context;
         private readonly ILogger<ImageDatabaseService> _logger;
-        object locker = new object();
 
         public ImageDatabaseService(BoberDbContext context, ILogger<ImageDatabaseService> logger)
         {
@@ -34,36 +33,26 @@ namespace TelegramMultiBot.ImageGeneration
         {
             get
             {
-                lock (locker)
-                {
-                    return _context.Jobs.Where(x => x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running);
-                }
+                return _context.Jobs.Where(x => x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running);
             }
         }
         public int RunningJobs
         {
             get
             {
-                lock (locker)
-                {
-                    return _context.Jobs.Where(x => x.Status == ImageJobStatus.Running).Count();
-                }
+                return _context.Jobs.Where(x => x.Status == ImageJobStatus.Running).Count();
             }
         }
 
         internal void CancelUnfinishedJobs()
         {
-            lock (locker)
+            var jobs = _context.Jobs.Where(x => x.Status == ImageJobStatus.Running || x.Status == ImageJobStatus.Queued);
+            foreach (var item in jobs)
             {
-                var jobs = _context.Jobs.Where(x => x.Status == ImageJobStatus.Running || x.Status == ImageJobStatus.Queued);
-                foreach (var item in jobs)
-                {
-                    item.Status = ImageJobStatus.Failed;
-                    item.Finised = DateTime.Now;
-                }
-                _context.SaveChanges();
-
+                item.Status = ImageJobStatus.Failed;
+                item.Finised = DateTime.Now;
             }
+            _context.SaveChanges();
         }
 
 
@@ -80,11 +69,8 @@ namespace TelegramMultiBot.ImageGeneration
             job.Status = ImageJobStatus.Queued;
             job.Type = JobType.Text2Image;
 
-            lock (locker)
-            {
-                _context.Jobs.Add(job);
-                _context.SaveChanges();
-            }
+            _context.Jobs.Add(job);
+            _context.SaveChanges();
         }
 
         internal void Enqueue(CallbackQuery query)
@@ -105,25 +91,22 @@ namespace TelegramMultiBot.ImageGeneration
             job.Type = data.JobType;
 
 
-            lock (locker)
+            var result = _context.JobResult.Include(x => x.Job).Single(x => x.Id.ToString() == data.Id);
+
+            job.PostInfo = result.Job.PostInfo;
+            job.PreviousJobResultId = result.Id;
+
+            if (_context.Jobs.Any(x =>
+                x.PreviousJobResultId == job.PreviousJobResultId
+                && (x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running)
+                && x.Type == job.Type
+                && (x.UpscaleModifyer == job.UpscaleModifyer)
+                ))
             {
-                var result = _context.JobResult.Include(x => x.Job).Single(x => x.Id.ToString() == data.Id);
-
-                job.PostInfo = result.Job.PostInfo;
-                job.PreviousJobResultId = result.Id;
-
-                if (_context.Jobs.Any(x =>
-                    x.PreviousJobResultId == job.PreviousJobResultId
-                    && (x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running)
-                    && x.Type == job.Type
-                    && (x.UpscaleModifyer == job.UpscaleModifyer)
-                    ))
-                {
-                    throw new AlreadyRunningException("Апскейл для цього зображення вже в роботі");
-                }
-
-                _context.Jobs.Add(job);
+                throw new AlreadyRunningException("Апскейл для цього зображення вже в роботі");
             }
+
+            _context.Jobs.Add(job);
 
             SaveChanges();
 
@@ -135,18 +118,15 @@ namespace TelegramMultiBot.ImageGeneration
         }
         internal JobResult? GetJobResult(Guid? guid)
         {
-            lock (locker)
+
+            var result = _context.JobResult.Find(guid);
+            if (result == null)
             {
-
-                var result = _context.JobResult.Find(guid);
-                if (result == null)
-                {
-                    return null;
-                }
-
-                _context.Entry(result).Reference(x => x.Job).Load();
-                return result;
+                return null;
             }
+
+            _context.Entry(result).Reference(x => x.Job).Load();
+            return result;
         }
 
         internal IEnumerable<ImageJob> GetJobsOlderThan(DateTime date)
@@ -184,38 +164,33 @@ namespace TelegramMultiBot.ImageGeneration
 
         internal bool TryDequeue(out ImageJob? job)
         {
-            lock (locker)
+            try
             {
-                try
+                if (_context.Jobs.Any(x => x.Status == ImageJobStatus.Queued))
                 {
-                    if (_context.Jobs.Any(x => x.Status == ImageJobStatus.Queued))
-                    {
-                        var queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
-                        var ordered = queued.OrderBy(x => x.Created);
+                    var queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
+                    var ordered = queued.OrderBy(x => x.Created);
 
-                        job = queued.FirstOrDefault();
+                    job = queued.FirstOrDefault();
 
-                        job.Started = DateTime.Now;
-                        job.Status = ImageJobStatus.Running;
-                        _context.SaveChanges();
+                    job.Started = DateTime.Now;
+                    job.Status = ImageJobStatus.Running;
+                    _context.SaveChanges();
 
-                        return true;
-                    }
-                    else
-                    {
-                        job = default;
-                        return false;
-                    }
-
+                    return true;
                 }
-                catch (Exception)
+                else
                 {
                     job = default;
                     return false;
                 }
+
+            }
+            catch (Exception)
+            {
+                job = default;
+                return false;
             }
         }
     }
-
-
 }

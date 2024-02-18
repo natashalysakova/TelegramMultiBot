@@ -30,14 +30,14 @@ namespace TelegramMultiBot.ImageGenerators
             _configuration = configuration;
             _serviceProvider = serviceProvider;
 
-            var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
-            if (databaseService.RunningJobs > 0)
+            using (var scope = _serviceProvider.CreateScope())
             {
-                databaseService.CancelUnfinishedJobs();
+                var databaseService = scope.ServiceProvider.GetService<ImageDatabaseService>();
+                if (databaseService.RunningJobs > 0)
+                {
+                    databaseService.CancelUnfinishedJobs();
+                }
             }
-
-
-
         }
 
 
@@ -53,30 +53,34 @@ namespace TelegramMultiBot.ImageGenerators
                     //var activeJobsNumber = _configuration.GetSection("ImageGeneation:BotSettings").Get<BotSettings>().ActiveJobs;
                     //if (_databaseService.RunningJobs < activeJobsNumber)
                     //{
-                    var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
 
-                    if (databaseService.TryDequeue(out var job))
+                    using (var scope = _serviceProvider.CreateScope())
                     {
+                        var databaseService = scope.ServiceProvider.GetService<ImageDatabaseService>();
 
-                        //var task =  Task.Run(async () =>
-                        //{
-                        _logger.LogDebug("Starting " + job.Id);
-
-                        try
+                        if (databaseService.TryDequeue(out var job))
                         {
-                            var result = await _imageGenerator.Run(job);
-                            databaseService.JobFinished(job);
-                            JobFinished?.Invoke(job);
-                            _logger.LogDebug("Finished " + job.Id);
-                        }
-                        catch (Exception ex)
-                        {
-                            databaseService.JobFailed(job);
 
-                            JobFailed?.Invoke(job, ex);
-                            _logger.LogDebug("Failed " + job.Id);
+                            //var task =  Task.Run(async () =>
+                            //{
+                            _logger.LogDebug("Starting " + job.Id);
+
+                            try
+                            {
+                                var result = await _imageGenerator.Run(job);
+                                databaseService.JobFinished(job);
+                                JobFinished?.Invoke(job);
+                                _logger.LogDebug("Finished " + job.Id);
+                            }
+                            catch (Exception ex)
+                            {
+                                databaseService.JobFailed(job);
+
+                                JobFailed?.Invoke(job, ex);
+                                _logger.LogDebug("Failed " + job.Id);
+                            }
+                            //});
                         }
-                        //});
                     }
                     //}
                     await Task.Delay(1000);
@@ -94,18 +98,24 @@ namespace TelegramMultiBot.ImageGenerators
         }
         internal void AddJob(Message message, int botMessageId)
         {
-            var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                var databaseService = scope.ServiceProvider.GetService<ImageDatabaseService>();
+                CheckLimits(message, databaseService);
+                databaseService.Enqueue(message, botMessageId);
+            }
 
-            CheckLimits(message, databaseService);
-            databaseService.Enqueue(message, botMessageId);
         }
 
         internal void AddJob(CallbackQuery callbackQuery)
         {
-            var databaseService = _serviceProvider.GetService<ImageDatabaseService>();
+            using (var scope = _serviceProvider.CreateScope())
+            {
+                var databaseService = scope.ServiceProvider.GetService<ImageDatabaseService>();
 
-            CheckLimits(callbackQuery.Message, databaseService);
-            databaseService.Enqueue(callbackQuery);
+                CheckLimits(callbackQuery.Message, databaseService);
+                databaseService.Enqueue(callbackQuery);
+            }
         }
 
         //private void CheckLimits(Message message, ImageDatabaseService databaseService)

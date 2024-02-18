@@ -63,7 +63,7 @@ internal class Program
             options.UseMySql(connectionString, serverVersion);
             options.LogTo(Console.WriteLine, LogLevel.Warning);
         });
-        serviceCollection.AddScoped<ImageDatabaseService>();
+        serviceCollection.AddSingleton<ImageDatabaseService>();
         serviceCollection.AddScoped<CleanupService>();
 
 
@@ -74,10 +74,11 @@ internal class Program
         serviceCollection.AddSingleton(new TelegramBotClient(botKey) { Timeout = TimeSpan.FromSeconds(600)});
 
         serviceCollection.AddScoped<BotService>();
-        serviceCollection.AddScoped<JobManager>();
-        serviceCollection.AddScoped<DialogManager>();
-        serviceCollection.AddScoped<ImageGenearatorQueue>();
         serviceCollection.AddScoped<ImageGenerator>();
+
+        serviceCollection.AddSingleton<JobManager>();
+        serviceCollection.AddSingleton<DialogManager>();
+        serviceCollection.AddSingleton<ImageGenearatorQueue>();
 
         RegisterMyServices<IDialogHandler>(serviceCollection);
         RegisterMyServices<IDiffusor>(serviceCollection);
