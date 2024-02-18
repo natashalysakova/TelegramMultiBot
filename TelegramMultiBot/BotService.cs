@@ -2,6 +2,7 @@
 using Bober.Library.Contract;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using System.Threading;
@@ -15,7 +16,7 @@ using TelegramMultiBot.Commands;
 
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 
-class BotService : BackgroundService
+public class BotService : BackgroundService
 {
     private readonly TelegramBotClient _client;
     private readonly ILogger _logger;
@@ -160,46 +161,51 @@ class BotService : BackgroundService
 
         _logger.LogTrace($"Input message: {message.From.Username} in {message.Chat.Type}{" " + (message.Chat.Type == ChatType.Group ? message.Chat.Title : string.Empty)} : {message.Text}");
 
-        var activeDialog = _dialogManager[message.Chat.Id];
-        if (activeDialog != null)
+        using (var scope = _serviceProvider.CreateScope())
         {
-            var cancelCommand = _serviceProvider.GetKeyedService<ICommand>("cancel");
-            if (cancelCommand.CanHandle(message))
+            var activeDialog = _dialogManager[message.Chat.Id];
+            if (activeDialog != null)
             {
-                cancelCommand.Handle(message);
-                _dialogManager.Remove(activeDialog);
+                var cancelCommand = scope.ServiceProvider.GetKeyedService<ICommand>("cancel");
+                if (cancelCommand.CanHandle(message))
+                {
+                    cancelCommand.Handle(message);
+                    _dialogManager.Remove(activeDialog);
+                }
+                else
+                {
+                    await _dialogManager.HandleActiveDialog(message, activeDialog);
+                }
             }
             else
             {
-                await _dialogManager.HandleActiveDialog(message, activeDialog);
-            }
-        }
-        else
-        {
 
-            // var applicableComands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(message));
-            var applicableComands = new List<ICommand>();
-            foreach (var item in _serviceProvider.GetServices<ICommand>())
-            {
-                if (item.CanHandle(message))
+                // var applicableComands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(message));
+                var applicableComands = new List<ICommand>();
+                foreach (var item in scope.ServiceProvider.GetServices<ICommand>())
                 {
-                    applicableComands.Add(item);
+                    if (item.CanHandle(message))
+                    {
+                        applicableComands.Add(item);
+                    }
+                }
+
+                foreach (var command in applicableComands)
+                {
+                    _logger.LogDebug($"{command}");
+                    try
+                    {
+                        await command.Handle(message);
+                    }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, ex.Message);
+                    }
                 }
             }
 
-            foreach (var command in applicableComands)
-            {
-                _logger.LogDebug($"{command}");
-                try
-                {
-                    await command.Handle(message);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogError(ex, ex.Message);
-                }
-            }
         }
+
     }
 
     protected override Task ExecuteAsync(CancellationToken stoppingToken)
@@ -212,10 +218,12 @@ class BotService : BackgroundService
             AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery }
         };
 
+        using (var scope = _serviceProvider.CreateScope())
+        {
+            var apiClient = scope.ServiceProvider.GetService<BoberApiClient>();
+            apiClient.Subscribe();
+        }
 
-        var apiClient = _serviceProvider.GetService<BoberApiClient>();
-
-        apiClient.Subscribe();
 
         _client.StartReceiving(
                 HandleUpdateAsync,

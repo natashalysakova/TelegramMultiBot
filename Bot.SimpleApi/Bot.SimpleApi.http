@@ -1,0 +1,6 @@
+@Bot.SimpleApi_HostAddress = http://localhost:5063
+
+GET {{Bot.SimpleApi_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###

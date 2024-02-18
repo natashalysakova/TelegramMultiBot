@@ -1,0 +1,6 @@
+@Bot.SimpleApi_HostAddress = http://localhost:7213
+
+GET {{Bot.SimpleApi_HostAddress}}/echo
+Accept: application/json
+
+###

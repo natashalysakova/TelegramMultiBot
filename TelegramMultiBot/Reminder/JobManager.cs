@@ -2,7 +2,7 @@
 using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Reminder;
 
-internal class JobManager : Manager<Job>, IDisposable
+public class JobManager : Manager<Job>, IDisposable
 {
     private object locker = new object();
     private int nextId => list.Any() ? list.Max(x => x.Id) + 1 : 0;

@@ -41,11 +41,13 @@ internal class Program
             throw new KeyNotFoundException("token");
 
         builder.Services.AddSingleton(new TelegramBotClient(botKey) { Timeout = TimeSpan.FromSeconds(600) });
-        builder.Services.AddHostedService<BotService>();
+
+        builder.Services.AddSingleton<BotService>();
+        builder.Services.AddHostedService(provider => provider.GetService<BotService>());
 
         builder.Services.AddScoped<BoberApiClient>();
-        builder.Services.AddScoped<JobManager>();
-        builder.Services.AddScoped<DialogManager>();
+        builder.Services.AddSingleton<JobManager>();
+        builder.Services.AddSingleton<DialogManager>();
 
         RegisterMyServices<IDialogHandler>(builder.Services);
         RegisterMyKeyedServices<ICommand>(builder.Services);
@@ -53,22 +55,7 @@ internal class Program
         builder.Services.AddScoped<DialogHandlerFactory>();
 
         var app = builder.Build();
-
-        app.MapPost(BoberApiClient.successCallback, (object payload, ILogger<Program> logger, BotService bot) =>
-        {
-            logger.LogInformation("Received payload: {payload}", payload);
-            bot.JobFinished(payload as JobInfo);
-        });
-        app.MapPost(BoberApiClient.failureCallback, (object payload, Exception ex, ILogger<Program> logger, BotService bot) =>
-        {
-            logger.LogInformation("Received payload: {payload}", payload);
-            bot.JobFailed(payload as JobInfo, ex);
-        });
-        app.MapPost(BoberApiClient.progressCallback, (object payload, Exception ex, ILogger<Program> logger, BotService bot) =>
-        {
-            logger.LogInformation("Received payload: {payload}", payload);
-            bot.JobProgress(payload as JobInfo, ex);
-        });
+        
 
         app.UseHttpsRedirection();
         app.Run();

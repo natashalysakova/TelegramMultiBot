@@ -8,10 +8,11 @@ using TelegramMultiBot.Configuration;
 using Microsoft.Extensions.Configuration;
 using System.Diagnostics.Metrics;
 using Newtonsoft.Json;
+using System.Net.Http.Json;
 
 namespace TelegramMultiBot
 {
-    internal class BoberApiClient 
+    public class BoberApiClient
     {
         private readonly HttpClient _httpClient;
         public const string successCallback = "/wh/job/finished";
@@ -21,8 +22,8 @@ namespace TelegramMultiBot
         public const string failureTopic = "job.failed";
         public const string progressTopic = "job.progress";
 
-        private Dictionary<string, string> subscriptions = new Dictionary<string, string>();
-        
+        private List<Subscription> subscriptions;
+
 
 
         public BoberApiClient(IConfiguration configuration)
@@ -34,10 +35,17 @@ namespace TelegramMultiBot
                 BaseAddress = new Uri(basepath)
             };
 
+            subscriptions = new List<Subscription>() {
+                new Subscription(successTopic, url(successCallback)),
+                new Subscription(failureTopic, url(failureCallback)),
+                new Subscription(progressTopic, url(progressCallback)),
 
-            subscriptions[successTopic] = successCallback;
-            subscriptions[failureTopic] = failureCallback;
-            subscriptions[progressTopic] = progressCallback;
+            };
+        }
+
+        private string url(string path)
+        {
+            return "https://localhost:7279" + path;
         }
 
         public BoberApiClient(HttpClient httpClient)
@@ -63,20 +71,21 @@ namespace TelegramMultiBot
 
         }
 
-        internal void Subscribe() {
+        internal void Subscribe()
+        {
             foreach (var item in subscriptions)
             {
                 var res = _httpClient.PostAsJsonAsync("/Subscription", item);
                 res.Wait();
             }
         }
-        internal void Unsubscribe()
-        {
-            foreach (var item in subscriptions)
-            {
-                _httpClient.PostAsJsonAsync("/unsubscribe", item);
-            }
-        }
+        //internal void Unsubscribe()
+        //{
+        //    foreach (var item in subscriptions)
+        //    {
+        //        _httpClient.PostAsJsonAsync("/unsubscribe", item);
+        //    }
+        //}
 
     }
 }

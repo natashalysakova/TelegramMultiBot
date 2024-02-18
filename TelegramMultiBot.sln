@@ -9,6 +9,8 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "BotTests", "BotTests\BotTes
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Bober.Library", "..\Bober.Backend\Bober.Library\Bober.Library.csproj", "{330A7C2D-7188-413D-93AC-22300AD96C72}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Bot.SimpleApi", "Bot.SimpleApi\Bot.SimpleApi.csproj", "{E15DBADB-F7F8-4E6D-8054-63D87C907B2A}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -27,6 +29,10 @@ Global
 		{330A7C2D-7188-413D-93AC-22300AD96C72}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{330A7C2D-7188-413D-93AC-22300AD96C72}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{330A7C2D-7188-413D-93AC-22300AD96C72}.Release|Any CPU.Build.0 = Release|Any CPU
+		{E15DBADB-F7F8-4E6D-8054-63D87C907B2A}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{E15DBADB-F7F8-4E6D-8054-63D87C907B2A}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{E15DBADB-F7F8-4E6D-8054-63D87C907B2A}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{E15DBADB-F7F8-4E6D-8054-63D87C907B2A}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

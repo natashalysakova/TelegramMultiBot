@@ -1,19 +1,20 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using Microsoft.Extensions.DependencyInjection;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using TelegramMultiBot.Commands;
 
-internal class DialogManager
+public class DialogManager
 {
     List<IDialog> _dialogList;
     private readonly TelegramBotClient _client;
-    private readonly DialogHandlerFactory _factory;
+    private readonly IServiceProvider _serviceProvider;
 
-    public DialogManager(TelegramBotClient client, DialogHandlerFactory factory)
+    public DialogManager(TelegramBotClient client, IServiceProvider serviceProvider)
     {
         _dialogList = new List<IDialog>();
         _client = client;
-        _factory = factory;
+        _serviceProvider = serviceProvider;
     }
 
     public IDialog this[long chatId]
@@ -44,14 +45,19 @@ internal class DialogManager
 
     public Task HandleActiveDialog(Message message, IDialog activeDialog)
     {
-        var handler = _factory.CreateHandler(activeDialog);
-        handler.Handle(activeDialog, message);
-
-        if (activeDialog.IsFinished)
+        using (var scope = _serviceProvider.CreateScope())
         {
-            Remove(activeDialog);
-        }
+            var factory = scope.ServiceProvider.GetService<DialogHandlerFactory>();
+            var handler = factory.CreateHandler(activeDialog);
+            handler.Handle(activeDialog, message);
 
-        return Task.CompletedTask;
+            if (activeDialog.IsFinished)
+            {
+                Remove(activeDialog);
+            }
+
+            return Task.CompletedTask;
+
+        }
     }
 }

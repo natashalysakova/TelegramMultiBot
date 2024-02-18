@@ -3,7 +3,7 @@ using Newtonsoft.Json;
 
 namespace TelegramMultiBot.Reminder
 {
-    internal abstract class Manager<T>
+    public abstract class Manager<T>
     {
         protected readonly ILogger _logger;
         protected List<T> list;
