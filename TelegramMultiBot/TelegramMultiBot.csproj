@@ -73,10 +73,7 @@
 
 		
   <ItemGroup>
-    <None Update="ImageGeneration\Automatic1111\Payload\sd-payload-xl-juggernaut.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="ImageGeneration\Automatic1111\Payload\sd-payload-xl-unstable.json">
+    <None Update="ImageGeneration\Automatic1111\Payload\sd-payload-sdxl.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="ImageGeneration\Automatic1111\Upscales\extras-single.json">
@@ -85,14 +82,17 @@
     <None Update="ImageGeneration\Automatic1111\Upscales\img2img.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="ImageGeneration\ComfyUI\Payload\noise.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ImageGeneration\ComfyUI\Payload\text2image.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="ImageGeneration\ComfyUI\Payload\vignette.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="Properties\launchSettings.json">
       <CopyToOutputDirectory>Never</CopyToOutputDirectory>
-    </None>
-    <None Update="ImageGeneration\Automatic1111\Payload\sd-payload-xl-dreamshaper.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-    <None Update="ImageGeneration\Automatic1111\Payload\sd-payload-stolendreams.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
     <None Update="start.sh">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>

@@ -27,8 +27,6 @@ class BotService
     public static string BotName;
 
     System.Timers.Timer _timer;
-
-
     public BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, IConfiguration configuration)
     {
         _client = client;
@@ -131,7 +129,7 @@ class BotService
         try
         {
             _logger.LogDebug($"sending by schedule: {message}");
-            await _client.SendTextMessageAsync(new ChatId(chatId), message, disableWebPagePreview: true);
+            await _client.SendTextMessageAsync(chatId, message, disableWebPagePreview: true);
         }
         catch (Exception ex)
         {

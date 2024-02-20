@@ -1,0 +1,47 @@
+{
+  "1": {
+    "inputs": {
+      "image": "20240220055443250_Text2Image.png",
+      "upload": "image"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "2": {
+    "inputs": {
+      "gray_scale": false,
+      "grain_type": "Fine",
+      "grain_sat": 0.5,
+      "grain_power": 0.1,
+      "shadows": 0.2,
+      "highs": 0.2,
+      "scale": 1,
+      "sharpen": 0,
+      "src_gamma": 1,
+      "seed": 965,
+      "image": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "ProPostFilmGrain",
+    "_meta": {
+      "title": "ProPostFilmGrain"
+    }
+  },
+  "7": {
+    "inputs": {
+      "filename_prefix": "PostProcess",
+      "images": [
+        "2",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}

@@ -8,6 +8,7 @@ using Newtonsoft.Json.Linq;
 using System;
 using System.Diagnostics;
 using System.IO;
+using System.Runtime.InteropServices;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
@@ -28,12 +29,14 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private readonly ILogger<Automatic1111> _logger;
         private readonly IDatabaseService _databaseService;
         // private readonly IServiceProvider _serviceProvider;
-        string text2imagePath = "/sdapi/v1/txt2img";
-        string img2imgPath = "/sdapi/v1/img2img";
-        string extrasPath = "/sdapi/v1/extra-single-image";
+        const string text2imagePath = "/sdapi/v1/txt2img";
+        const string img2imgPath = "/sdapi/v1/img2img";
+        const string extrasPath = "/sdapi/v1/extra-single-image";
+        const string samplerPath = "/sdapi/v1/samplers";
+        const string checkpointsInfo = "/sdapi/v1/sd-models";
 
-        string progressPath = "/sdapi/v1/progress?skip_current_image=true";
-        string pingPath = "/internal/sysinfo";
+        const string progressPath = "/sdapi/v1/progress?skip_current_image=true";
+        const string pingPath = "/internal/sysinfo";
         HostSettings activeHost;
         public Automatic1111(TelegramBotClient client, IConfiguration configuration, ILogger<Automatic1111> logger, IDatabaseService databaseService)
         {
@@ -88,22 +91,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         public async Task<JobInfo> Run(JobInfo job)
         {
             _logger.LogTrace(activeHost.Uri.ToString());
-            string text = $"Запущено на [{activeHost.UI}]";
-
-            //if (job.BotMessageId != -1)
-            //{
-            //    await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, text);
-            //}
-            //else
-            //{
-            //    var botMessage = await _client.SendTextMessageAsync(job.ChatId, text, job.MessageThreadId, replyToMessageId: job.MessageId);
-            //    job.BotMessageId = botMessage.MessageId;
-
-
-            //    _databaseService.PushBotId(job.Id, botMessage.MessageId);
-
-
-            //}
 
             var baseDir = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().BaseOutputDirectory;
             var outputDir = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>().OutputDirectory;
@@ -114,18 +101,28 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 Directory.CreateDirectory(directory);
             }
 
-            switch (job.Type)
+            try
             {
-                case JobType.Text2Image:
-                    await TextToImage(job, directory);
-                    break;
-                case JobType.Upscale:
-                    await PostProcessingUpscale(job, directory);
-                    break;
-                case JobType.HiresFix:
-                    await Img2ImgUpscale(job, directory);
-                    break;
+                switch (job.Type)
+                {
+                    case JobType.Text2Image:
+                        await TextToImage(job, directory);
+                        break;
+                    case JobType.Upscale:
+                        await PostProcessingUpscale(job, directory);
+                        break;
+                    case JobType.HiresFix:
+                        await Img2ImgUpscale(job, directory);
+                        break;
+                }
+                _databaseService.PostProgress(job.Id, 100, "ok");
             }
+            catch (Exception ex)
+            {
+                _databaseService.PostProgress(job.Id, -1, ex.Message);
+                throw;
+            }
+
 
             return _databaseService.GetJob(job.Id);
         }
@@ -154,6 +151,8 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             var upscaleparams = new UpscaleParams(previousResult);
 
             var settings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
+            var generalSettings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+
             var payload = File.ReadAllText(Path.Combine(settings.UpscalePath, "img2img.json"));
 
             JObject json = JObject.Parse(payload);
@@ -162,12 +161,30 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             {
                 json["negative_prompt"] = upscaleparams.NegativePrompt;
             }
-            json["width"] = upscaleparams.Width * settings.UpscaleMultiplier;
-            json["height"] = upscaleparams.Height * settings.UpscaleMultiplier;
+            json["width"] = upscaleparams.Width * generalSettings.UpscaleMultiplier;
+            json["height"] = upscaleparams.Height * generalSettings.UpscaleMultiplier;
             json["sampler_name"] = upscaleparams.Sampler;
             json["steps"] = upscaleparams.Steps;
             json["cfg_scale"] = upscaleparams.CFGScale;
             json["override_settings"]["sd_model_checkpoint"] = upscaleparams.Model;
+
+
+            //if (Automatic1111Cache.CheckpointsInfo == null)
+            //{
+            //    using (var client = new HttpClient() { BaseAddress = activeHost.Uri })
+            //    {
+            //        var response = await client.GetAsync(checkpointsInfo);
+            //        if (response.IsSuccessStatusCode)
+            //        {
+            //            Automatic1111Cache.CheckpointsInfo = JsonConvert.DeserializeObject<IEnumerable<CheckpointsInfo>>(await response.Content.ReadAsStringAsync());
+            //        }
+            //    }
+            //}
+
+            var model = generalSettings.Models.Single(x => Path.GetFileNameWithoutExtension(x.Path) == upscaleparams.Model);
+
+
+            json["override_settings"]["CLIP_stop_at_last_layers"] = model.CLIPskip;
             json["init_images"] = new JArray(){
                     "data:image/png;base64," + Convert.ToBase64String(File.ReadAllBytes(upscaleparams.FilePath))
                 };
@@ -180,20 +197,13 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private async Task TextToImage(JobInfo job, string directory)
         {
             var genParams = new GenerationParams(job);
-            var settings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
+            var settings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
 
             var batchCount = settings.BatchCount;
-            var confName = "sd-payload-xl";
 
-            batchCount = settings.HiResBatchCount;
-
-            if (!string.IsNullOrEmpty(genParams.Model))
+            if (string.IsNullOrEmpty(genParams.Model))
             {
-                confName += "-" + genParams.Model;
-            }
-            else
-            {
-                confName += "-" + settings.DefaultModel;
+                genParams.Model = settings.DefaultModel;
             }
 
             if (genParams.BatchCount != 0)
@@ -201,16 +211,13 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 batchCount = genParams.BatchCount;
             }
 
+            var automaticSettings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
 
-            string payload;
-            try
-            {
-                payload = File.ReadAllText(Path.Combine(settings.PayloadPath, confName + ".json"));
-            }
-            catch (Exception)
-            {
-                throw new InputException("Невідома модель: " + genParams.Model);
-            }
+
+            string payload = File.ReadAllText(Path.Combine(automaticSettings.PayloadPath, "sd-payload-sdxl.json"));
+
+
+
 
             JObject json = JObject.Parse(payload);
             json["width"] = genParams.Width;
@@ -218,6 +225,47 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["prompt"] = genParams.Prompt;
             json["negative_prompt"] = genParams.NegativePrompt;
             json["seed"] = genParams.Seed;
+
+            var modelSettings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+            ModelSettings model;
+            try
+            {
+                model = modelSettings.Models.Single(x => x.Name == genParams.Model);
+            }
+            catch (Exception)
+            {
+                throw new InputException("Невідома модель: " + genParams.Model);
+            }
+
+            json["override_settings"]["sd_model_checkpoint"] = model.Path;
+            json["override_settings"]["CLIP_stop_at_last_layers"] = model.CLIPskip;
+            json["steps"] = model.Steps;
+            json["cfg_scale"] = model.CGF;
+            var samplerAlias = "k_" + model.Sampler;
+            if (model.Scheduler == "karras")
+            {
+                samplerAlias += "_ka";
+            }
+            if (model.Scheduler == "exponential")
+            {
+                samplerAlias += "_exp";
+            }
+
+            if (Automatic1111Cache.Samplers == null)
+            {
+                using (var client = new HttpClient() { BaseAddress = activeHost.Uri })
+                {
+                    var response = await client.GetAsync(samplerPath);
+                    if (response.IsSuccessStatusCode)
+                    {
+                        Automatic1111Cache.Samplers = JsonConvert.DeserializeObject<IEnumerable<Sampler>>(await response.Content.ReadAsStringAsync());
+                    }
+                }
+            }
+
+            var samplerName = Automatic1111Cache.Samplers.Where(x => x.aliases.Contains(samplerAlias)).FirstOrDefault().name;
+
+            json["sampler_name"] = samplerName;
 
 
             var jsonPayload = json.ToString();
@@ -298,10 +346,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     }
                     else
                     {
-
                         var text = "Error calliing API. Check SD console:" + taskResult.ReasonPhrase;
-                        _databaseService.PostProgress(job.Id, -1, text);
-
                         _logger.LogError(text);
                         throw new RenderFailedException(taskResult.ReasonPhrase);
                     }
@@ -374,4 +419,42 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
         }
     }
+
+    public static class Automatic1111Cache
+    {
+        public static IEnumerable<Sampler> Samplers;
+        public static IEnumerable<CheckpointsInfo> CheckpointsInfo;
+
+    }
+
+
+    public class Sampler
+    {
+        public string name { get; set; }
+        public string[] aliases { get; set; }
+        public Options options { get; set; }
+    }
+
+    public class Options
+    {
+        public string? scheduler { get; set; }
+        public string? second_order { get; set; }
+        public string? brownian_noise { get; set; }
+        public string? uses_ensd { get; set; }
+        public string? discard_next_to_last_sigma { get; set; }
+        public string? solver_type { get; set; }
+    }
+
+
+    public class CheckpointsInfo
+    {
+        public string title { get; set; }
+        public string model_name { get; set; }
+        public string? hash { get; set; }
+        public string? sha256 { get; set; }
+        public string filename { get; set; }
+        public string? config { get; set; }
+    }
+
+
 }

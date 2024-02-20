@@ -1,0 +1,107 @@
+{
+  "1": {
+    "inputs": {
+      "ckpt_name": "SDXL/dreamshaperXL_v2TurboDpmppSDE.safetensors"
+    },
+    "class_type": "CheckpointLoaderSimple",
+    "_meta": {
+      "title": "Load Checkpoint"
+    }
+  },
+  "3": {
+    "inputs": {
+      "seed": 795346138622584,
+      "steps": 5,
+      "cfg": 2.05,
+      "sampler_name": "dpmpp_sde",
+      "scheduler": "karras",
+      "denoise": 1,
+      "model": [
+        "1",
+        0
+      ],
+      "positive": [
+        "5",
+        0
+      ],
+      "negative": [
+        "6",
+        0
+      ],
+      "latent_image": [
+        "4",
+        0
+      ]
+    },
+    "class_type": "KSampler",
+    "_meta": {
+      "title": "KSampler"
+    }
+  },
+  "4": {
+    "inputs": {
+      "width": 1024,
+      "height": 1024,
+      "batch_size": 1
+    },
+    "class_type": "EmptyLatentImage",
+    "_meta": {
+      "title": "Empty Latent Image"
+    }
+  },
+  "5": {
+    "inputs": {
+      "text": "8k, hdr, (best quality, masterpiece, highres:1.3), (outdoors, happy valentine, neon hearts), (1girl, mature female:1.2), (blonde hair, twintails, pink eyes, heart-shaped pupils, pink lips, heart earrings, happy:1.2), (cleavage, pink crop top:1.1), looking at viewer, portrait",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "positive"
+    }
+  },
+  "6": {
+    "inputs": {
+      "text": "(deformed iris, deformed pupils, bad eyes:1.4), (worst quality, low quality, lowres:1.3), (bad-image-v2-39000, bad-prompt-v2, bad-hands-5, easynegative, ng_deepnegative_v1_75t, bad-artist-anime, FastNegativeV2:1.2), (loli, petite, child, infant, toddler, chibi:1.1), (depth of field, blurry:1.2), cropped, text, signature, watermark, username, artist name, trademark, title, jpeg artifacts, multiple view, reference sheet, long neck",
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "CLIPTextEncode",
+    "_meta": {
+      "title": "negative"
+    }
+  },
+  "11": {
+    "inputs": {
+      "samples": [
+        "3",
+        0
+      ],
+      "vae": [
+        "1",
+        2
+      ]
+    },
+    "class_type": "VAEDecode",
+    "_meta": {
+      "title": "VAE Decode"
+    }
+  },
+  "24": {
+    "inputs": {
+      "filename_prefix": "Text2Image",
+      "images": [
+        "11",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  }
+}

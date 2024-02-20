@@ -1,0 +1,40 @@
+{
+  "1": {
+    "inputs": {
+      "image": "20240220055443250_Text2Image.png",
+      "upload": "image"
+    },
+    "class_type": "LoadImage",
+    "_meta": {
+      "title": "Load Image"
+    }
+  },
+  "7": {
+    "inputs": {
+      "filename_prefix": "PostProcess",
+      "images": [
+        "14",
+        0
+      ]
+    },
+    "class_type": "SaveImage",
+    "_meta": {
+      "title": "Save Image"
+    }
+  },
+  "14": {
+    "inputs": {
+      "intensity": 0.15,
+      "center_x": 0.5,
+      "center_y": 0.5,
+      "image": [
+        "1",
+        0
+      ]
+    },
+    "class_type": "ProPostVignette",
+    "_meta": {
+      "title": "ProPostVignette"
+    }
+  }
+}

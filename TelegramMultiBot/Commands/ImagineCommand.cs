@@ -102,21 +102,21 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             };
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCallbackData callbackData)
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCallbackData callbackData, InlineKeyboardMarkup? inlineKeyboardMarkup = null)
         {
-            return GetReplyMarkupForJob(callbackData.JobType, callbackData.Id, callbackData.Upscale);
+            return GetReplyMarkupForJob(callbackData.JobType, callbackData.Id, callbackData.Upscale, inlineKeyboardMarkup);
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(JobType type, string id, double? upscale)
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(JobType type, string id, double? upscale, InlineKeyboardMarkup? inlineKeyboardMarkup = null)
         {
-            if( Enum.TryParse<ImagineCommands>(type.ToString(), out var s))
+            if (Enum.TryParse<ImagineCommands>(type.ToString(), out var s))
             {
-                return GetReplyMarkupForJob(s, id, upscale);
+                return GetReplyMarkupForJob(s, id, upscale, inlineKeyboardMarkup);
             }
             return null;
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCommands type, string id, double? upscale)
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCommands type, string id, double? upscale, InlineKeyboardMarkup? inlineKeyboardMarkup = null)
         {
             InlineKeyboardButton repeat = InlineKeyboardButton.WithCallbackData("Повторити", new ImagineCallbackData(Command, ImagineCommands.Repeat));
             InlineKeyboardButton original = InlineKeyboardButton.WithCallbackData("Оригінал", new ImagineCallbackData(Command, ImagineCommands.Original, id));
@@ -124,8 +124,11 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             InlineKeyboardButton upscale2 = InlineKeyboardButton.WithCallbackData("Upscale x2", new ImagineCallbackData(Command, ImagineCommands.Upscale, id, 2));
             InlineKeyboardButton upscale4 = InlineKeyboardButton.WithCallbackData("Upscale x4", new ImagineCallbackData(Command, ImagineCommands.Upscale, id, 4));
             InlineKeyboardButton info = InlineKeyboardButton.WithCallbackData("Інфо", new ImagineCallbackData(Command, ImagineCommands.Info, id, upscale));
-            //InlineKeyboardButton style = InlineKeyboardButton.WithCallbackData("Стиль", new ImagineCallbackData(Command, ImagineCommands.Style, id));
+            InlineKeyboardButton style = InlineKeyboardButton.WithCallbackData("Стиль", new ImagineCallbackData(Command, ImagineCommands.Style, id));
             InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(Command, ImagineCommands.Actions, id));
+            InlineKeyboardButton noise = InlineKeyboardButton.WithCallbackData("Шум", new ImagineCallbackData(Command, ImagineCommands.Noise, id));
+            InlineKeyboardButton vingette = InlineKeyboardButton.WithCallbackData("Віньєтка", new ImagineCallbackData(Command, ImagineCommands.Vingette, id));
+
 
             switch (type)
             {
@@ -138,7 +141,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
                     {
                         info,
-                        //style,
+                        style,
                         upscale2,
                     });
                 case ImagineCommands.Upscale:
@@ -146,7 +149,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
                         {
                             info,
-                            //style
+                            style
                         });
                     }
                 case ImagineCommands.Info:
@@ -159,7 +162,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                 {
                                     repeat,
                                     original,
-                                    //style,
+                                    style,
                                 },
                                     new List<InlineKeyboardButton>()
                                 {
@@ -186,20 +189,37 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                              info,
                              original,
                              repeat,
-                             //style
                         },
                         new List<InlineKeyboardButton>
                         {
                             hiresFix,
                             upscale2,
                             upscale4
+                        },
+                        new List<InlineKeyboardButton>
+                        {
+                            style
                         }
                     });
                 case ImagineCommands.Style:
+                    if (inlineKeyboardMarkup == null)
+                        return default;
+
+                    var buttons = inlineKeyboardMarkup.InlineKeyboard.ToList();
+                    buttons.Remove(buttons.Last()); // remove "style" button
+
+                    buttons.Add(new List<InlineKeyboardButton>()
+                    {
+                        vingette, noise
+
+                    });
+
+                    return new InlineKeyboardMarkup(buttons);
+                case ImagineCommands.Vingette:
+                case ImagineCommands.Noise:
                     return new InlineKeyboardMarkup(new List<InlineKeyboardButton>()
                     {
-                        InlineKeyboardButton.WithCallbackData("Віньєтка", new ImagineCallbackData(Command, ImagineCommands.Vingette, id)),
-                        InlineKeyboardButton.WithCallbackData("Шум", new ImagineCallbackData(Command, ImagineCommands.Noise, id))
+                        vingette, noise
                     });
                 default:
                     return default;
@@ -227,8 +247,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
 
                             await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Інформацію знайдено");
-                            var keys = GetReplyMarkupForJob(callbackData);
-
+                            var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup);
                             InputMedia media = default;
                             if (callbackQuery.Message.Type == MessageType.Photo)
                             {
@@ -278,7 +297,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завантажую оригінал");
                         return;
                     }
-                //case ImagineCommands.Style:
+                case ImagineCommands.Style:
                 case ImagineCommands.Actions:
                     {
 
@@ -287,7 +306,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
 
-                        var keys = GetReplyMarkupForJob(callbackData);
+                        var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup);
                         await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
 
                         return;
@@ -325,7 +344,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             {
                 botMessage = await _client.SendTextMessageAsync(message.Chat.Id, $"Відправляю", replyToMessageId: message.MessageId);
             }
-            catch (Exception ex )
+            catch (Exception ex)
             {
                 _logger.LogError("AddJobToTheQueue" + ex.Message, ex);
                 throw;
@@ -417,6 +436,8 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                     switch (job.Type)
                     {
+                        case JobType.Vingette:
+                        case JobType.Noise:
                         case JobType.Upscale:
                         case JobType.HiresFix:
                             {
