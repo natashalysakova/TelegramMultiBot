@@ -62,7 +62,8 @@ namespace TelegramMultiBot.ImageGenerators
 
                     try
                     {
-                        _client.EditMessageReplyMarkupAsync(item.ChatId, item.MessageId, null);
+                        await _client.EditMessageReplyMarkupAsync(item.ChatId, item.MessageId, null);
+                        _logger.LogDebug($"Message edited {item.ChatId} {item.MessageId}");
                     }
                     catch
                     {

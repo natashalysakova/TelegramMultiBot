@@ -76,6 +76,14 @@ namespace Bober.Database.Services
             job.Text = message.Text;
             job.BotMessageId = message.BotMessageId.Value;
             job.PostInfo = job.Text.Contains("#info");
+            if(job.Text.Contains("#auto"))
+            {
+                job.Diffusor = "Automatic1111";
+            }
+            if (job.Text.Contains("#comfy"))
+            {
+                job.Diffusor = "ComfyUI";
+            }
 
             _context.Jobs.Add(job);
             _context.SaveChanges();
@@ -249,6 +257,15 @@ namespace Bober.Database.Services
             var job = _context.Jobs.Single(x => x.Id == Guid.Parse(jobId));
 
             job.BotMessageId = messageId;
+            _context.SaveChanges();
+        }
+
+        public void ReturnToQueue(JobInfo job)
+        {
+            var jobentity = _context.Jobs.Single(x => x.Id == Guid.Parse(job.Id));
+            jobentity.Status = ImageJobStatus.Queued;
+            jobentity.Started = default;
+
             _context.SaveChanges();
         }
     }

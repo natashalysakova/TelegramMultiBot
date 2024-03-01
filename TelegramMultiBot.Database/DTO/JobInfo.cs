@@ -26,6 +26,7 @@ public class JobInfo
     public double Progress { get; set; }
     public string TextStatus { get; set; }
     public ImageJobStatus Status { get; set; }
+    public string? Diffusor { get; set; }
 }
 
 public record ExceptionInfo(string type, string errorMessage);

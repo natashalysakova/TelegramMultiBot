@@ -10,7 +10,7 @@ public class JobResult
     public string FilePath { get; set; }
     public string? Info { get; set; }
     public int Index { get; set; }
-    public TimeSpan RenderTime { get; set; }
+    public double RenderTime { get; set; }
 
 }
 

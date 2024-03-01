@@ -2,6 +2,7 @@
 using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
@@ -22,7 +23,7 @@ using TelegramMultiBot.ImageGenerators.Automatic1111.Api;
 
 namespace TelegramMultiBot.ImageGenerators.Automatic1111
 {
-    class Automatic1111 : IDiffusor
+    class Automatic1111 : Diffusor
     {
         private readonly TelegramBotClient _client;
         private readonly IConfiguration _configuration;
@@ -32,13 +33,10 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         const string text2imagePath = "/sdapi/v1/txt2img";
         const string img2imgPath = "/sdapi/v1/img2img";
         const string extrasPath = "/sdapi/v1/extra-single-image";
-        const string samplerPath = "/sdapi/v1/samplers";
-        const string checkpointsInfo = "/sdapi/v1/sd-models";
 
         const string progressPath = "/sdapi/v1/progress?skip_current_image=true";
-        const string pingPath = "/internal/sysinfo";
-        HostSettings activeHost;
-        public Automatic1111(TelegramBotClient client, IConfiguration configuration, ILogger<Automatic1111> logger, IDatabaseService databaseService)
+        protected override string pingPath => "/internal/sysinfo";
+        public Automatic1111(TelegramBotClient client, IConfiguration configuration, ILogger<Automatic1111> logger, IDatabaseService databaseService) : base(logger, configuration)
         {
             _client = client;
             _configuration = configuration;
@@ -47,50 +45,56 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             //_serviceProvider = serviceProvider;
         }
 
-        public string UI { get => nameof(Automatic1111); }
+        public override string UI { get => nameof(Automatic1111); }
 
-        public bool isAvailable()
+        //public bool isAvailable()
+        //{
+        //    var hosts = _configuration.GetSection("Hosts").Get<IEnumerable<HostSettings>>().Where(x => x.UI == nameof(Automatic1111));
+        //    foreach (var host in hosts)
+        //    {
+        //        if (!host.Enabled)
+        //        {
+        //            _logger.LogTrace($"{host.Uri} disabled");
+        //            continue;
+        //        }
+
+        //        var httpClient = new HttpClient();
+        //        httpClient.BaseAddress = host.Uri;
+        //        httpClient.Timeout = TimeSpan.FromSeconds(10);
+        //        try
+        //        {
+        //            var resp = httpClient.GetAsync(pingPath);
+        //            resp.Wait();
+
+        //            if (resp.Result.Content.ReadAsStringAsync().Result.Contains("--api"))
+        //            {
+        //                activeHost = host;
+        //                return true;
+        //            }
+        //            else
+        //            {
+        //                _logger.LogTrace($"{host.Uri} api disabled");
+        //            }
+        //        }
+        //        catch (Exception)
+        //        {
+        //            _logger.LogTrace($"{host.Uri} not available");
+        //        }
+        //    }
+        //    return false;
+        //}
+
+        public override bool ValidateConnection(string content)
         {
-            var hosts = _configuration.GetSection("Hosts").Get<IEnumerable<HostSettings>>().Where(x => x.UI == nameof(Automatic1111));
-            foreach (var host in hosts)
-            {
-                if (!host.Enabled)
-                {
-                    _logger.LogTrace($"{host.Uri} disabled");
-                    continue;
-                }
-
-                var httpClient = new HttpClient();
-                httpClient.BaseAddress = host.Uri;
-                httpClient.Timeout = TimeSpan.FromSeconds(10);
-                try
-                {
-                    var resp = httpClient.GetAsync(pingPath);
-                    resp.Wait();
-
-                    if (resp.Result.Content.ReadAsStringAsync().Result.Contains("--api"))
-                    {
-                        activeHost = host;
-                        return true;
-                    }
-                    else
-                    {
-                        _logger.LogTrace($"{host.Uri} api disabled");
-                    }
-                }
-                catch (Exception)
-                {
-                    _logger.LogTrace($"{host.Uri} not available");
-                }
-            }
-            return false;
+            return content.Contains("--api");
         }
 
-
-
-        public async Task<JobInfo> Run(JobInfo job)
+        public override async Task<JobInfo> Run(JobInfo job)
         {
-            _logger.LogTrace(activeHost.Uri.ToString());
+            _logger.LogTrace(ActiveHost.Uri.ToString());
+            _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Завдання розпочато");
+
+            Automatic1111Cache.InitCache(ActiveHost.Uri);
 
             var baseDir = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().BaseOutputDirectory;
             var outputDir = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>().OutputDirectory;
@@ -163,7 +167,11 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
             json["width"] = upscaleparams.Width * generalSettings.UpscaleMultiplier;
             json["height"] = upscaleparams.Height * generalSettings.UpscaleMultiplier;
-            json["sampler_name"] = upscaleparams.Sampler;
+
+            var samplers = Automatic1111Cache.GetSampler(ActiveHost.Uri);
+            var sampler = samplers.FirstOrDefault(x => x.name == upscaleparams.Sampler);
+           
+            json["sampler_name"] = samplers.Where(x => x.aliases.Contains(upscaleparams.Sampler) || x.name == upscaleparams.Sampler).FirstOrDefault().name;
             json["steps"] = upscaleparams.Steps;
             json["cfg_scale"] = upscaleparams.CFGScale;
             json["override_settings"]["sd_model_checkpoint"] = upscaleparams.Model;
@@ -251,19 +259,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 samplerAlias += "_exp";
             }
 
-            if (Automatic1111Cache.Samplers == null)
-            {
-                using (var client = new HttpClient() { BaseAddress = activeHost.Uri })
-                {
-                    var response = await client.GetAsync(samplerPath);
-                    if (response.IsSuccessStatusCode)
-                    {
-                        Automatic1111Cache.Samplers = JsonConvert.DeserializeObject<IEnumerable<Sampler>>(await response.Content.ReadAsStringAsync());
-                    }
-                }
-            }
+            var samplers = Automatic1111Cache.GetSampler(ActiveHost.Uri);
 
-            var samplerName = Automatic1111Cache.Samplers.Where(x => x.aliases.Contains(samplerAlias)).FirstOrDefault().name;
+            var samplerName = samplers.Where(x => x.aliases.Contains(samplerAlias)).FirstOrDefault().name;
 
             json["sampler_name"] = samplerName;
 
@@ -277,10 +275,11 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         {
             using (HttpClient httpClient = new HttpClient()
             {
-                BaseAddress = activeHost.Uri,
+                BaseAddress = ActiveHost.Uri,
                 Timeout = TimeSpan.FromMinutes(60)
             })
             {
+                _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готую рендер");
 
 
                 var progressPerItem = 100.0 / batch_count;
@@ -338,7 +337,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                 {
                                     FilePath = filePath,
                                     Info = info.infotexts[j],
-                                    RenderTime = s.Elapsed.Milliseconds
+                                    RenderTime = s.Elapsed.TotalMilliseconds
                                 });
                             }
 
@@ -369,7 +368,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                     using (HttpClient progressHttpClient = new HttpClient()
                     {
-                        BaseAddress = activeHost.Uri
+                        BaseAddress = ActiveHost.Uri
                     })
                     {
                         var progressResponce = await progressHttpClient.GetAsync(progressPath);
@@ -385,7 +384,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         if (progress != oldProgress)
                         {
                             var timespan = TimeSpan.FromSeconds(eta).ToString("hh\\:mm\\:ss");
-                            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"{job.Type} - Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
+                            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
 
                             _databaseService.PostProgress(job.Id, progress, "progress");
 
@@ -404,7 +403,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
         }
 
-        public bool CanHnadle(JobType type)
+        public override bool CanHnadle(JobType type)
         {
             switch (type)
             {
@@ -420,11 +419,54 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         }
     }
 
-    public static class Automatic1111Cache
+    public class Automatic1111Cache
     {
-        public static IEnumerable<Sampler> Samplers;
-        public static IEnumerable<CheckpointsInfo> CheckpointsInfo;
+        const string samplerPath = "/sdapi/v1/samplers";
+        const string checkpointsInfo = "/sdapi/v1/sd-models";
 
+        record SamplerChache(string server, IEnumerable<Sampler> samplers);
+        record CheckpointsCache(string server, IEnumerable<CheckpointsInfo> checkpoints);
+
+
+        private static ICollection<SamplerChache> _samplers = new List<SamplerChache>();
+        private static ICollection<CheckpointsCache> _checkpointsInfo = new List<CheckpointsCache>();
+
+        public static void InitCache(Uri server)
+        {
+            if(!_samplers.Any(x=>x.server == server.Host))
+            {
+                _samplers.Add(new SamplerChache(server.Host, LoadFromServer<Sampler>(server, samplerPath).Result));
+            }
+
+            if (!_checkpointsInfo.Any(x => x.server == server.Host))
+            {
+                _checkpointsInfo.Add(new CheckpointsCache(server.Host, LoadFromServer<CheckpointsInfo>(server, checkpointsInfo).Result));
+            }
+        }
+        
+        public static IEnumerable<Sampler> GetSampler(Uri server)
+        {
+            return _samplers.Single(x => x.server == server.Host).samplers;
+        }
+
+        public static IEnumerable<CheckpointsInfo> GetCheckpoints(Uri server)
+        {
+            return _checkpointsInfo.Single(x => x.server == server.Host).checkpoints;
+        }
+
+        private static async Task<IEnumerable<T>> LoadFromServer<T>(Uri uri, string path)
+        {
+            using (var client = new HttpClient() { BaseAddress = uri })
+            {
+                var response = await client.GetAsync(path);
+                if (response.IsSuccessStatusCode)
+                {
+                    return JsonConvert.DeserializeObject<IEnumerable<T>>(await response.Content.ReadAsStringAsync());
+                }
+            }
+
+            return null;
+        }
     }
 
 

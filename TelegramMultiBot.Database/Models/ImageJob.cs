@@ -30,5 +30,7 @@ public class ImageJob
     public double? UpscaleModifyer { get; set; }
     public double Progress { get; internal set; }
     public string TextStatus { get; internal set; }
+    public string? Diffusor { get; set; }
+
 }
 

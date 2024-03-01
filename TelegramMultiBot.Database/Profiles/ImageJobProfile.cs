@@ -14,9 +14,7 @@ namespace TelegramMultiBot.Database.Profiles
             CreateMap<JobResult, JobResultInfo>()
                 //.ForMember(x=>x.Id, act=> act.MapFrom(x=>x.Id.ToString()))
                 .ForMember(x => x.Seed, act => act.MapFrom(y => GetSeed(y.Info)))
-                .ForMember(x => x.RenderTime, act => act.MapFrom(x => x.RenderTime.Microseconds))
                 .ReverseMap()
-                .ForMember(x => x.RenderTime, act => act.MapFrom(x => TimeSpan.FromMicroseconds(x.RenderTime)))
                 //.ForMember(x => x.Id, act => act.MapFrom(x => Guid.Parse(x.Id)))
                 ;
         }

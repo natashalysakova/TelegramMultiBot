@@ -35,7 +35,6 @@
         Original,
         Actions,
         Repeat,
-        Style,
         Vingette,
         Noise,
     }

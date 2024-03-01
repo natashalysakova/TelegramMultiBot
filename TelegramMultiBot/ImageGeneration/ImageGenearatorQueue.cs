@@ -57,14 +57,22 @@ namespace TelegramMultiBot.ImageGenerators
                     //if (_databaseService.RunningJobs < activeJobsNumber)
                     //{
 
-                    JobInfo job;
+                    JobInfo? job = default;
                     using (var scope = _serviceProvider.CreateScope())
                     {
-                        var databaseService = scope.ServiceProvider.GetService<IDatabaseService>();
-                        databaseService.TryDequeue(out job);
+                        try
+                        {
+                            var databaseService = scope.ServiceProvider.GetService<IDatabaseService>();
+                            databaseService.TryDequeue(out job);
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex, "Cannot dequeue: " + ex.Message);
+                            await Task.Delay(30000);
+                        }
                     }
 
-                    if (job != null)
+                    if (job != default)
                     {
 
                         //var task =  Task.Run(async () =>
@@ -78,6 +86,17 @@ namespace TelegramMultiBot.ImageGenerators
                             //databaseService.JobFinished(job);
                             JobFinished?.Invoke(result);
                             _logger.LogDebug("Finished " + job.Id);
+                        }
+                        catch (SdNotAvailableException)
+                        {
+                            using (var scope = _serviceProvider.CreateScope())
+                            {
+                                var databaseService = scope.ServiceProvider.GetService<IDatabaseService>();
+                                databaseService.ReturnToQueue(job);
+                            }
+
+                            _logger.LogDebug("SD not available, job returned to the queue " + job.Id);
+
                         }
                         catch (Exception ex)
                         {
@@ -116,7 +135,14 @@ namespace TelegramMultiBot.ImageGenerators
                     throw new AlreadyRunningException($"Ти вже маєш {jobLimit} активні завдання на рендер. Спробуй пізніше");
                 }
 
-                databaseService.Enqueue(message);
+                try
+                {
+                    databaseService.Enqueue(message);
+                }
+                catch
+                {
+                    throw new OldJobException("Job is too old");
+                }
             }
         }
         //internal void AddJob(Message message, int botMessageId)

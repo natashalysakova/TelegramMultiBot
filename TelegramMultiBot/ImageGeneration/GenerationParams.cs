@@ -102,7 +102,7 @@ namespace TelegramMultiBot.ImageGenerators
 
         private string ClearPrompt(string prompt)
         {
-            return JsonEncodedText.Encode(prompt).Value;
+            return JsonEncodedText.Encode(prompt).Value.Trim();
         }
 
         (int width, int height) defaultResolution = (1024, 1024);
@@ -110,11 +110,11 @@ namespace TelegramMultiBot.ImageGenerators
         (string hashtag, int width, int height)[] supportedResolutions = new[] 
         {
             ("#vertical", 768, 1344),
-            ("#portrait", 915, 1144),
-            ("#photo", 1182, 886),
-            ("#landscape", 1254, 836),
-            ("#widescreen", 1365, 768),
-            ("#cinematic", 1564, 670),
+            ("#widescreen", 1365 , 768),
+            ("#portrait", 915 , 1144),
+            ("#photo", 1182 , 886),
+            ("#landscape", 1254 , 836),
+            ("#cinematic", 1564 , 670),
         };
 
         /*

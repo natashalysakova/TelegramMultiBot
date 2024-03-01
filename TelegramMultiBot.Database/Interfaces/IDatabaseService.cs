@@ -17,6 +17,7 @@ namespace TelegramMultiBot.Database.Interfaces
         void PostProgress(string id, double progress, string status);
         void PushBotId(string jobId, int messageId);
         void RemoveJobs(IEnumerable<string> jobsToDelete);
+        void ReturnToQueue(JobInfo job);
         bool TryDequeue(out JobInfo job);
     }
 }

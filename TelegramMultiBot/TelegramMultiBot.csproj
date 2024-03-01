@@ -82,6 +82,9 @@
     <None Update="ImageGeneration\Automatic1111\Upscales\img2img.json">
       <CopyToOutputDirectory>PreserveNewest</CopyToOutputDirectory>
     </None>
+    <None Update="ImageGeneration\ComfyUI\Payload\hiresFix.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="ImageGeneration\ComfyUI\Payload\noise.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

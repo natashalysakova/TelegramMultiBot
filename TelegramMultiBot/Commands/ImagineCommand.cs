@@ -56,7 +56,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 var reply =
 @"Привіт, я бобер\-художник, і я сприймаю повідомлення в наступному форматі 
 `/imagine cat driving a bike`
-Доступні хештеги\: `\#sd` `\#file` `\#info`
 Щоб дізнатися більше /help";
 
                 using (var stream = new MemoryStream(Properties.Resources.artist))
@@ -124,7 +123,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             InlineKeyboardButton upscale2 = InlineKeyboardButton.WithCallbackData("Upscale x2", new ImagineCallbackData(Command, ImagineCommands.Upscale, id, 2));
             InlineKeyboardButton upscale4 = InlineKeyboardButton.WithCallbackData("Upscale x4", new ImagineCallbackData(Command, ImagineCommands.Upscale, id, 4));
             InlineKeyboardButton info = InlineKeyboardButton.WithCallbackData("Інфо", new ImagineCallbackData(Command, ImagineCommands.Info, id, upscale));
-            InlineKeyboardButton style = InlineKeyboardButton.WithCallbackData("Стиль", new ImagineCallbackData(Command, ImagineCommands.Style, id));
             InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(Command, ImagineCommands.Actions, id));
             InlineKeyboardButton noise = InlineKeyboardButton.WithCallbackData("Шум", new ImagineCallbackData(Command, ImagineCommands.Noise, id));
             InlineKeyboardButton vingette = InlineKeyboardButton.WithCallbackData("Віньєтка", new ImagineCallbackData(Command, ImagineCommands.Vingette, id));
@@ -138,18 +136,30 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         actions,
                     });
                 case ImagineCommands.HiresFix:
-                    return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
+                    return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
                     {
-                        info,
-                        style,
-                        upscale2,
+                        new List<InlineKeyboardButton>
+                        {
+                            info,
+                            upscale2,
+                        },
+                        new List<InlineKeyboardButton>()
+                        {
+                             vingette, noise
+                        }
                     });
                 case ImagineCommands.Upscale:
                     {
-                        return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
+                        return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
                         {
-                            info,
-                            style
+                            new List<InlineKeyboardButton>
+                            {
+                                info
+                            },
+                            new List<InlineKeyboardButton>()
+                            {
+                                 vingette, noise
+                            }
                         });
                     }
                 case ImagineCommands.Info:
@@ -162,13 +172,16 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                 {
                                     repeat,
                                     original,
-                                    style,
                                 },
-                                    new List<InlineKeyboardButton>()
+                                new List<InlineKeyboardButton>()
                                 {
                                     hiresFix,
                                     upscale2,
                                     upscale4
+                                },
+                                new List<InlineKeyboardButton>()
+                                {
+                                     vingette, noise
                                 }
                             });
                         }
@@ -198,23 +211,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         },
                         new List<InlineKeyboardButton>
                         {
-                            style
+                             vingette, noise
                         }
                     });
-                case ImagineCommands.Style:
-                    if (inlineKeyboardMarkup == null)
-                        return default;
-
-                    var buttons = inlineKeyboardMarkup.InlineKeyboard.ToList();
-                    buttons.Remove(buttons.Last()); // remove "style" button
-
-                    buttons.Add(new List<InlineKeyboardButton>()
-                    {
-                        vingette, noise
-
-                    });
-
-                    return new InlineKeyboardMarkup(buttons);
                 case ImagineCommands.Vingette:
                 case ImagineCommands.Noise:
                     return new InlineKeyboardMarkup(new List<InlineKeyboardButton>()
@@ -252,12 +251,12 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                             if (callbackQuery.Message.Type == MessageType.Photo)
                             {
                                 media = new InputMediaPhoto(InputFile.FromFileId(callbackQuery.Message.Photo.Last().FileId));
-                                media.Caption = $"#seed:{result.Seed}\nRender time: {result.RenderTime}\n{result.Info}";
+                                media.Caption = $"#seed:{result.Seed}\nRender time: {TimeSpan.FromMilliseconds(result.RenderTime)}\n{result.Info}";
                             }
                             if (callbackQuery.Message.Type == MessageType.Document)
                             {
                                 media = new InputMediaDocument(InputFile.FromFileId(callbackQuery.Message.Document.FileId));
-                                media.Caption = $"Render time: {result.RenderTime}\n{result.Info}";
+                                media.Caption = $"Render time: {TimeSpan.FromMilliseconds(result.RenderTime)}\n{result.Info}";
                             }
 
 
@@ -297,7 +296,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завантажую оригінал");
                         return;
                     }
-                case ImagineCommands.Style:
                 case ImagineCommands.Actions:
                     {
 
@@ -328,6 +326,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         var message = callbackQuery.Message.ReplyToMessage;
 
                         await AddJobToTheQueue(message, CreateMessageData(message));
+                        await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
 
                         break;
                     }
@@ -356,6 +355,10 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             {
                 _imageGenearatorQueue.AddJob(data);
                 await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Твій шедевр в черзі. Чекай");
+            }
+            catch (OldJobException ex)
+            {
+                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, ex.Message);
             }
             catch (AlreadyRunningException ex)
             {

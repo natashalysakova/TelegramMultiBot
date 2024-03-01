@@ -1,4 +1,6 @@
-﻿namespace TelegramMultiBot.Configuration
+﻿using Newtonsoft.Json.Linq;
+
+namespace TelegramMultiBot.Configuration
 {
     class ImageGeneationSettings
     {
@@ -16,9 +18,8 @@
         public int BatchCount { get; set; }
         public string DefaultModel { get; set; }
         public double UpscaleMultiplier { get; set; }
-
-
-
+        public string UpscaleModel { get; set; }
+        public double HiresFixDenoise { get; set; }
     }
 
     class Automatic1111Settings
@@ -37,6 +38,8 @@
         public string OutputDirectory { get; set; }
         public string PayloadPath { get; set; }
         public string InputDirectory { get; set; }
+        public double NoiseStrength { get; set; }
+        public double VegnietteIntensity { get; set; }
 
     }
 

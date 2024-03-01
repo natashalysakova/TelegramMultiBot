@@ -10,9 +10,9 @@
   },
   "3": {
     "inputs": {
-      "seed": 795346138622584,
+      "seed": 2464466819775264300,
       "steps": 5,
-      "cfg": 2.05,
+      "cfg": 2.5,
       "sampler_name": "dpmpp_sde",
       "scheduler": "karras",
       "denoise": 1,
@@ -51,10 +51,10 @@
   },
   "5": {
     "inputs": {
-      "text": "8k, hdr, (best quality, masterpiece, highres:1.3), (outdoors, happy valentine, neon hearts), (1girl, mature female:1.2), (blonde hair, twintails, pink eyes, heart-shaped pupils, pink lips, heart earrings, happy:1.2), (cleavage, pink crop top:1.1), looking at viewer, portrait",
+      "text": "happy cat",
       "clip": [
-        "1",
-        1
+        "25",
+        0
       ]
     },
     "class_type": "CLIPTextEncode",
@@ -64,10 +64,10 @@
   },
   "6": {
     "inputs": {
-      "text": "(deformed iris, deformed pupils, bad eyes:1.4), (worst quality, low quality, lowres:1.3), (bad-image-v2-39000, bad-prompt-v2, bad-hands-5, easynegative, ng_deepnegative_v1_75t, bad-artist-anime, FastNegativeV2:1.2), (loli, petite, child, infant, toddler, chibi:1.1), (depth of field, blurry:1.2), cropped, text, signature, watermark, username, artist name, trademark, title, jpeg artifacts, multiple view, reference sheet, long neck",
+      "text": "",
       "clip": [
-        "1",
-        1
+        "25",
+        0
       ]
     },
     "class_type": "CLIPTextEncode",
@@ -102,6 +102,19 @@
     "class_type": "SaveImage",
     "_meta": {
       "title": "Save Image"
+    }
+  },
+  "25": {
+    "inputs": {
+      "stop_at_clip_layer": -1,
+      "clip": [
+        "1",
+        1
+      ]
+    },
+    "class_type": "CLIPSetLastLayer",
+    "_meta": {
+      "title": "CLIP Set Last Layer"
     }
   }
 }
