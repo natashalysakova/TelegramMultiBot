@@ -6,15 +6,23 @@ namespace TelegramMultiBot.Commands
 {
     abstract class BaseCommand : ICommand
     {
-        public bool CanHandleInlineQuery { get => this.GetType().IsAssignableTo(typeof(ICallbackHandler)); }
+        public bool CanHandleInlineQuery { get => this.GetType().IsAssignableTo(typeof(IInlineQueryHandler)); }
         public bool CanHandleCallback { get => this.GetType().IsAssignableTo(typeof(ICallbackHandler)); }
         public string Command { get => this.GetType().GetAttributeValue((ServiceKeyAttribute att) => { return att.Command; }); }
 
         public virtual bool CanHandle(Message message)
         {
-            if(message.Entities!=null && message.Entities.Any() && message.Entities[0].Type == MessageEntityType.BotCommand && message.Text.StartsWith("/"))
+            if( message.Entities!=null
+                && message.Entities.Any(x=> x.Type == MessageEntityType.BotCommand)
+                && (message.Text.StartsWith("/") || message.Text.StartsWith($"@{BotService.BotName} /")))
+
             {
                 var value = message.EntityValues.ElementAt(0);
+                if (value.StartsWith("@"))
+                {
+                    value = message.EntityValues.ElementAt(1);
+                }
+
                 if (value.Contains("@"))
                 {
                     return value.Equals($"/{Command}@{BotService.BotName}");
@@ -30,7 +38,7 @@ namespace TelegramMultiBot.Commands
 
         public virtual bool CanHandle(InlineQuery query)
         {
-            return query.Query.StartsWith("/" + Command, StringComparison.InvariantCultureIgnoreCase);
+            return query.Query.StartsWith($"@{BotService.BotName} /{Command}", StringComparison.InvariantCultureIgnoreCase);
         }
 
         public virtual bool CanHandle(string query)

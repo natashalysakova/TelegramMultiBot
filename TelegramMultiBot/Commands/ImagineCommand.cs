@@ -23,7 +23,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 {
     [ServiceKey("imagine")]
 
-    internal class ImagineCommand : BaseCommand, ICallbackHandler
+    internal class ImagineCommand : BaseCommand, ICallbackHandler, IInlineQueryHandler
     {
         private readonly TelegramBotClient _client;
         private readonly IConfiguration _configuration;
@@ -81,7 +81,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 JobType = JobType.Text2Image,
                 MessageId = message.MessageId,
                 MessageThreadId = message.MessageThreadId,
-                Text = message.Text,
+                Text = message.Text.Substring(message.Text.IndexOf("/" + Command)),
                 UserId = message.From.Id
             };
         }
@@ -101,23 +101,23 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             };
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCallbackData callbackData, InlineKeyboardMarkup? inlineKeyboardMarkup = null)
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCallbackData callbackData, InlineKeyboardMarkup? inlineKeyboardMarkup = null, string? prompt = null)
         {
-            return GetReplyMarkupForJob(callbackData.JobType, callbackData.Id, callbackData.Upscale, inlineKeyboardMarkup);
+            return GetReplyMarkupForJob(callbackData.JobType, callbackData.Id, callbackData.Upscale, inlineKeyboardMarkup, prompt);
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(JobType type, string id, double? upscale, InlineKeyboardMarkup? inlineKeyboardMarkup = null)
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(JobType type, string id, double? upscale, string prompt, InlineKeyboardMarkup? inlineKeyboardMarkup = null)
         {
             if (Enum.TryParse<ImagineCommands>(type.ToString(), out var s))
             {
-                return GetReplyMarkupForJob(s, id, upscale, inlineKeyboardMarkup);
+                return GetReplyMarkupForJob(s, id, upscale, inlineKeyboardMarkup, prompt);
             }
             return null;
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCommands type, string id, double? upscale, InlineKeyboardMarkup? inlineKeyboardMarkup = null)
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCommands type, string id, double? upscale, InlineKeyboardMarkup? inlineKeyboardMarkup = null, string? prompt = null)
         {
-            InlineKeyboardButton repeat = InlineKeyboardButton.WithCallbackData("Повторити", new ImagineCallbackData(Command, ImagineCommands.Repeat));
+            //InlineKeyboardButton repeat = InlineKeyboardButton.WithCallbackData("Повторити", new ImagineCallbackData(Command, ImagineCommands.Repeat));
             InlineKeyboardButton original = InlineKeyboardButton.WithCallbackData("Оригінал", new ImagineCallbackData(Command, ImagineCommands.Original, id));
             InlineKeyboardButton hiresFix = InlineKeyboardButton.WithCallbackData($"Hires Fix", new ImagineCallbackData(Command, ImagineCommands.HiresFix, id, 0));
             InlineKeyboardButton upscale2 = InlineKeyboardButton.WithCallbackData("Upscale x2", new ImagineCallbackData(Command, ImagineCommands.Upscale, id, 2));
@@ -126,14 +126,14 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(Command, ImagineCommands.Actions, id));
             InlineKeyboardButton noise = InlineKeyboardButton.WithCallbackData("Шум", new ImagineCallbackData(Command, ImagineCommands.Noise, id));
             InlineKeyboardButton vingette = InlineKeyboardButton.WithCallbackData("Віньєтка", new ImagineCallbackData(Command, ImagineCommands.Vingette, id));
-
+            InlineKeyboardButton copyPrompt = InlineKeyboardButton.WithSwitchInlineQueryCurrentChat("Змінити запит", prompt is null ? string.Empty : prompt);
 
             switch (type)
             {
                 case ImagineCommands.Text2Image:
                     return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
                     {
-                        actions,
+                        actions, copyPrompt
                     });
                 case ImagineCommands.HiresFix:
                     return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
@@ -170,15 +170,15 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                             {
                                 new List<InlineKeyboardButton>()
                                 {
-                                    repeat,
                                     original,
+                                    copyPrompt
                                 },
                                 new List<InlineKeyboardButton>()
                                 {
                                     hiresFix,
                                     upscale2,
                                     upscale4
-                                },
+                                },                             
                                 new List<InlineKeyboardButton>()
                                 {
                                      vingette, noise
@@ -201,7 +201,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         {
                              info,
                              original,
-                             repeat,
+                             copyPrompt,
                         },
                         new List<InlineKeyboardButton>
                         {
@@ -246,7 +246,8 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
 
                             await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Інформацію знайдено");
-                            var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup);
+                            var prompt = callbackQuery.Message.ReplyToMessage.Text.Substring(callbackQuery.Message.ReplyToMessage.Text.IndexOf("/" + Command));
+                            var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup, prompt: prompt);
                             InputMedia media = default;
                             if (callbackQuery.Message.Type == MessageType.Photo)
                             {
@@ -303,8 +304,8 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                             throw new ArgumentException("id");
 
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
-
-                        var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup);
+                        var prompt = callbackQuery.Message.ReplyToMessage.Text.Substring(callbackQuery.Message.ReplyToMessage.Text.IndexOf("/" + Command));
+                        var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup, prompt: prompt) ;
                         await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
 
                         return;
@@ -435,7 +436,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         info = item.Info;
                     }
 
-                    var keys = GetReplyMarkupForJob(job.Type, item.Id.ToString(), job.UpscaleModifyer);
+                    var keys = GetReplyMarkupForJob(job.Type, item.Id.ToString(), job.UpscaleModifyer, prompt: job.Text);
 
                     switch (job.Type)
                     {
@@ -476,6 +477,11 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 _logger.LogError(ex, ex.Message);
                 return false;
             }
+        }
+
+        public async Task HandleInlineQuery(InlineQuery inlineQuery)
+        {
+            await _client.AnswerInlineQueryAsync(inlineQuery.Id, new List<InlineQueryResult>());
         }
 
         class StreamList : IDisposable, IEnumerable<FileStream>

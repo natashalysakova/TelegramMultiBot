@@ -8,6 +8,7 @@ using Telegram.Bot;
 using Telegram.Bot.Polling;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using Telegram.Bot.Types.InlineQueryResults;
 using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Configuration;
@@ -174,18 +175,20 @@ class BotService
         return Task.CompletedTask;
     }
 
-    private Task BotOnInlineQueryRecived(InlineQuery? inlineQuery)
+    private async Task BotOnInlineQueryRecived(InlineQuery? inlineQuery)
     {
         var commands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(inlineQuery) && x.CanHandleInlineQuery).Select(x => (IInlineQueryHandler)x);
 
-        foreach (var item in commands)
+        if(!commands.Any())
         {
-            item.HandleInlineQuery(inlineQuery);
+            await _client.AnswerInlineQueryAsync(inlineQuery.Id, new List<InlineQueryResult>());
+            return;
         }
 
-        
-
-        return Task.CompletedTask;
+        foreach (var item in commands)
+        {
+            await item.HandleInlineQuery(inlineQuery);
+        }
     }
 
     private async Task BotOnCallbackRecived(CallbackQuery? callbackQuery)
