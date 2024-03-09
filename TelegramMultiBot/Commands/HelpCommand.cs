@@ -4,9 +4,12 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Configuration;
 using Telegram.Bot;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using TelegramMultiBot.Configuration;
+using TelegramMultiBot.ImageGenerators;
 
 namespace TelegramMultiBot.Commands
 {
@@ -15,14 +18,18 @@ namespace TelegramMultiBot.Commands
     internal class HelpCommand : BaseCommand
     {
         private readonly TelegramBotClient _client;
+        private readonly IConfiguration _configuration;
 
-        public HelpCommand(TelegramBotClient client)
+        public HelpCommand(TelegramBotClient client, IConfiguration configuration)
         {
             _client = client;
+            _configuration = configuration;
         }
 
         public override Task Handle(Message message)
         {
+            var config = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+
             var html =
 @"
 ⏰ *Бобер\-нагадувач*
@@ -37,14 +44,13 @@ https\:\/\/crontab\.guru
 
 >Використовуй `\#1`, `\#2`, `\#3` або `\#4` щоб вказати кількість зображень, які ти хочеш отримати
 
->Стандартний формат зображення 1024x1024: \(1\:1\)
+>Стандартний формат зображення "
++ $"{GenerationParams.defaultResolution.width}x{GenerationParams.defaultResolution.height}: \\({GenerationParams.defaultResolution.ar}\\)"
++ @"
 >Використовуй хештеги формату, щоб керувати форматом зображення
->760x1344: `\#vertical` \(9\:16\)
->916x1145: `\#portrait` \(4\:5\)
->1180x885: `\#photo` \(4\:3\)
->1254x836: `\#landscape` \(3\:2\)
->1365x768: `\#widescreen` \(16\:9\)
->1564x670: `\#cinematic` \(21\:9\)
+" +
+string.Join("\n", GenerationParams.supportedResolutions.Select(x=> $">{x.width}x{x.height}: `\\{x.hashtag}` \\({x.ar}\\)" ))
++ @"
 
 >Якщо бажаєш попрацювати над деталями зображення \- використуй повторно його seed
 >Додай хештег `\#seed\:\<SEED\>` де `\<SEED\>` \- це число, що міститься в описі попереднього рендера\. 
@@ -52,9 +58,9 @@ https\:\/\/crontab\.guru
 
 >Використовуй хештег `#model_` щоб обрати модель для рендеру\.
 >Наразі доступні моделі\:
->`#model_dreamshaper`
->`#model_juggernaut`
->`#model_unstable`
+" +
+string.Join("\n", config.Models.Select(x=> $">`#model_{x.Name}`"))
++ @"
 
 >Використовуй хештеги `#auto` або `#comfy` щоб обрати API генерації Automatic1111 або ComfyUI відповідно
 

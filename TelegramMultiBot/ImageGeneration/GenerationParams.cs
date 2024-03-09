@@ -105,16 +105,16 @@ namespace TelegramMultiBot.ImageGenerators
             return JsonEncodedText.Encode(prompt).Value.Trim();
         }
 
-        (int width, int height) defaultResolution = (1024, 1024);
+        public static (int width, int height, string ar) defaultResolution = (1024, 1024, "1\\:1");
 
-        (string hashtag, int width, int height)[] supportedResolutions = new[] 
+        public static (string hashtag, int width, int height, string ar)[] supportedResolutions = new[] 
         {
-            ("#vertical", 768, 1344),
-            ("#widescreen", 1365 , 768),
-            ("#portrait", 915 , 1144),
-            ("#photo", 1182 , 886),
-            ("#landscape", 1254 , 836),
-            ("#cinematic", 1564 , 670),
+            ("#vertical", 768, 1344, "9\\:16"),
+            ("#widescreen", 1365 , 768, "16\\:9"),
+            ("#portrait", 915 , 1144, "4\\:5"),
+            ("#photo", 1182 , 886, "4\\:3"),
+            ("#landscape", 1254 , 836, "3\\:2"),
+            ("#cinematic", 1564 , 670, "21\\:9"),
         };
 
         /*
