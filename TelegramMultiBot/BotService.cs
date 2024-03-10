@@ -42,7 +42,7 @@ class BotService
         _configuration = configuration;
     }
 
-    public async Task Run(CancellationTokenSource cancellationToken)
+    public void Run(CancellationTokenSource cancellationToken)
     {
         _jobManager.Run(cancellationToken.Token);
         _jobManager.ReadyToSend += JobManager_ReadyToSend;
@@ -78,16 +78,10 @@ class BotService
                 cancellationToken.Token
             );
 
-        try
-        {
-            var response = await _client.GetMeAsync();
-            BotName = response.Username;
-        }
-        catch (Exception ex)
-        {
+        var response = _client.GetMeAsync().Result;
+        BotName = response.Username;
 
-        }
-        
+
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -166,7 +160,7 @@ class BotService
 
     private Task HandleUpdateAsync(ITelegramBotClient cleint, Update update, CancellationToken token)
     {
-        _logger.LogTrace("{update}", JsonConvert.SerializeObject(update));
+        _logger.LogTrace("{update}", update.Type);
 
         try
         {
@@ -254,10 +248,15 @@ class BotService
 
     private async Task BotOnMessageRecived(Message message)
     {
-        ArgumentNullException.ThrowIfNull(message.Text);
+        if (message.Type != MessageType.Text)
+            return;
         ArgumentNullException.ThrowIfNull(message.From);
 
-        _logger.LogTrace("Input message: {username} in {chatType} {chatTitle}: {Text}", message.From.Username, message.Chat.Type, message.Chat.Type == ChatType.Group ? message.Chat.Title : string.Empty, message.Text);
+        _logger.LogTrace("Input message: {username} in {chatType} {chatTitle}: {Text}", message.From.Username, 
+            message.Chat.Type, 
+            (message.Chat.Type == ChatType.Group || message.Chat.Type == ChatType.Supergroup) ? message.Chat.Title : string.Empty, 
+            message.IsTopicMessage.HasValue && message.IsTopicMessage.Value ? "Topic" : string.Empty,
+            message.Text);
 
         var activeDialog = _dialogManager[message.Chat.Id];
         if (activeDialog != null)
