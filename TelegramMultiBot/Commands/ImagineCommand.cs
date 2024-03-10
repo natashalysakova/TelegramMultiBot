@@ -7,6 +7,7 @@ using System;
 using System.Collections;
 using System.Security.Cryptography;
 using Telegram.Bot;
+using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
@@ -61,7 +62,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 using (var stream = new MemoryStream(Properties.Resources.artist))
                 {
                     var photo = InputFile.FromStream(stream, "beaver.png");
-                    await _client.SendPhotoAsync(message.Chat, photo, message.MessageThreadId, reply, ParseMode.MarkdownV2, replyMarkup: markup);
+                    var request = new SendPhotoRequest() { ChatId = message.Chat, Photo = photo, MessageThreadId = message.MessageThreadId, Caption = reply, ParseMode = ParseMode.MarkdownV2, ReplyMarkup = markup };
+                    await _client.SendPhotoAsync(request);
+                    //await _client.SendPhotoAsync(message.Chat, photo, message.MessageThreadId, reply, ParseMode.MarkdownV2, replyMarkup: markup);
                 }
 
 
@@ -89,12 +92,15 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private CallbackData CreateCallbackData(CallbackQuery query, ImagineCallbackData data)
         {
             Guid.TryParse(data.Id, out var guid);
+
+            var message = query.Message as Message;
+
             return new CallbackData()
             {
-                ChatId = query.Message.Chat.Id,
+                ChatId = message.Chat.Id,
                 JobType = Enum.Parse<JobType>(data.JobType.ToString()),
-                MessageId = query.Message.MessageId,
-                MessageThreadId = query.Message.MessageThreadId,
+                MessageId = message.MessageId,
+                MessageThreadId = message.MessageThreadId,
                 UserId = query.From.Id,
                 PreviousJobResultId = guid,
                 Upscale = data.Upscale,
@@ -178,7 +184,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                     hiresFix,
                                     upscale2,
                                     upscale4
-                                },                             
+                                },
                                 new List<InlineKeyboardButton>()
                                 {
                                      vingette, noise
@@ -238,37 +244,72 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                         if (result == null)
                         {
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара картинка. Інформаця про неї загубилась", showAlert: true);
+                            var answer = new AnswerCallbackQueryRequest()
+                            {
+                                CallbackQueryId = callbackData.Id,
+                                Text = "Це дуже стара картинка. Інформаця про неї загубилась",
+                                ShowAlert = true
+                            };
+                            await _client.AnswerCallbackQueryAsync(answer);
+                            //await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара картинка. Інформаця про неї загубилась", showAlert: true);
                             return;
                         }
                         else
                         {
-
-
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Інформацію знайдено");
-                            var prompt = callbackQuery.Message.ReplyToMessage.Text.Substring(callbackQuery.Message.ReplyToMessage.Text.IndexOf("/" + Command));
-                            var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup, prompt: prompt);
-                            InputMedia media = default;
-                            if (callbackQuery.Message.Type == MessageType.Photo)
+                            var answer = new AnswerCallbackQueryRequest()
                             {
-                                media = new InputMediaPhoto(InputFile.FromFileId(callbackQuery.Message.Photo.Last().FileId));
+                                CallbackQueryId = callbackData.Id,
+                                Text = "Інформацію знайдено",
+                            };
+                            await _client.AnswerCallbackQueryAsync(answer);
+
+                            var message = callbackQuery.Message as Message;
+                            var prompt = message.ReplyToMessage.Text.Substring(message.ReplyToMessage.Text.IndexOf("/" + Command));
+                            var keys = GetReplyMarkupForJob(callbackData, message.ReplyMarkup, prompt: prompt);
+                            InputMedia media = default;
+                            if (message.Type == MessageType.Photo)
+                            {
+                                media = new InputMediaPhoto() { Media = InputFile.FromFileId(message.Photo.Last().FileId) };
                                 media.Caption = $"#seed:{result.Seed}\nRender time: {TimeSpan.FromMilliseconds(result.RenderTime)}\n{result.Info}";
                             }
-                            if (callbackQuery.Message.Type == MessageType.Document)
+                            if (message.Type == MessageType.Document)
                             {
-                                media = new InputMediaDocument(InputFile.FromFileId(callbackQuery.Message.Document.FileId));
+                                media = new InputMediaDocument() { Media = InputFile.FromFileId(message.Document.FileId) };
                                 media.Caption = $"Render time: {TimeSpan.FromMilliseconds(result.RenderTime)}\n{result.Info}";
                             }
 
 
                             if (media.Caption.Length > 1024)
                             {
-                                await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
-                                await _client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, media.Caption, replyMarkup: keys, replyToMessageId: callbackQuery.Message.MessageId);
+                                var editRequest = new EditMessageReplyMarkupRequest()
+                                {
+                                    ChatId = message.Chat,
+                                    MessageId = message.MessageId,
+                                    ReplyMarkup = keys
+                                };
+                                await _client.EditMessageReplyMarkupAsync(editRequest);
+
+                                //await _client.EditMessageReplyMarkupAsync(message.Chat.Id, message.MessageId, keys);
+                                var infoRequest = new SendMessageRequest()
+                                {
+                                    ChatId = message.Chat,
+                                    Text = media.Caption,
+                                    ReplyMarkup = keys,
+                                    ReplyParameters = new ReplyParameters() { MessageId = message.MessageId }
+                                };
+                                await _client.SendMessageAsync(infoRequest);
+                                //await _client.SendTextMessageAsync(message.Chat.Id, media.Caption, replyMarkup: keys, replyToMessageId: message.MessageId);
                             }
                             else
                             {
-                                await _client.EditMessageMediaAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, media, keys);
+                                var editRequest = new EditMessageMediaRequest()
+                                {
+                                    ChatId = message.Chat,
+                                    MessageId = message.MessageId,
+                                    ReplyMarkup = keys,
+                                    Media = media
+                                };
+                                await _client.EditMessageMediaAsync(editRequest);
                             }
                         }
                         return;
@@ -305,7 +346,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
                         var prompt = callbackQuery.Message.ReplyToMessage.Text.Substring(callbackQuery.Message.ReplyToMessage.Text.IndexOf("/" + Command));
-                        var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup, prompt: prompt) ;
+                        var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup, prompt: prompt);
                         await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
 
                         return;
@@ -445,13 +486,32 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         case JobType.Upscale:
                         case JobType.HiresFix:
                             {
-                                await _client.SendDocumentAsync(job.ChatId, media, caption: info, replyToMessageId: job.MessageId, replyMarkup: keys);
+                                var request = new SendDocumentRequest()
+                                {
+                                    ChatId = job.ChatId,
+                                    Document = media,
+                                    Caption = info,
+                                    ReplyParameters = new ReplyParameters() { MessageId = job.MessageId },
+                                    ReplyMarkup = keys
+                                };
+
+                                await _client.SendDocumentAsync(request);
+                                //await _client.SendDocumentAsync(job.ChatId, media, caption: info, replyParameters: new ReplyParameters() { MessageId = job.MessageId }, replyMarkup: keys);
                                 break;
                             }
 
                         case JobType.Text2Image:
                             {
-                                await _client.SendPhotoAsync(job.ChatId, media, caption: info, replyToMessageId: job.MessageId, replyMarkup: keys);
+                                var request = new SendPhotoRequest()
+                                {
+                                    ChatId = job.ChatId,
+                                    Photo = media,
+                                    Caption = info,
+                                    ReplyParameters = new ReplyParameters() { MessageId = job.MessageId },
+                                    ReplyMarkup = keys
+                                };
+                                await _client.SendPhotoAsync(request);
+                                //await _client.SendPhotoAsync(job.ChatId, media, caption: info, replyToMessageId: job.MessageId, replyMarkup: keys);
                                 break;
                             }
                         default:

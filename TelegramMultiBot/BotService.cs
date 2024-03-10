@@ -6,6 +6,7 @@ using Newtonsoft.Json;
 using System.Timers;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
+using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
@@ -59,7 +60,7 @@ class BotService
 
         var receiverOptions = new ReceiverOptions
         {
-            AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery  }
+            AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery, UpdateType.MessageReaction, UpdateType.MessageReactionCount }
         };
 
         _client.StartReceiving(
@@ -130,7 +131,9 @@ class BotService
         try
         {
             _logger.LogDebug($"sending by schedule: {message}");
-            await _client.SendTextMessageAsync(chatId, message, disableWebPagePreview: true);
+            var request = new SendMessageRequest() { ChatId = chatId, Text = message, LinkPreviewOptions = new LinkPreviewOptions() { IsDisabled = true } };           
+            await _client.SendMessageAsync(request);
+            //await _client.SendTextMessageAsync(chatId, message, disableWebPagePreview: true);
         }
         catch (Exception ex)
         {
@@ -164,6 +167,12 @@ class BotService
                     return BotOnCallbackRecived(update.CallbackQuery);
                 case UpdateType.InlineQuery:
                     return BotOnInlineQueryRecived(update.InlineQuery);
+                case UpdateType.MessageReaction:
+                    ///TODO: add update
+                    break;
+                case UpdateType.MessageReactionCount:
+                    ///TODO: add update
+                    break;
                 default:
                     return Task.CompletedTask;
             }
@@ -179,7 +188,7 @@ class BotService
     {
         var commands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(inlineQuery) && x.CanHandleInlineQuery).Select(x => (IInlineQueryHandler)x);
 
-        if(!commands.Any())
+        if (!commands.Any())
         {
             await _client.AnswerInlineQueryAsync(inlineQuery.Id, new List<InlineQueryResult>());
             return;

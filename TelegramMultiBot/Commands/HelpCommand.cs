@@ -6,6 +6,7 @@ using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Configuration;
 using Telegram.Bot;
+using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramMultiBot.Configuration;
@@ -26,7 +27,7 @@ namespace TelegramMultiBot.Commands
             _configuration = configuration;
         }
 
-        public override Task Handle(Message message)
+        public async override Task Handle(Message message)
         {
             var config = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
 
@@ -49,7 +50,7 @@ https\:\/\/crontab\.guru
 + @"
 >Використовуй хештеги формату, щоб керувати форматом зображення
 " +
-string.Join("\n", GenerationParams.supportedResolutions.Select(x=> $">{x.width}x{x.height}: `\\{x.hashtag}` \\({x.ar}\\)" ))
+string.Join("\n", GenerationParams.supportedResolutions.Select(x => $">{x.width}x{x.height}: `\\{x.hashtag}` \\({x.ar}\\)"))
 + @"
 
 >Якщо бажаєш попрацювати над деталями зображення \- використуй повторно його seed
@@ -59,7 +60,7 @@ string.Join("\n", GenerationParams.supportedResolutions.Select(x=> $">{x.width}x
 >Використовуй хештег `#model_` щоб обрати модель для рендеру\.
 >Наразі доступні моделі\:
 " +
-string.Join("\n", config.Models.Select(x=> $">`#model_{x.Name}`"))
+string.Join("\n", config.Models.Select(x => $">`#model_{x.Name}`"))
 + @"
 
 >Використовуй хештеги `#auto` або `#comfy` щоб обрати API генерації Automatic1111 або ComfyUI відповідно
@@ -80,10 +81,16 @@ string.Join("\n", config.Models.Select(x=> $">`#model_{x.Name}`"))
 Цей функціонал мже не працювати як потрібно або не працювати взагалі, бо він залежить від сторонніх сервісів\.
 ";
 
-
-            _client.SendTextMessageAsync(message.Chat.Id, html, parseMode: ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId, disableWebPagePreview: true);
-
-            return Task.CompletedTask;
+            var request = new SendMessageRequest()
+            {
+                ChatId = message.Chat,
+                Text = html,
+                ParseMode = ParseMode.MarkdownV2,
+                MessageThreadId = message.MessageThreadId,
+                LinkPreviewOptions = new LinkPreviewOptions() { IsDisabled = true }
+            };
+            await _client.SendMessageAsync(request);
+            //_client.SendTextMessageAsync(message.Chat.Id, html, parseMode: ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId, disableWebPagePreview: true);
         }
     }
 }

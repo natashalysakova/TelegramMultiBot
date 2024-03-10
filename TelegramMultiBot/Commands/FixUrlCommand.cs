@@ -1,5 +1,7 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using AngleSharp.Io;
+using Microsoft.Extensions.Logging;
 using Telegram.Bot;
+using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
@@ -41,9 +43,10 @@ namespace TelegramMultiBot.Commands
 
                 newlink = CutTrackingInfo(newlink);
 
-                string newMessage;
                 var bot = await _client.GetChatMemberAsync(message.Chat.Id, _client.BotId.Value);
                 var canDeleteMessages = bot.Status == ChatMemberStatus.Administrator;
+
+                string newMessage = string.Empty;
                 if (canDeleteMessages)
                 {
                     await _client.DeleteMessageAsync(message.Chat, message.MessageId);
@@ -61,19 +64,26 @@ namespace TelegramMultiBot.Commands
 
                     newMessage = $"\U0001f9ab {name}: {oldMessage}\n";
 
-
-                    int? messageThread = message.Chat.IsForum.HasValue && message.Chat.IsForum.Value ? message.MessageThreadId : null;
-                    int? replyTo = message.ReplyToMessage != null ? message.ReplyToMessage.MessageId : null;
-
-
-                    await _client.SendTextMessageAsync(message.Chat, newMessage, disableNotification: false, replyToMessageId: replyTo, messageThreadId: messageThread);
+                    //await _client.SendTextMessageAsync(message.Chat, newMessage, disableNotification: false, replyToMessageId: replyTo, messageThreadId: messageThread);
 
                 }
                 else
                 {
                     newMessage = $"🦫 Дякую, я не можу видалити твоє повідомлення, тримай лінк: {newlink}";
-                    await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
+                    //await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
                 }
+
+                var replyParameters = message.ReplyToMessage != null ? new ReplyParameters { AllowSendingWithoutReply = true, MessageId = message.ReplyToMessage.MessageId } : null;
+                var request = new SendMessageRequest()
+                {
+                    ChatId = message.Chat.Id,
+                    Text = string.Empty,
+                    DisableNotification = false,
+                    ReplyParameters = replyParameters,
+                    MessageThreadId = message.Chat.IsForum.HasValue && message.Chat.IsForum.Value ? message.MessageThreadId : null
+                };
+                await _client.SendMessageAsync(request);
+
             }
         }
 
