@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Enums;
 
 namespace TelegramMultiBot.ImageGenerators
 {

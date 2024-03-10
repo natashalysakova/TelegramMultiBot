@@ -11,6 +11,7 @@ using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.CallbackDataTypes;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;

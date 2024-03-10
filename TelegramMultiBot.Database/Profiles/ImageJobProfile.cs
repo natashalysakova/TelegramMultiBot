@@ -1,5 +1,6 @@
 ﻿using AutoMapper;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database.Profiles
 {
@@ -19,8 +20,11 @@ namespace TelegramMultiBot.Database.Profiles
                 ;
         }
 
-        private static long GetSeed(string info)
+        private static long GetSeed(string? info)
         {
+            if (info is null)
+                return -1;
+
             var split = info.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             var hasSeed = split.Any(x => x.Contains("Seed:"));
             if (hasSeed)
@@ -31,7 +35,7 @@ namespace TelegramMultiBot.Database.Profiles
 
         private static string ParseParemeter(string paremeter)
         {
-            return paremeter.Substring(paremeter.IndexOf(":") + 1).Trim();
+            return paremeter[(paremeter.IndexOf(':') + 1)..].Trim();
         }
     }
 }

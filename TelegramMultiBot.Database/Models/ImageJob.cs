@@ -1,4 +1,7 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
+using TelegramMultiBot.Database.Enums;
+
+namespace TelegramMultiBot.Database.Models;
 
 public class ImageJob
 {
@@ -6,6 +9,7 @@ public class ImageJob
     {
         Created = DateTime.Now;
         BotMessageId = -1;
+        TextStatus = "empty";
     }
 
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]

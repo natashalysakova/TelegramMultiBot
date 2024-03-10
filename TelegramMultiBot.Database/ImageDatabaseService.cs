@@ -1,12 +1,11 @@
 ﻿using AutoMapper;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.Extensions.Logging;
-using TelegramMultiBot.Database.DTO;
-using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Enums;
+using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.Database.Models;
 
 namespace Bober.Database.Services
 {
@@ -60,21 +59,22 @@ namespace Bober.Database.Services
             var type = message.GetType();
             if (type == typeof(MessageData))
             {
-                return Enqueue(message as MessageData);
+                return Enqueue((MessageData)message);
             }
 
             if (type == typeof(CallbackData))
             {
-                return Enqueue(message as CallbackData);
+                return Enqueue((CallbackData)message);
             }
             return Guid.Empty;
         }
+
         private Guid Enqueue(MessageData message)
         {
             var job = JobFromData(message);
 
             job.Text = message.Text;
-            job.BotMessageId = message.BotMessageId.Value;
+            job.BotMessageId = message.BotMessageId;
             job.PostInfo = job.Text.Contains("#info");
             if(job.Text.Contains("#auto"))
             {
@@ -97,7 +97,7 @@ namespace Bober.Database.Services
             var job = JobFromData(data);
             job.UpscaleModifyer = data.Upscale;
 
-            var result = _context.JobResult.Include(x => x.Job).Single(x => x.Id == data.PreviousJobResultId);
+            JobResult result = _context.JobResult.Include(x => x.Job).Single(x => x.Id == data.PreviousJobResultId);
 
             job.PostInfo = result.Job.PostInfo;
             job.PreviousJobResultId = result.Id;
@@ -130,7 +130,7 @@ namespace Bober.Database.Services
             job.Status = ImageJobStatus.Queued;
             job.Type = data.JobType;
             job.TextStatus = "added";
-            job.BotMessageId = data.BotMessageId.Value;
+            job.BotMessageId = data.BotMessageId;
             return job;
         }
 

@@ -5,9 +5,7 @@ abstract class BaseDialogHandler<T> : IDialogHandler where T : class, IDialog
 {
     public void Handle(IDialog dialog, Message message)
     {
-        var castedDialog = dialog as T;
-        if (castedDialog == null)
-            throw new NullReferenceException("dialog is not type of " + typeof(T).Name);
+        var castedDialog = dialog as T ?? throw new NullReferenceException("dialog is not type of " + typeof(T).Name);
 
         var handler = GetHandler(castedDialog);
 

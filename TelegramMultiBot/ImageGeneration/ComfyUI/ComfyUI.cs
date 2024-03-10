@@ -18,6 +18,7 @@ using System.Collections.Specialized;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 using System.Runtime.Intrinsics.Arm;
 using System.Runtime.Intrinsics.X86;
+using TelegramMultiBot.Database.Enums;
 
 namespace TelegramMultiBot.ImageGenerators.ComfyUI
 {

@@ -4,23 +4,15 @@ using Bober.Database.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Options;
 using MySqlConnector;
-using System;
-using System.Reflection;
 using Telegram.Bot;
-using Telegram.Bot.Types.ReplyMarkups;
-using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Database;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Profiles;
-using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
-using TelegramMultiBot.Properties;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 
 internal class Program
@@ -59,7 +51,7 @@ internal class Program
             loggerBuilder.AddConsole();
         });
 
-        string connectionString = configuration["ConnectionString"];
+        string? connectionString = configuration.GetConnectionString("db");
         var serverVersion = GetServerVersion(connectionString);
 
         serviceCollection.AddDbContext<BoberDbContext>(options =>
@@ -103,7 +95,7 @@ internal class Program
 
     private static ServerVersion GetServerVersion(string? connectionString)
     {
-        ServerVersion version = default;
+        ServerVersion? version = default;
 
         do
         {
@@ -123,7 +115,7 @@ internal class Program
                 }
                 else
                 {
-                    throw ex;
+                    throw;
                 }
             }
         }

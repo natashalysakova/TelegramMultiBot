@@ -1,5 +1,4 @@
-﻿using System.Runtime;
-using TelegramMultiBot.Database.DTO;
+﻿using TelegramMultiBot.Database.DTO;
 
 namespace TelegramMultiBot.Database.Interfaces
 {
@@ -18,6 +17,6 @@ namespace TelegramMultiBot.Database.Interfaces
         void PushBotId(string jobId, int messageId);
         void RemoveJobs(IEnumerable<string> jobsToDelete);
         void ReturnToQueue(JobInfo job);
-        bool TryDequeue(out JobInfo job);
+        bool TryDequeue(out JobInfo? job);
     }
 }

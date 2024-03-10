@@ -1,10 +1,8 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using MySqlConnector;
-using System.ComponentModel.DataAnnotations;
-using System.Diagnostics.Metrics;
+using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database
 {
@@ -31,7 +29,7 @@ namespace TelegramMultiBot.Database
 
             var optionsBuilder = new DbContextOptionsBuilder<BoberDbContext>();
 
-            string connectionString = configuration["ConnectionString"];
+            string connectionString = configuration.GetConnectionString("db");
             var serverVersion = GetServerVersion(connectionString);
             optionsBuilder.UseMySql(connectionString, serverVersion);
             return new BoberDbContext(optionsBuilder.Options);
@@ -39,7 +37,7 @@ namespace TelegramMultiBot.Database
 
         private static ServerVersion GetServerVersion(string? connectionString)
         {
-            ServerVersion version = default;
+            ServerVersion? version = default;
 
             do
             {
@@ -59,7 +57,7 @@ namespace TelegramMultiBot.Database
                     }
                     else
                     {
-                        throw ex;
+                        throw;
                     }
                 }
             }

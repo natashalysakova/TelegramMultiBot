@@ -8,13 +8,11 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
 {
 
     private readonly TelegramBotClient _client;
-    private readonly ILogger _logger;
     private readonly JobManager _jobManager;
 
-    public AddJobHandler(TelegramBotClient client, ILogger<AddJobHandler> logger, JobManager jobManager)
+    public AddJobHandler(TelegramBotClient client, JobManager jobManager)
     {
         _client = client;
-        _logger = logger;
         _jobManager = jobManager;
 
     }
@@ -34,7 +32,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
             case AddDialogState.CheckMessage:
                 return CheckMessage;
             default:
-                return null;
+                return (job, message) => { return Task.Run(() => { return false; }); };
         }
     }
 

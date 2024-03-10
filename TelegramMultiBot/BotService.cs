@@ -68,7 +68,15 @@ class BotService
 
         var receiverOptions = new ReceiverOptions
         {
-            AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery, UpdateType.MessageReaction, UpdateType.MessageReactionCount }
+            AllowedUpdates = new[] {
+                UpdateType.Message,
+                UpdateType.InlineQuery,
+                UpdateType.ChosenInlineResult,
+                UpdateType.CallbackQuery,
+                UpdateType.MessageReaction,
+                UpdateType.MessageReactionCount
+            },
+            ThrowPendingUpdates = true
         };
 
         _client.StartReceiving(
@@ -78,7 +86,7 @@ class BotService
                 cancellationToken.Token
             );
 
-        var response = _client.GetMeAsync().Result;
+        var response = _client.GetMeAsync(new GetMeRequest()).Result;
         BotName = response.Username;
 
 
@@ -252,10 +260,9 @@ class BotService
             return;
         ArgumentNullException.ThrowIfNull(message.From);
 
-        _logger.LogTrace("Input message: {username} in {chatType} {chatTitle}: {Text}", message.From.Username, 
-            message.Chat.Type, 
-            (message.Chat.Type == ChatType.Group || message.Chat.Type == ChatType.Supergroup) ? message.Chat.Title : string.Empty, 
-            message.IsTopicMessage.HasValue && message.IsTopicMessage.Value ? "Topic" : string.Empty,
+        _logger.LogTrace("Input message: {username} in {chatType} {chatTitle}: {Text}", message.From.Username,
+            message.Chat.Type,
+            (message.Chat.Type == ChatType.Group || message.Chat.Type == ChatType.Supergroup) ? message.Chat.Title : string.Empty,
             message.Text);
 
         var activeDialog = _dialogManager[message.Chat.Id];

@@ -16,6 +16,7 @@ using System.Text.RegularExpressions;
 using Telegram.Bot;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGeneration.Exceptions;

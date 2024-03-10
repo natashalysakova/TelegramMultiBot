@@ -1,4 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using TelegramMultiBot;
+
 [Serializable]
 public class Job
 {
@@ -15,10 +17,15 @@ public class Job
         {
             if (nextExecution == default || sended)
             {
-                var next = CronUtil.ParseNext(Config);
-                sended = false;
-                nextExecution = next.HasValue ? next.Value : throw new Exception($"Failed to get next execution time for job ({Id}) {Name}");
-
+                try
+                {
+                    nextExecution = CronUtil.ParseNext(Config);
+                    sended = false;
+                }
+                catch
+                {
+                    throw new Exception($"Failed to get next execution time for job ({Id}) {Name}");
+                }
                 //LogUtil.Log($"Job {Name} in {ChatId} has new execution time: {nextExecution}");
             }
             return nextExecution;
