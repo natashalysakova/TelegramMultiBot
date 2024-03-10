@@ -5,6 +5,7 @@ using System.Linq;
 using System.Text;
 using System.Threading.Tasks;
 using Telegram.Bot;
+using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.ImageGenerators;
@@ -31,8 +32,17 @@ namespace TelegramMultiBot.Commands
                 var status = await diff.isAvailable() ? "available" : "not available";
                 text += $"{diff.UI} - {status}\n";
             }
-
-            await _client.SendTextMessageAsync(message.Chat.Id, text, replyToMessageId: message.MessageId);
+            var request = new SendMessageRequest()
+            {
+                ChatId = message.Chat,
+                Text = text,
+                ReplyParameters = new ReplyParameters()
+                {
+                    MessageId = message.MessageId
+                }
+            };
+            await _client.SendMessageAsync(request);
+            //await _client.SendTextMessageAsync(message.Chat.Id, text, replyToMessageId: message.MessageId);
         }
     }
 }

@@ -11,7 +11,6 @@
 
         private ReminderCallbackData()
         {
-
         }
 
         public static ReminderCallbackData FromString(string? data)

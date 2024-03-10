@@ -1,6 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Microsoft.Extensions.Logging;
 using Telegram.Bot;
+using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 
 class AddJobHandler : BaseDialogHandler<AddJobDialog>
@@ -41,7 +42,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
     {
         if (string.IsNullOrEmpty(message.Text))
         {
-            await _client.SendTextMessageAsync(dialog.ChatId, "Повідомлення порожнє. Спробуйте знову", disableNotification: true, messageThreadId: message.MessageThreadId);
+            await SendMessage("Повідомлення порожнє. Спробуйте знову", message);
             return false;
         }
 
@@ -49,7 +50,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
         dialog.IsFinished = true;
 
         _jobManager.AddJob(dialog.ChatId, dialog.Name, dialog.CRON, dialog.Text);
-        await _client.SendTextMessageAsync(dialog.ChatId, $"Завдання додано: {dialog.Name} ({dialog.CRON}) з текстом: {dialog.Text}", disableNotification: true, messageThreadId: message.MessageThreadId);
+        await SendMessage($"Завдання додано: {dialog.Name} ({dialog.CRON}) з текстом: {dialog.Text}", message);
 
         return true;
     }
@@ -58,7 +59,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
     {
         if (string.IsNullOrEmpty(message.Text))
         {
-            await _client.SendTextMessageAsync(dialog.ChatId, "CRON порожній. Спробуйте знову", disableNotification: true, messageThreadId: message.MessageThreadId);
+            await SendMessage("CRON порожній. Спробуйте знову", message);
             return false;
         }
         try
@@ -67,18 +68,24 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
         }
         catch (Exception)
         {
-            await _client.SendTextMessageAsync(dialog.ChatId, "CRON не валідний. Спробуйте знову. Більше про CRON можна дізнатися за посиланням https://crontab.guru", disableNotification: true, messageThreadId: message.MessageThreadId, disableWebPagePreview: true);
+            await SendMessage("CRON не валідний. Спробуйте знову. Більше про CRON можна дізнатися за посиланням https://crontab.guru", message);
             return false;
         }
+
+        
+
+
         dialog.CRON = message.Text;
-        await _client.SendTextMessageAsync(dialog.ChatId, "Введіть повідомлення, яке буде відправлятися", disableNotification: true);
+        await SendMessage("Введіть повідомлення, яке буде відправлятися", message);
         return true;
 
     }
 
+    
+
     private async Task<bool> Start(AddJobDialog dialog, Message message)
     {
-        await _client.SendTextMessageAsync(dialog.ChatId, "Дайте назву завдання", disableNotification: true, messageThreadId: message.MessageThreadId);
+        await SendMessage("Дайте назву завдання", message);
         return true;
     }
 
@@ -86,12 +93,24 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
     {
         if (string.IsNullOrEmpty(message.Text) || message.Text.StartsWith('/'))
         {
-            await _client.SendTextMessageAsync(dialog.ChatId, "Ім'я не валідне. Спробуйте знову", disableNotification: true, messageThreadId: message.MessageThreadId);
+            await SendMessage("Ім'я не валідне. Спробуйте знову", message);
             return false;
         }
         dialog.Name = message.Text;
-        await _client.SendTextMessageAsync(dialog.ChatId, "Введіть CRON", disableNotification: true, messageThreadId: message.MessageThreadId);
+        await SendMessage("Введіть CRON", message);
         return true;
+    }
 
+    private async Task SendMessage(string text, Message message)
+    {
+        var request = new SendMessageRequest()
+        {
+            ChatId = message.Chat,
+            Text = text,
+            DisableNotification = true,
+            MessageThreadId = message.MessageThreadId,
+            LinkPreviewOptions = new LinkPreviewOptions() { IsDisabled = true }
+        };
+        await _client.SendMessageAsync(request);
     }
 }

@@ -1,11 +1,7 @@
 ﻿
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
-using System;
 using System.Collections;
-using System.Security.Cryptography;
 using Telegram.Bot;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
@@ -16,7 +12,6 @@ using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.CallbackDataTypes;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
-using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 
@@ -50,25 +45,21 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         {
             if (message.Text == "/imagine" || message.Text == $"/imagine@{BotService.BotName}")
             {
-                var markup = new ForceReplyMarkup();
-                markup.InputFieldPlaceholder = "/imagine cat driving a bike";
-                markup.Selective = true;
+                var markup = new ForceReplyMarkup
+                {
+                    InputFieldPlaceholder = "/imagine cat driving a bike",
+                    Selective = true
+                };
 
                 var reply =
 @"Привіт, я бобер\-художник, і я сприймаю повідомлення в наступному форматі 
 `/imagine cat driving a bike`
 Щоб дізнатися більше /help";
 
-                using (var stream = new MemoryStream(Properties.Resources.artist))
-                {
-                    var photo = InputFile.FromStream(stream, "beaver.png");
-                    var request = new SendPhotoRequest() { ChatId = message.Chat, Photo = photo, MessageThreadId = message.MessageThreadId, Caption = reply, ParseMode = ParseMode.MarkdownV2, ReplyMarkup = markup };
-                    await _client.SendPhotoAsync(request);
-                    //await _client.SendPhotoAsync(message.Chat, photo, message.MessageThreadId, reply, ParseMode.MarkdownV2, replyMarkup: markup);
-                }
-
-
-                //await _client.SendTextMessageAsync(message.Chat.Id, reply, replyMarkup: markup, parseMode: Telegram.Bot.Types.Enums.ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId);
+                using var stream = new MemoryStream(Properties.Resources.artist);
+                var photo = InputFile.FromStream(stream, "beaver.png");
+                var request = new SendPhotoRequest() { ChatId = message.Chat, Photo = photo, MessageThreadId = message.MessageThreadId, Caption = reply, ParseMode = ParseMode.MarkdownV2, ReplyMarkup = markup };
+                await _client.SendPhotoAsync(request);
             }
             else
             {
@@ -78,23 +69,26 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         private MessageData CreateMessageData(Message message)
         {
+            ArgumentNullException.ThrowIfNull(message.Text);
+            ArgumentNullException.ThrowIfNull(message.From);
+
             return new MessageData()
             {
                 ChatId = message.Chat.Id,
                 JobType = JobType.Text2Image,
                 MessageId = message.MessageId,
                 MessageThreadId = message.MessageThreadId,
-                Text = message.Text.Substring(message.Text.IndexOf("/" + Command)),
+                Text = message.Text[message.Text.IndexOf("/" + Command)..],
                 UserId = message.From.Id
             };
         }
 
-        private CallbackData CreateCallbackData(CallbackQuery query, ImagineCallbackData data)
+        private static CallbackData CreateCallbackData(CallbackQuery query, ImagineCallbackData data)
         {
-            Guid.TryParse(data.Id, out var guid);
-
             var message = query.Message as Message;
+            ArgumentNullException.ThrowIfNull(message);
 
+            _ = Guid.TryParse(data.Id, out var guid);
             return new CallbackData()
             {
                 ChatId = message.Chat.Id,
@@ -107,21 +101,21 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             };
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCallbackData callbackData, InlineKeyboardMarkup? inlineKeyboardMarkup = null, string? prompt = null)
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCallbackData callbackData, string? prompt = null)
         {
-            return GetReplyMarkupForJob(callbackData.JobType, callbackData.Id, callbackData.Upscale, inlineKeyboardMarkup, prompt);
+            return GetReplyMarkupForJob(callbackData.JobType, callbackData.Id, callbackData.Upscale, prompt);
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(JobType type, string id, double? upscale, string prompt, InlineKeyboardMarkup? inlineKeyboardMarkup = null)
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(JobType type, string id, double? upscale, string prompt)
         {
             if (Enum.TryParse<ImagineCommands>(type.ToString(), out var s))
             {
-                return GetReplyMarkupForJob(s, id, upscale, inlineKeyboardMarkup, prompt);
+                return GetReplyMarkupForJob(s, id, upscale, prompt);
             }
             return null;
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCommands type, string id, double? upscale, InlineKeyboardMarkup? inlineKeyboardMarkup = null, string? prompt = null)
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCommands type, string id, double? upscale, string? prompt = null)
         {
             //InlineKeyboardButton repeat = InlineKeyboardButton.WithCallbackData("Повторити", new ImagineCallbackData(Command, ImagineCommands.Repeat));
             InlineKeyboardButton original = InlineKeyboardButton.WithCallbackData("Оригінал", new ImagineCallbackData(Command, ImagineCommands.Original, id));
@@ -265,7 +259,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                             var message = callbackQuery.Message as Message;
                             var prompt = message.ReplyToMessage.Text.Substring(message.ReplyToMessage.Text.IndexOf("/" + Command));
-                            var keys = GetReplyMarkupForJob(callbackData, message.ReplyMarkup, prompt: prompt);
+                            var keys = GetReplyMarkupForJob(callbackData, prompt: prompt);
                             InputMedia media = default;
                             if (message.Type == MessageType.Photo)
                             {
@@ -321,7 +315,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                             throw new ArgumentException("id");
 
                         var result = _databaseService.GetJobResult(callbackData.Id);
-                        var message = callbackQuery.Message;
+                        var message = callbackQuery.Message as Message;
 
                         if (result == null)
                         {
@@ -332,7 +326,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         using (var stream = System.IO.File.OpenRead(result.FilePath))
                         {
                             var media = InputFile.FromStream(stream, Path.GetFileName(result.FilePath));
-                            await _client.SendDocumentAsync(message.Chat.Id, media, replyToMessageId: message.MessageId);
+                            var request = new SendDocumentRequest()
+                            { ChatId = message.Chat, Document = media, ReplyParameters = new ReplyParameters() { MessageId = message.MessageId } };
+                            await _client.SendDocumentAsync(request);
                         }
 
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завантажую оригінал");
@@ -340,14 +336,19 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     }
                 case ImagineCommands.Actions:
                     {
-
                         if (callbackData.Id is null)
                             throw new ArgumentException("id");
+                        var message = callbackQuery.Message as Message;
 
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
-                        var prompt = callbackQuery.Message.ReplyToMessage.Text.Substring(callbackQuery.Message.ReplyToMessage.Text.IndexOf("/" + Command));
-                        var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup, prompt: prompt);
-                        await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
+                        var prompt = message.ReplyToMessage.Text[message.ReplyToMessage.Text.IndexOf("/" + Command)..];
+                        var keys = GetReplyMarkupForJob(callbackData, prompt);
+                        var request = new EditMessageReplyMarkupRequest()
+                        {
+                            ChatId = message.Chat,
+                            MessageId = message.MessageId,
+                            ReplyMarkup = keys
+                        };
 
                         return;
                     }
@@ -359,13 +360,13 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     {
 
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
-                        await AddJobToTheQueue(callbackQuery.Message, CreateCallbackData(callbackQuery, callbackData));
+                        await AddJobToTheQueue(callbackQuery.Message as Message, CreateCallbackData(callbackQuery, callbackData));
 
                         break;
                     }
                 case ImagineCommands.Repeat:
                     {
-                        var message = callbackQuery.Message.ReplyToMessage;
+                        var message = (callbackQuery.Message as Message).ReplyToMessage;
 
                         await AddJobToTheQueue(message, CreateMessageData(message));
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
@@ -383,7 +384,10 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             Message botMessage;
             try
             {
-                botMessage = await _client.SendTextMessageAsync(message.Chat.Id, $"Відправляю", replyToMessageId: message.MessageId);
+                var request = new SendMessageRequest()
+                { ChatId = message.Chat, Text = "Відправляю", ReplyParameters = new ReplyParameters() { MessageId = message.MessageId } };
+
+                botMessage = await _client.SendMessageAsync(request);
             }
             catch (Exception ex)
             {
