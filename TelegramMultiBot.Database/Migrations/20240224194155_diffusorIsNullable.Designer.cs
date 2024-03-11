@@ -11,8 +11,8 @@ using TelegramMultiBot.Database;
 namespace TelegramMultiBot.Database.Migrations
 {
     [DbContext(typeof(BoberDbContext))]
-    [Migration("20240224194155_diffusorIsNullable")]
-    partial class diffusorIsNullable
+    [Migration("20240224194155_DiffusorIsNullable")]
+    partial class DiffusorIsNullable
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

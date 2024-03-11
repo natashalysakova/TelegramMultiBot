@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TelegramMultiBot.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class fixMilliseconds : Migration
+    public partial class FixMilliseconds : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)

@@ -5,7 +5,7 @@
 namespace TelegramMultiBot.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class adddiffusor : Migration
+    public partial class AddDiffusor : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
