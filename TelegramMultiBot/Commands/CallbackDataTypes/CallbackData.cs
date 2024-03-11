@@ -4,7 +4,7 @@ namespace TelegramMultiBot.Commands.CallbackDataTypes
 {
     public abstract class CallbackData<T> where T : struct
     {
-        public string Id { get; set; }
+        public string? Id { get; set; }
         public string Command { get; set; }
         public T JobType { get; set; }
         object?[] _parameters;
@@ -12,6 +12,8 @@ namespace TelegramMultiBot.Commands.CallbackDataTypes
 
         protected CallbackData()
         {
+            _parameters = [];
+            Command = "unknown";
         }
 
         protected void FillBaseFromString(string? data)
@@ -35,15 +37,11 @@ namespace TelegramMultiBot.Commands.CallbackDataTypes
             {
                 _parameters = info[3..info.Length];
             }
-            else
-            {
-                _parameters = Array.Empty<object>();
-            }
         }
 
 
 
-        public CallbackData(string command, T type, string id, object?[] parameters)
+        public CallbackData(string command, T type, string? id, object?[] parameters)
         {
             Command = command;
             JobType = type;

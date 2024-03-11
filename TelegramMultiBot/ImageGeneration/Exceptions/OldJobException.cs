@@ -16,8 +16,4 @@ internal class OldJobException : Exception
     public OldJobException(string? message, Exception? innerException) : base(message, innerException)
     {
     }
-
-    protected OldJobException(SerializationInfo info, StreamingContext context) : base(info, context)
-    {
-    }
 }

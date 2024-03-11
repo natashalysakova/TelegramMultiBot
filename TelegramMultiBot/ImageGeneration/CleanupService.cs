@@ -12,11 +12,11 @@ namespace TelegramMultiBot.ImageGenerators
     internal class CleanupService
     {
         private readonly IDatabaseService _databaseService;
-        private readonly TelegramBotClient _client;
+        private readonly TelegramClientWrapper _client;
         private readonly IConfiguration _configuration;
         private readonly ILogger<CleanupService> _logger;
 
-        public CleanupService(IDatabaseService databaseService, TelegramBotClient client, IConfiguration configuration, ILogger<CleanupService> logger)
+        public CleanupService(IDatabaseService databaseService, TelegramClientWrapper client, IConfiguration configuration, ILogger<CleanupService> logger)
         {
             _databaseService = databaseService;
             _client = client;

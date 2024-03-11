@@ -7,6 +7,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using MySqlConnector;
 using Telegram.Bot;
+using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Database;
 using TelegramMultiBot.Database.Interfaces;
@@ -68,8 +69,9 @@ internal class Program
             throw new KeyNotFoundException("token");
 
         serviceCollection.AddSingleton(new TelegramBotClient(botKey) { Timeout = TimeSpan.FromSeconds(600)});
-
+        
         serviceCollection.AddScoped<BotService>();
+        serviceCollection.AddScoped<TelegramClientWrapper>();
         serviceCollection.AddScoped<ImageGenerator>();
 
         serviceCollection.AddSingleton<JobManager>();

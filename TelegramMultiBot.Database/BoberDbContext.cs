@@ -29,7 +29,11 @@ namespace TelegramMultiBot.Database
 
             var optionsBuilder = new DbContextOptionsBuilder<BoberDbContext>();
 
-            string connectionString = configuration.GetConnectionString("db");
+            string? connectionString = configuration.GetConnectionString("db");
+            if (connectionString == null)
+            {
+                throw new NullReferenceException(nameof(connectionString));
+            }
             var serverVersion = GetServerVersion(connectionString);
             optionsBuilder.UseMySql(connectionString, serverVersion);
             return new BoberDbContext(optionsBuilder.Options);

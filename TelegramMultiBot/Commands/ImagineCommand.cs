@@ -19,10 +19,9 @@ using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 namespace TelegramMultiBot.ImageGenerators.Automatic1111
 {
     [ServiceKey("imagine")]
-
     internal class ImagineCommand : BaseCommand, ICallbackHandler, IInlineQueryHandler
     {
-        private readonly TelegramBotClient _client;
+        private readonly TelegramClientWrapper _client;
         private readonly IConfiguration _configuration;
         private readonly ILogger<ImagineCommand> _logger;
         private readonly ImageGenearatorQueue _imageGenearatorQueue;
@@ -30,7 +29,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         //private readonly IServiceProvider _serviceProvider;
 
-        public ImagineCommand(TelegramBotClient client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IDatabaseService databaseService)
+        public ImagineCommand(TelegramClientWrapper client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IDatabaseService databaseService)
         {
             _client = client;
             _configuration = configuration;
@@ -39,8 +38,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             _databaseService = databaseService;
             //_serviceProvider = serviceProvider;
         }
-
-
 
         public override async Task Handle(Message message)
         {
@@ -59,8 +56,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                 using var stream = new MemoryStream(Properties.Resources.artist);
                 var photo = InputFile.FromStream(stream, "beaver.png");
-                var request = new SendPhotoRequest() { ChatId = message.Chat, Photo = photo, MessageThreadId = message.MessageThreadId, Caption = reply, ParseMode = ParseMode.MarkdownV2, ReplyMarkup = markup };
-                await _client.SendPhotoAsync(request);
+                await _client.SendPhotoAsync(message, photo, reply, markup: markup, parseMode: ParseMode.MarkdownV2);
             }
             else
             {
@@ -104,6 +100,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCallbackData callbackData, string? prompt = null)
         {
+            if (callbackData.Id is null)
+                throw new NullReferenceException(nameof(callbackData.Id));
+
             return GetReplyMarkupForJob(callbackData.JobType, callbackData.Id, callbackData.Upscale, prompt);
         }
 
@@ -227,9 +226,17 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         }
 
+
+        
+
+
+
         public async Task HandleCallback(CallbackQuery callbackQuery)
         {
             var callbackData = ImagineCallbackData.FromString(callbackQuery.Data);
+            if (callbackData.Id is null)
+                throw new NullReferenceException(nameof(callbackData.Id));
+
 
             switch (callbackData.JobType)
             {
@@ -239,60 +246,49 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                         if (result == null)
                         {
-                            var answer = new AnswerCallbackQueryRequest()
-                            {
-                                CallbackQueryId = callbackData.Id,
-                                Text = "Це дуже стара картинка. Інформаця про неї загубилась",
-                                ShowAlert = true
-                            };
-                            await _client.AnswerCallbackQueryAsync(answer);
+                            await _client.AnswerCallbackQueryAsync(callbackData.Id, "Це дуже стара картинка. Інформаця про неї загубилась", true);
                             //await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара картинка. Інформаця про неї загубилась", showAlert: true);
                             return;
                         }
                         else
                         {
-                            var answer = new AnswerCallbackQueryRequest()
-                            {
-                                CallbackQueryId = callbackData.Id,
-                                Text = "Інформацію знайдено",
-                            };
-                            await _client.AnswerCallbackQueryAsync(answer);
+                            await _client.AnswerCallbackQueryAsync(callbackData.Id, "Інформацію знайдено", true);
 
-                            var message = callbackQuery.Message as Message;
-                            var prompt = message.ReplyToMessage.Text.Substring(message.ReplyToMessage.Text.IndexOf("/" + Command));
+                            var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
+                            var replyMessage = message.ReplyToMessage ?? throw new NullReferenceException(nameof(message.ReplyToMessage));
+
+                            if (replyMessage.Text is null)
+                                throw new NullReferenceException(nameof(replyMessage.Text));
+
+
+                            var prompt = replyMessage.Text[replyMessage.Text.IndexOf("/" + Command)..];
                             var keys = GetReplyMarkupForJob(callbackData, prompt: prompt);
-                            InputMedia media = default;
+                            InputMedia? media = default;
                             if (message.Type == MessageType.Photo)
                             {
-                                media = new InputMediaPhoto() { Media = InputFile.FromFileId(message.Photo.Last().FileId) };
+                                var photo = (message.Photo ?? throw new NullReferenceException(nameof(message.Photo))).Last();
+                                media = new InputMediaPhoto() { Media = InputFile.FromFileId(photo.FileId) };
                                 media.Caption = $"#seed:{result.Seed}\nRender time: {TimeSpan.FromMilliseconds(result.RenderTime)}\n{result.Info}";
                             }
-                            if (message.Type == MessageType.Document)
+                            else if (message.Type == MessageType.Document)
                             {
-                                media = new InputMediaDocument() { Media = InputFile.FromFileId(message.Document.FileId) };
+                                var document = message.Document ?? throw new NullReferenceException(nameof(message.Document));
+                                media = new InputMediaDocument() { Media = InputFile.FromFileId(document.FileId) };
                                 media.Caption = $"Render time: {TimeSpan.FromMilliseconds(result.RenderTime)}\n{result.Info}";
                             }
-
+                            else
+                            {
+                                throw new NullReferenceException(nameof(media));
+                            }
 
                             if (media.Caption.Length > 1024)
                             {
-                                var editRequest = new EditMessageReplyMarkupRequest()
-                                {
-                                    ChatId = message.Chat,
-                                    MessageId = message.MessageId,
-                                    ReplyMarkup = keys
-                                };
-                                await _client.EditMessageReplyMarkupAsync(editRequest);
+                                
+                                await _client.EditMessageReplyMarkupAsync(message, keys);
 
                                 //await _client.EditMessageReplyMarkupAsync(message.Chat.Id, message.MessageId, keys);
-                                var infoRequest = new SendMessageRequest()
-                                {
-                                    ChatId = message.Chat,
-                                    Text = media.Caption,
-                                    ReplyMarkup = keys,
-                                    ReplyParameters = new ReplyParameters() { MessageId = message.MessageId }
-                                };
-                                await _client.SendMessageAsync(infoRequest);
+
+                                await _client.SendMessageAsync(message, media.Caption, true, keys);
                                 //await _client.SendTextMessageAsync(message.Chat.Id, media.Caption, replyMarkup: keys, replyToMessageId: message.MessageId);
                             }
                             else
@@ -304,7 +300,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                     ReplyMarkup = keys,
                                     Media = media
                                 };
-                                await _client.EditMessageMediaAsync(editRequest);
+                                await _client.EditMessageMediaAsync(message, media, keys);
                             }
                         }
                         return;
@@ -316,20 +312,19 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                             throw new ArgumentException("id");
 
                         var result = _databaseService.GetJobResult(callbackData.Id);
-                        var message = callbackQuery.Message as Message;
+                        var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
 
                         if (result == null)
                         {
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара каринка, бобер загубив оригінал", showAlert: true);
+                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара каринка, бобер загубив оригінал", true);
+                            //await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара каринка, бобер загубив оригінал", showAlert: true);
                             return;
                         }
 
                         using (var stream = System.IO.File.OpenRead(result.FilePath))
                         {
                             var media = InputFile.FromStream(stream, Path.GetFileName(result.FilePath));
-                            var request = new SendDocumentRequest()
-                            { ChatId = message.Chat, Document = media, ReplyParameters = new ReplyParameters() { MessageId = message.MessageId } };
-                            await _client.SendDocumentAsync(request);
+                            await _client.SendDocumentAsync(message, media, reply: true);
                         }
 
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завантажую оригінал");
@@ -339,10 +334,16 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     {
                         if (callbackData.Id is null)
                             throw new ArgumentException("id");
-                        var message = callbackQuery.Message as Message;
 
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
-                        var prompt = message.ReplyToMessage.Text[message.ReplyToMessage.Text.IndexOf("/" + Command)..];
+
+                        var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
+                        var replyMessage = message.ReplyToMessage ?? throw new NullReferenceException(nameof(message.ReplyToMessage));
+                        if (replyMessage.Text is null)
+                            throw new NullReferenceException(nameof(replyMessage.Text));
+
+
+                        var prompt = replyMessage.Text[replyMessage.Text.IndexOf("/" + Command)..];
                         var keys = GetReplyMarkupForJob(callbackData, prompt);
                         var request = new EditMessageReplyMarkupRequest()
                         {
@@ -359,17 +360,19 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 case ImagineCommands.Noise:
 
                     {
+                        var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
 
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
-                        await AddJobToTheQueue(callbackQuery.Message as Message, CreateCallbackData(callbackQuery, callbackData));
+                        await AddJobToTheQueue(message, CreateCallbackData(callbackQuery, callbackData));
 
                         break;
                     }
                 case ImagineCommands.Repeat:
                     {
-                        var message = (callbackQuery.Message as Message).ReplyToMessage;
+                        var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
+                        var replyMessage = message.ReplyToMessage ?? throw new NullReferenceException(nameof(message.ReplyToMessage));
 
-                        await AddJobToTheQueue(message, CreateMessageData(message));
+                        await AddJobToTheQueue(replyMessage, CreateMessageData(replyMessage));
                         await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
 
                         break;
@@ -385,10 +388,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             Message botMessage;
             try
             {
-                var request = new SendMessageRequest()
-                { ChatId = message.Chat, Text = "Відправляю", ReplyParameters = new ReplyParameters() { MessageId = message.MessageId } };
-
-                botMessage = await _client.SendMessageAsync(request);
+                botMessage = await _client.SendMessageAsync(message, "Відправляю", replyToMessage: true);
             }
             catch (Exception ex)
             {
@@ -401,20 +401,20 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             try
             {
                 _imageGenearatorQueue.AddJob(data);
-                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Твій шедевр в черзі. Чекай");
+                await _client.EditMessageTextAsync(botMessage, "Твій шедевр в черзі. Чекай");
             }
             catch (OldJobException ex)
             {
-                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, ex.Message);
+                await _client.EditMessageTextAsync(botMessage, ex.Message);
             }
             catch (AlreadyRunningException ex)
             {
-                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, ex.Message);
+                await _client.EditMessageTextAsync(botMessage, ex.Message);
             }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Adding in the queue:" + ex.Message);
-                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Не можу додати в чергу - в мене лапки :(");
+                await _client.EditMessageTextAsync(botMessage, "Не можу додати в чергу - в мене лапки :(");
 
             }
         }
@@ -429,7 +429,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         using (var stream = new MemoryStream(Properties.Resources.asleep))
                         {
                             var photo = InputFile.FromStream(stream, "beaver.png");
-                            await _client.SendPhotoAsync(job.ChatId, photo, messageThreadId: job.MessageThreadId, caption: exception.Message);
+                            await _client.SendPhotoAsync(job, photo, exception.Message);
                         }
                         await _client.DeleteMessageAsync(job.ChatId, job.BotMessageId);
                         break;
@@ -441,7 +441,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     {
                         var keys = new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Спробувати ще", new ImagineCallbackData(Command, ImagineCommands.Repeat)));
 
-                        await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Рендер невдалий. Спробуйте ще", replyMarkup: keys);
+                        await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Рендер невдалий. Спробуйте ще", keys);
                         break;
                     }
                 case AlreadyRunningException:
@@ -457,6 +457,8 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
 
         }
+
+
 
         internal async Task JobFinished(JobInfo inputJob)
         {
@@ -491,31 +493,14 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         case JobType.Upscale:
                         case JobType.HiresFix:
                             {
-                                var request = new SendDocumentRequest()
-                                {
-                                    ChatId = job.ChatId,
-                                    Document = media,
-                                    Caption = info,
-                                    ReplyParameters = new ReplyParameters() { MessageId = job.MessageId },
-                                    ReplyMarkup = keys
-                                };
-
-                                await _client.SendDocumentAsync(request);
+                                await _client.SendDocumentAsync(job, media, info, true, keys);
                                 //await _client.SendDocumentAsync(job.ChatId, media, caption: info, replyParameters: new ReplyParameters() { MessageId = job.MessageId }, replyMarkup: keys);
                                 break;
                             }
 
                         case JobType.Text2Image:
                             {
-                                var request = new SendPhotoRequest()
-                                {
-                                    ChatId = job.ChatId,
-                                    Photo = media,
-                                    Caption = info,
-                                    ReplyParameters = new ReplyParameters() { MessageId = job.MessageId },
-                                    ReplyMarkup = keys
-                                };
-                                await _client.SendPhotoAsync(request);
+                                await _client.SendPhotoAsync(job, media, info, true, keys);
                                 //await _client.SendPhotoAsync(job.ChatId, media, caption: info, replyToMessageId: job.MessageId, replyMarkup: keys);
                                 break;
                             }
@@ -533,6 +518,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             var testChatId = _configuration.GetValue<long>("testChatId");
             try
             {
+                
                 var copied = await _client.CopyMessageAsync(testChatId, chatId, messageId);
                 await _client.DeleteMessageAsync(testChatId, copied.Id);
                 return true;
@@ -546,7 +532,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         public async Task HandleInlineQuery(InlineQuery inlineQuery)
         {
-            await _client.AnswerInlineQueryAsync(inlineQuery.Id, new List<InlineQueryResult>());
+            await _client.AnswerInlineQueryAsync(inlineQuery.Id);
         }
 
         class StreamList : IDisposable, IEnumerable<FileStream>

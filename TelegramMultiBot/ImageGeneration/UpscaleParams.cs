@@ -9,7 +9,7 @@ namespace TelegramMultiBot.ImageGeneration
 {
     public class UpscaleParams
     {
-        public UpscaleParams(JobResultInfo previousJob) 
+        public UpscaleParams(JobResultInfoView previousJob) 
         {         
             FilePath = previousJob.FilePath;
             ParseInfo(previousJob.Info);

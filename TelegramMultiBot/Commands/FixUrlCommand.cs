@@ -10,22 +10,26 @@ namespace TelegramMultiBot.Commands
 {
     class FixUrlCommand : BaseCommand
     {
-        private readonly ILogger _logger;
-        private readonly TelegramBotClient _client;
+        private readonly TelegramClientWrapper _client;
 
-        public FixUrlCommand(ILogger<FixUrlCommand> logger, TelegramBotClient client)
+        public FixUrlCommand(TelegramClientWrapper client)
         {
-            _logger = logger;
             _client = client;
         }
 
         public override bool CanHandle(Message message)
         {
+            if(message.Text is null)
+                return false;
+
             return ServiceItems.Any(x => message.Text.ToLower().Contains(x.service));
         }
 
         public override async Task Handle(Message message)
         {
+            if (message.Text is null)
+                throw new NullReferenceException(nameof(message.Text));
+
             var links = message.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(x => x.Contains("https://"));
 
             if (links is null)
@@ -37,23 +41,31 @@ namespace TelegramMultiBot.Commands
                 if (service is null)
                     return;
 
-                string newlink = string.IsNullOrEmpty(service.whatReplace) && string.IsNullOrEmpty(service.replaceWith)
+                string newlink = string.IsNullOrEmpty(service.whatReplace) || string.IsNullOrEmpty(service.replaceWith)
                     ? link
                     : link.Replace(service.whatReplace, service.replaceWith);
 
                 newlink = CutTrackingInfo(newlink);
 
-                var bot = await _client.GetChatMemberAsync(message.Chat.Id, _client.BotId.Value);
+                if (_client.BotId == null)
+                    throw new NullReferenceException(nameof(_client.BotId));
+
+                var bot = await _client.GetChatMemberAsync(message.Chat, _client.BotId.Value);
                 var canDeleteMessages = bot.Status == ChatMemberStatus.Administrator;
 
                 string newMessage = string.Empty;
                 if (canDeleteMessages)
                 {
-                    await _client.DeleteMessageAsync(message.Chat, message.MessageId);
+                    await _client.DeleteMessageAsync(message);
                     var oldMessage = message.Text.Replace(link, newlink);
 
+                    if(message.From is null)
+                    {
+                        throw new NullReferenceException(nameof(message.From));
+                    }
+
                     string name = string.Empty;
-                    if (string.IsNullOrEmpty(message.From.Username))
+                    if (message.From.Username is null)
                     {
                         name = $"{message.From.FirstName}";
                     }
@@ -73,16 +85,8 @@ namespace TelegramMultiBot.Commands
                     //await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
                 }
 
-                var replyParameters = message.ReplyToMessage != null ? new ReplyParameters { AllowSendingWithoutReply = true, MessageId = message.ReplyToMessage.MessageId } : null;
-                var request = new SendMessageRequest()
-                {
-                    ChatId = message.Chat.Id,
-                    Text = string.Empty,
-                    DisableNotification = false,
-                    ReplyParameters = replyParameters,
-                    MessageThreadId = message.Chat.IsForum.HasValue && message.Chat.IsForum.Value ? message.MessageThreadId : null
-                };
-                await _client.SendMessageAsync(request);
+
+                await _client.SendMessageAsync(message, newMessage, true, disableNotification: false);
 
             }
         }

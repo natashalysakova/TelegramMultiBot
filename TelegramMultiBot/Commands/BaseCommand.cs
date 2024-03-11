@@ -8,15 +8,34 @@ namespace TelegramMultiBot.Commands
     {
         public bool CanHandleInlineQuery { get => this.GetType().IsAssignableTo(typeof(IInlineQueryHandler)); }
         public bool CanHandleCallback { get => this.GetType().IsAssignableTo(typeof(ICallbackHandler)); }
-        public string Command { get => this.GetType().GetAttributeValue((ServiceKeyAttribute att) => { return att.Command; }); }
+        public string Command
+        {
+            get
+            {
+                var type = this.GetType();
+
+                var attribute = type.GetAttributeValue(
+                    (ServiceKeyAttribute att) =>
+                    {
+                        return att.Command;
+                    });
+                return attribute ?? throw new InvalidOperationException("Cannot find command");
+            }
+        }
 
         public virtual bool CanHandle(Message message)
         {
-            if( message.Entities!=null
-                && message.Entities.Any(x=> x.Type == MessageEntityType.BotCommand)
+            if (message.Text is null)
+                return false;
+
+            if (message.Entities != null
+                && message.Entities.Any(x => x.Type == MessageEntityType.BotCommand)
                 && (message.Text.StartsWith("/") || message.Text.StartsWith($"@{BotService.BotName} /")))
 
             {
+                if (message.EntityValues is null)
+                    return false;
+
                 var value = message.EntityValues.ElementAt(0);
                 if (value.StartsWith("@"))
                 {
@@ -32,7 +51,7 @@ namespace TelegramMultiBot.Commands
                     return value.StartsWith("/" + Command);
                 }
             }
-            
+
             return false;
         }
 
@@ -51,7 +70,7 @@ namespace TelegramMultiBot.Commands
 
     public static class AttributeExtensions
     {
-        public static TValue GetAttributeValue<TAttribute, TValue>(
+        public static TValue? GetAttributeValue<TAttribute, TValue>(
             this Type type,
             Func<TAttribute, TValue> valueSelector)
             where TAttribute : Attribute
@@ -63,7 +82,7 @@ namespace TelegramMultiBot.Commands
             {
                 return valueSelector(att);
             }
-            return default(TValue);
+            return default;
         }
     }
 

@@ -27,13 +27,13 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         private readonly ILogger<ComfyUI> _logger;
         private readonly IConfiguration _configuration;
         private readonly IDatabaseService _databaseService;
-        private readonly TelegramBotClient _client;
+        private readonly TelegramClientWrapper _client;
         protected override string pingPath => "/system_stats";
 
         private string promptPath = "/prompt";
         private string clientId = Guid.NewGuid().ToString();
 
-        public ComfyUI(ILogger<ComfyUI> logger, IConfiguration configuration, IDatabaseService databaseService, TelegramBotClient client) : base(logger, configuration)
+        public ComfyUI(ILogger<ComfyUI> logger, IConfiguration configuration, IDatabaseService databaseService, TelegramClientWrapper client) : base(logger, configuration)
         {
             _logger = logger;
             _configuration = configuration;
@@ -480,7 +480,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
                         //inputMedia.Add(filePath);
 
-                        _databaseService.AddResult(job.Id, new JobResultInfo()
+                        _databaseService.AddResult(job.Id, new JobResultInfoCreate()
                         {
                             FilePath = filePath,
                             Info = info,

@@ -19,23 +19,12 @@
             callback.FillBaseFromString(data);
             if (callback.Parameters.Length > 0)
             {
-                callback.Upscale = double.Parse(callback.Parameters[0].ToString());
+                var value = callback.Parameters[0] as string;
+                if(!string.IsNullOrEmpty(value))
+                    callback.Upscale = double.Parse(value);
             }
             return callback;
         }
 
-    }
-
-    public enum ImagineCommands
-    {
-        Text2Image,
-        HiresFix,
-        Upscale,
-        Info,
-        Original,
-        Actions,
-        Repeat,
-        Vingette,
-        Noise,
     }
 }

@@ -72,8 +72,13 @@ namespace Bober.Database.Services
         private Guid Enqueue(MessageData message)
         {
             var job = JobFromData(message);
-
             job.Text = message.Text;
+
+            if (job.Text is null)
+            {
+                throw new NullReferenceException(nameof(job.Text));
+            }
+
             job.BotMessageId = message.BotMessageId;
             job.PostInfo = job.Text.Contains("#info");
             if(job.Text.Contains("#auto"))
@@ -98,6 +103,10 @@ namespace Bober.Database.Services
             job.UpscaleModifyer = data.Upscale;
 
             JobResult result = _context.JobResult.Include(x => x.Job).Single(x => x.Id == data.PreviousJobResultId);
+            if(result.Job is null)
+            {
+                throw new NullReferenceException(nameof(result.Job));
+            }
 
             job.PostInfo = result.Job.PostInfo;
             job.PreviousJobResultId = result.Id;
@@ -205,28 +214,22 @@ namespace Bober.Database.Services
             if (Guid.TryParse(jobId, out var id))
             {
                 var job = _context.Jobs.FirstOrDefault(x => x.Id == Guid.Parse(jobId));
-
-                if (job == null)
-                    return null;
-
-                return _mapper.Map<JobInfo>(job);
-
+                if (job != null)
+                    return _mapper.Map<JobInfo>(job);
             }
-
-            return null;
+            return default;
         }
 
 
 
 
-        public JobResultInfo? GetJobResult(string jobResultId)
+        public JobResultInfoView? GetJobResult(string jobResultId)
         {
             var job = _context.JobResult.FirstOrDefault(x => x.Id == Guid.Parse(jobResultId));
+            if (job != null)
+                return _mapper.Map<JobResultInfoView>(job);
 
-            if (job == null)
-                return null;
-
-            return _mapper.Map<JobResultInfo>(job);
+            return default;
         }
 
         public int ActiveJobsCount(long userId)
@@ -234,10 +237,15 @@ namespace Bober.Database.Services
             return ActiveJobs.Where(x => x.UserId == userId).Count();
         }
 
-        public void AddResult(string id, JobResultInfo jobResultInfo)
+        public void AddResult(string id, JobResultInfoCreate jobResultInfo)
         {
             var jobResult = _mapper.Map<JobResult>(jobResultInfo);
             var job = _context.Jobs.FirstOrDefault(x => x.Id.ToString() == id);
+
+            if (job == null)
+            {
+                throw new InvalidOperationException($"Job {id} not found");
+            }
 
             job.Results.Add(jobResult);
             _context.SaveChanges();

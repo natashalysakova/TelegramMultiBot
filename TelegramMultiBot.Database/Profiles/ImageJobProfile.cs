@@ -11,13 +11,16 @@ namespace TelegramMultiBot.Database.Profiles
             CreateMap<ImageJob, JobInfo>()
                 .ForMember(x => x.Exception, act => act.Ignore())
                 .ReverseMap()
-                .ForMember(x=>x.Progress, act=> act.Ignore());
-            CreateMap<JobResult, JobResultInfo>()
-                //.ForMember(x=>x.Id, act=> act.MapFrom(x=>x.Id.ToString()))
-                .ForMember(x => x.Seed, act => act.MapFrom(y => GetSeed(y.Info)))
-                .ReverseMap()
-                //.ForMember(x => x.Id, act => act.MapFrom(x => Guid.Parse(x.Id)))
-                ;
+                .ForMember(x => x.Progress, act => act.Ignore());
+
+            CreateMap<JobResult, JobResultInfoView>()
+                .ForMember(x => x.Seed, act => act.MapFrom(y => GetSeed(y.Info)));
+
+            CreateMap<JobResultInfoCreate, JobResult>()
+                .ForMember(x => x.Id, act => act.Ignore())
+                .ForMember(x => x.Index, act => act.Ignore())
+                .ForMember(x => x.Job, act => act.Ignore())
+                .ForMember(x => x.JobId, act => act.Ignore());
         }
 
         private static long GetSeed(string? info)
@@ -39,44 +42,44 @@ namespace TelegramMultiBot.Database.Profiles
         }
     }
 }
-    
-
-    //private JobResultInfo GetInfo(JobResult jobResult)
-    //{
-    //    var split = jobResult.Info.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-
-    //    var item = new JobResultInfo
-    //    {
-    //        Seed = long.Parse(ParseParemeter(split.Single(x => x.Contains("Seed:")))),
-    //        FilePath = jobResult.FilePath,
-    //        Info = jobResult.Info,
-    //        RenderTime = jobResult.RenderTime.Milliseconds,
-    //        Id = jobResult.Id.ToString()
-    //    };
-
-    //    return item;
-    //}
-    //private JobInfo GetInfo(ImageJob job)
-    //{
-    //    var result = new JobInfo()
-    //    {
-    //        Id = job.Id.ToString(),
-    //        BotMessageId = job.BotMessageId,
-    //        ChatId = job.ChatId,
-    //        MessageId = job.MessageId,
-    //        MessageThreadId = job.MessageId,
-    //        PostInfo = job.PostInfo,
-    //        Type = job.Type,
-    //        UpscaleModifyer = job.UpscaleModifyer,
-    //        Results = new JobResultInfo[job.Results.Count]
-    //    };
 
 
-    //    for (int i = 0; i < result.Results.Length; i++)
-    //    {
-    //        result.Results[i] = GetInfo(job.Results.ElementAt(i));
-    //    }
+//private JobResultInfo GetInfo(JobResult jobResult)
+//{
+//    var split = jobResult.Info.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
 
-    //    return result;
-    //}
-    
+//    var item = new JobResultInfo
+//    {
+//        Seed = long.Parse(ParseParemeter(split.Single(x => x.Contains("Seed:")))),
+//        FilePath = jobResult.FilePath,
+//        Info = jobResult.Info,
+//        RenderTime = jobResult.RenderTime.Milliseconds,
+//        Id = jobResult.Id.ToString()
+//    };
+
+//    return item;
+//}
+//private JobInfo GetInfo(ImageJob job)
+//{
+//    var result = new JobInfo()
+//    {
+//        Id = job.Id.ToString(),
+//        BotMessageId = job.BotMessageId,
+//        ChatId = job.ChatId,
+//        MessageId = job.MessageId,
+//        MessageThreadId = job.MessageId,
+//        PostInfo = job.PostInfo,
+//        Type = job.Type,
+//        UpscaleModifyer = job.UpscaleModifyer,
+//        Results = new JobResultInfo[job.Results.Count]
+//    };
+
+
+//    for (int i = 0; i < result.Results.Length; i++)
+//    {
+//        result.Results[i] = GetInfo(job.Results.ElementAt(i));
+//    }
+
+//    return result;
+//}
+

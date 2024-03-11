@@ -89,8 +89,6 @@ class BotService
         var response = _client.GetMeAsync(new GetMeRequest()).Result;
         BotName = response.Username;
 
-
-
         while (!cancellationToken.IsCancellationRequested)
         {
             Thread.Sleep(1000);

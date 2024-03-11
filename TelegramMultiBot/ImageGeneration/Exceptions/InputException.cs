@@ -16,9 +16,5 @@ namespace TelegramMultiBot.ImageGeneration.Exceptions
         public InputException(string? message, Exception? innerException) : base(message, innerException)
         {
         }
-
-        protected InputException(SerializationInfo info, StreamingContext context) : base(info, context)
-        {
-        }
     }
 }

@@ -1,4 +1,5 @@
 using Microsoft.VisualStudio.TestTools.UnitTesting;
+using TelegramMultiBot;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.ImageGeneration;
 
@@ -20,9 +21,9 @@ namespace BotTests
         {
             string s = "cat, dog, cute beavers\r\nNegative prompt: horse\r\nSteps: 5, Sampler: DPM++ SDE Karras, CFG scale: 2.0, Seed: 3342802166, Size: 1024x768, Model: dreamshaperXL_turboDpmppSDE, Denoising strength: 0.35, Version: v1.6.0-2-g4afaaf8a";
 
-#pragma warning disable CS0618 // Type or member is obsolete
-            var obj = new UpscaleParams(new JobResultInfo() { Info = s});
-#pragma warning restore CS0618 // Type or member is obsolete
+
+            var obj = new UpscaleParams(new JobResultInfoView() { Info = s, FilePath = string.Empty, Id = "test"});
+
 
 
             Assert.AreEqual("cat, dog, cute beavers", obj.Prompt);

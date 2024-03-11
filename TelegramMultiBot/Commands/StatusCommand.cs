@@ -15,10 +15,10 @@ namespace TelegramMultiBot.Commands
     [ServiceKey("status")]
     internal class StatusCommand : BaseCommand
     {
-        private readonly TelegramBotClient _client;
+        private readonly TelegramClientWrapper _client;
         private readonly IEnumerable<IDiffusor> _diffusors;
 
-        public StatusCommand(TelegramBotClient client, IEnumerable<IDiffusor> diffusors)
+        public StatusCommand(TelegramClientWrapper client, IEnumerable<IDiffusor> diffusors)
         {
             _client = client;
             _diffusors = diffusors;
@@ -32,16 +32,8 @@ namespace TelegramMultiBot.Commands
                 var status = await diff.isAvailable() ? "available" : "not available";
                 text += $"{diff.UI} - {status}\n";
             }
-            var request = new SendMessageRequest()
-            {
-                ChatId = message.Chat,
-                Text = text,
-                ReplyParameters = new ReplyParameters()
-                {
-                    MessageId = message.MessageId
-                }
-            };
-            await _client.SendMessageAsync(request);
+
+            await _client.SendMessageAsync(message, text, true);
             //await _client.SendTextMessageAsync(message.Chat.Id, text, replyToMessageId: message.MessageId);
         }
     }

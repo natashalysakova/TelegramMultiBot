@@ -18,10 +18,10 @@ namespace TelegramMultiBot.Commands
 
     internal class HelpCommand : BaseCommand
     {
-        private readonly TelegramBotClient _client;
+        private readonly TelegramClientWrapper _client;
         private readonly IConfiguration _configuration;
 
-        public HelpCommand(TelegramBotClient client, IConfiguration configuration)
+        public HelpCommand(TelegramClientWrapper client, IConfiguration configuration)
         {
             _client = client;
             _configuration = configuration;
@@ -30,6 +30,8 @@ namespace TelegramMultiBot.Commands
         public async override Task Handle(Message message)
         {
             var config = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+            if(config is null)
+                throw new NullReferenceException(nameof(config));
 
             var html =
 @"
@@ -81,15 +83,7 @@ string.Join("\n", config.Models.Select(x => $">`#model_{x.Name}`"))
 Цей функціонал мже не працювати як потрібно або не працювати взагалі, бо він залежить від сторонніх сервісів\.
 ";
 
-            var request = new SendMessageRequest()
-            {
-                ChatId = message.Chat,
-                Text = html,
-                ParseMode = ParseMode.MarkdownV2,
-                MessageThreadId = message.MessageThreadId,
-                LinkPreviewOptions = new LinkPreviewOptions() { IsDisabled = true }
-            };
-            await _client.SendMessageAsync(request);
+            await _client.SendMessageAsync(message, html, parseMode: ParseMode.MarkdownV2, linkPreviewOptions: new LinkPreviewOptions() { IsDisabled = true });
             //_client.SendTextMessageAsync(message.Chat.Id, html, parseMode: ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId, disableWebPagePreview: true);
         }
     }
