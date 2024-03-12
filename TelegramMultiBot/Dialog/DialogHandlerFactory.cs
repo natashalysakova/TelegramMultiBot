@@ -1,5 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
-class DialogHandlerFactory
+internal class DialogHandlerFactory
 {
     private readonly IEnumerable<IDialogHandler> _handlers;
 

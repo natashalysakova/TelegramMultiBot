@@ -4,7 +4,7 @@ using TelegramMultiBot.Reminder;
 
 internal class JobManager : Manager<Job>, IDisposable
 {
-    private object locker = new object();
+    private object locker = new();
     private int nextId => list.Any() ? list.Max(x => x.Id) + 1 : 0;
 
     protected override string fileName => "jobs.json";
@@ -21,7 +21,7 @@ internal class JobManager : Manager<Job>, IDisposable
         catch (Exception ex)
         {
             _logger.LogDebug(ex.Message);
-            list = new List<Job>();
+            list = [];
             _logger.LogDebug($"Created new job list");
         }
     }

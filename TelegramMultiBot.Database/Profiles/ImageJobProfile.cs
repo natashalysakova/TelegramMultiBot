@@ -43,7 +43,6 @@ namespace TelegramMultiBot.Database.Profiles
     }
 }
 
-
 //private JobResultInfo GetInfo(JobResult jobResult)
 //{
 //    var split = jobResult.Info.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
@@ -74,7 +73,6 @@ namespace TelegramMultiBot.Database.Profiles
 //        Results = new JobResultInfo[job.Results.Count]
 //    };
 
-
 //    for (int i = 0; i < result.Results.Length; i++)
 //    {
 //        result.Results[i] = GetInfo(job.Results.ElementAt(i));
@@ -82,4 +80,3 @@ namespace TelegramMultiBot.Database.Profiles
 
 //    return result;
 //}
-

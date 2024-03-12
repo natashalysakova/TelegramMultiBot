@@ -12,5 +12,5 @@ public class CallbackData : IInputData
     public double? Upscale { get; set; }
     public JobType JobType { get; set; }
     public Guid PreviousJobResultId { get; set; }
-    public int BotMessageId { get; set ; }
+    public int BotMessageId { get; set; }
 }

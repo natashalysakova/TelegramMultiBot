@@ -1,19 +1,9 @@
-﻿
-using Microsoft.EntityFrameworkCore.Scaffolding.Metadata;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Hosting;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System;
 using System.Diagnostics;
-using System.IO;
-using System.Runtime.InteropServices;
-using System.Text;
-using System.Text.Json;
 using System.Text.RegularExpressions;
-using Telegram.Bot;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Enums;
@@ -24,29 +14,21 @@ using TelegramMultiBot.ImageGenerators.Automatic1111.Api;
 
 namespace TelegramMultiBot.ImageGenerators.Automatic1111
 {
-    class Automatic1111 : Diffusor
+    internal partial class Automatic1111(TelegramClientWrapper client, IConfiguration configuration, ILogger<Automatic1111> logger, IDatabaseService databaseService) : Diffusor(logger, configuration)
     {
-        private readonly TelegramClientWrapper _client;
-        private readonly IConfiguration _configuration;
-        private readonly ILogger<Automatic1111> _logger;
-        private readonly IDatabaseService _databaseService;
-        // private readonly IServiceProvider _serviceProvider;
-        const string text2imagePath = "/sdapi/v1/txt2img";
-        const string img2imgPath = "/sdapi/v1/img2img";
-        const string extrasPath = "/sdapi/v1/extra-single-image";
+        private readonly IConfiguration _configuration = configuration;
 
-        const string progressPath = "/sdapi/v1/progress?skip_current_image=true";
+        // private readonly IServiceProvider _serviceProvider;
+        private const string _text2imagePath = "/sdapi/v1/txt2img";
+
+        private const string _img2imgPath = "/sdapi/v1/img2img";
+        private const string _extrasPath = "/sdapi/v1/extra-single-image";
+        private const string _progressPath = "/sdapi/v1/progress?skip_current_image=true";
+
+
         protected override string pingPath => "/internal/sysinfo";
-        public Automatic1111(TelegramClientWrapper client, IConfiguration configuration, ILogger<Automatic1111> logger, IDatabaseService databaseService) : base(logger, configuration)
-        {
-            _client = client;
-            _configuration = configuration;
-            _logger = logger;
-            _databaseService = databaseService;
-        }
 
         public override string UI { get => nameof(Automatic1111); }
-
 
         public override bool ValidateConnection(string content)
         {
@@ -55,8 +37,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         public override async Task<JobInfo> Run(JobInfo job)
         {
-            _logger.LogTrace(ActiveHost.Uri.ToString());
-            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Завдання розпочато");
+            await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Завдання розпочато");
 
             Automatic1111Cache.InitCache(ActiveHost.Uri);
 
@@ -82,23 +63,24 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     case JobType.Text2Image:
                         await TextToImage(job, directory);
                         break;
+
                     case JobType.Upscale:
                         await PostProcessingUpscale(job, directory);
                         break;
+
                     case JobType.HiresFix:
                         await Img2ImgUpscale(job, directory);
                         break;
                 }
-                _databaseService.PostProgress(job.Id, 100, "ok");
+                databaseService.PostProgress(job.Id, 100, "ok");
             }
             catch (Exception ex)
             {
-                _databaseService.PostProgress(job.Id, -1, ex.Message);
+                databaseService.PostProgress(job.Id, -1, ex.Message);
                 throw;
             }
 
-
-            return _databaseService.GetJob(job.Id);
+            return databaseService.GetJob(job.Id);
         }
 
         private async Task<JobInfo?> PostProcessingUpscale(JobInfo job, string directory)
@@ -106,7 +88,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             if (job.PreviousJobResultId is null)
                 throw new NullReferenceException(nameof(job.PreviousJobResultId));
 
-            var jobResultInfo = _databaseService.GetJobResult(job.PreviousJobResultId);
+            var jobResultInfo = databaseService.GetJobResult(job.PreviousJobResultId);
             if (jobResultInfo is null)
                 throw new NullReferenceException(nameof(jobResultInfo));
 
@@ -123,18 +105,26 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["upscaling_resize"] = job.UpscaleModifyer;
             var jsonPayload = json.ToString();
 
-            await StartAndMonitorJob(job, directory, extrasPath, jsonPayload);
+            await StartAndMonitorJob(job, directory, _extrasPath, jsonPayload);
 
             return job;
         }
 
         private async Task<JobInfo> Img2ImgUpscale(JobInfo job, string directory)
         {
-            var previousResult = _databaseService.GetJobResult(job.PreviousJobResultId);
-            var upscaleparams = new UpscaleParams(previousResult);
-
             var settings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
+            if (settings is null)
+                throw new NullReferenceException(nameof(settings));
+
             var generalSettings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+            if (generalSettings is null)
+                throw new NullReferenceException(nameof(generalSettings));
+
+            if (job.PreviousJobResultId is null)
+                throw new NullReferenceException(nameof(job.PreviousJobResultId));
+
+            var previousResult = databaseService.GetJobResult(job.PreviousJobResultId) ?? throw new NullReferenceException(nameof(job.PreviousJobResultId));
+            var upscaleparams = new UpscaleParams(previousResult);
 
             var payload = File.ReadAllText(Path.Combine(settings.UpscalePath, "img2img.json"));
 
@@ -147,64 +137,49 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["width"] = upscaleparams.Width * generalSettings.UpscaleMultiplier;
             json["height"] = upscaleparams.Height * generalSettings.UpscaleMultiplier;
 
-            var samplers = Automatic1111Cache.GetSampler(ActiveHost.Uri);
-            var sampler = samplers.FirstOrDefault(x => x.name == upscaleparams.Sampler);
-           
-            json["sampler_name"] = samplers.Where(x => x.aliases.Contains(upscaleparams.Sampler) || x.name == upscaleparams.Sampler).FirstOrDefault().name;
+            IEnumerable<Sampler> samplers = Automatic1111Cache.GetSampler(ActiveHost.Uri);
+            var sampler = samplers.First(x => x.name == upscaleparams.Sampler);
+
+            json["sampler_name"] = samplers.Where(x => x.aliases.Contains(upscaleparams.Sampler) || x.name == upscaleparams.Sampler).First().name;
             json["steps"] = upscaleparams.Steps;
             json["cfg_scale"] = upscaleparams.CFGScale;
-            json["override_settings"]["sd_model_checkpoint"] = upscaleparams.Model;
-
-
-            //if (Automatic1111Cache.CheckpointsInfo == null)
-            //{
-            //    using (var client = new HttpClient() { BaseAddress = activeHost.Uri })
-            //    {
-            //        var response = await client.GetAsync(checkpointsInfo);
-            //        if (response.IsSuccessStatusCode)
-            //        {
-            //            Automatic1111Cache.CheckpointsInfo = JsonConvert.DeserializeObject<IEnumerable<CheckpointsInfo>>(await response.Content.ReadAsStringAsync());
-            //        }
-            //    }
-            //}
 
             var model = generalSettings.Models.Single(x => Path.GetFileNameWithoutExtension(x.Path) == upscaleparams.Model);
-
-
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
+            json["override_settings"]["sd_model_checkpoint"] = upscaleparams.Model;
             json["override_settings"]["CLIP_stop_at_last_layers"] = model.CLIPskip;
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+
             json["init_images"] = new JArray(){
                     "data:image/png;base64," + Convert.ToBase64String(File.ReadAllBytes(upscaleparams.FilePath))
                 };
             var jsonPayload = json.ToString();
 
-            await StartAndMonitorJob(job, directory, img2imgPath, jsonPayload);
+            await StartAndMonitorJob(job, directory, _img2imgPath, jsonPayload);
 
             return job;
         }
+
         private async Task TextToImage(JobInfo job, string directory)
         {
             var genParams = new GenerationParams(job);
             var settings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+            if (settings is null)
+                throw new NullReferenceException(nameof(settings));
+            var automaticSettings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
+            if (automaticSettings is null)
+                throw new NullReferenceException(nameof(automaticSettings));
 
             var batchCount = settings.BatchCount;
-
             if (string.IsNullOrEmpty(genParams.Model))
             {
                 genParams.Model = settings.DefaultModel;
             }
-
             if (genParams.BatchCount != 0)
             {
                 batchCount = genParams.BatchCount;
             }
-
-            var automaticSettings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
-
-
             string payload = File.ReadAllText(Path.Combine(automaticSettings.PayloadPath, "sd-payload-sdxl.json"));
-
-
-
 
             JObject json = JObject.Parse(payload);
             json["width"] = genParams.Width;
@@ -213,19 +188,21 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["negative_prompt"] = genParams.NegativePrompt;
             json["seed"] = genParams.Seed;
 
-            var modelSettings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
             ModelSettings model;
             try
             {
-                model = modelSettings.Models.Single(x => x.Name == genParams.Model);
+                model = settings.Models.Single(x => x.Name == genParams.Model);
             }
             catch (Exception)
             {
                 throw new InputException("Невідома модель: " + genParams.Model);
             }
+#pragma warning disable CS8602 // Dereference of a possibly null reference.
 
             json["override_settings"]["sd_model_checkpoint"] = model.Path;
             json["override_settings"]["CLIP_stop_at_last_layers"] = model.CLIPskip;
+#pragma warning restore CS8602 // Dereference of a possibly null reference.
+
             json["steps"] = model.Steps;
             json["cfg_scale"] = model.CGF;
             var samplerAlias = "k_" + model.Sampler;
@@ -239,100 +216,88 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
 
             var samplers = Automatic1111Cache.GetSampler(ActiveHost.Uri);
-
-            var samplerName = samplers.Where(x => x.aliases.Contains(samplerAlias)).FirstOrDefault().name;
+            var samplerName = samplers.Where(x => x.aliases.Contains(samplerAlias)).First().name;
 
             json["sampler_name"] = samplerName;
 
-
             var jsonPayload = json.ToString();
-            await StartAndMonitorJob(job, directory, text2imagePath, jsonPayload, batchCount);
+            await StartAndMonitorJob(job, directory, _text2imagePath, jsonPayload, batchCount);
         }
-
 
         private async Task StartAndMonitorJob(JobInfo job, string directory, string path, string json, int batch_count = 1)
         {
-            using (HttpClient httpClient = new HttpClient()
+            using HttpClient httpClient = new()
             {
                 BaseAddress = ActiveHost.Uri,
                 Timeout = TimeSpan.FromMinutes(60)
-            })
+            };
+
+            await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готую рендер");
+
+            var progressPerItem = 100.0 / batch_count;
+            for (int i = 0; i < batch_count; i++)
             {
-                _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готую рендер");
+                Stopwatch s = new();
+                s.Start();
 
+                var result = httpClient.PostAsync(path, new StringContent(json, null, "application/json"));
 
-                var progressPerItem = 100.0 / batch_count;
-                for (int i = 0; i < batch_count; i++)
+                await MonitorProgress(job, batch_count, progressPerItem, i, result);
+
+                s.Stop();
+                var taskResult = result.Result;
+
+                if (taskResult.StatusCode == System.Net.HttpStatusCode.OK)
                 {
-                    Stopwatch s = new Stopwatch();
-                    s.Start();
+                    var str = taskResult.Content.ReadAsStringAsync();
 
-                    var result = httpClient.PostAsync(path, new StringContent(json, null, "application/json"));
-
-                    await MonitorProgress(job, batch_count, progressPerItem, i, result);
-
-                    s.Stop();
-                    var taskResult = result.Result;
-
-
-
-                    if (taskResult.StatusCode == System.Net.HttpStatusCode.OK)
+                    if (job.Type == JobType.Upscale)
                     {
-                        var str = taskResult.Content.ReadAsStringAsync();
+                        var response = JsonConvert.DeserializeObject<UpscaleResponce>(str.Result) ?? throw new InvalidOperationException("Cannot deserialize response");
+                        byte[] imageBytes = Convert.FromBase64String(response.image);
+                        var fileName = $"{DateTime.Now:yyyyMMddhhmmssfff}_{job.Type}.png";
+                        var filePath = Path.Combine(directory, fileName);
 
-                        if (job.Type == JobType.Upscale)
+                        File.WriteAllBytes(filePath, imageBytes);
+
+                        databaseService.AddResult(job.Id, new JobResultInfoCreate()
                         {
-                            var response = JsonConvert.DeserializeObject<UpscaleResponce>(str.Result);
-                            byte[] imageBytes = Convert.FromBase64String(response.image);
-                            var fileName = $"{DateTime.Now.ToString("yyyyMMddhhmmssfff")}_{job.Type}.png";
+                            FilePath = filePath,
+                            Info = ParseInfoRegex().Replace(response.html_info, String.Empty),
+                            RenderTime = s.Elapsed.Milliseconds
+                        });
+                    }
+                    else
+                    {
+                        var response = JsonConvert.DeserializeObject<SdResponse>(str.Result) ?? throw new InvalidOperationException("Cannot deserialize response");
+                        var info = JsonConvert.DeserializeObject<ResInfo>(response.info);
+                        for (int j = 0; j < response.images.Length; j++)
+                        {
+                            string? item = response.images[j];
+                            byte[] imageBytes = Convert.FromBase64String(item);
+                            var fileName = $"{DateTime.Now:yyyyMMddhhmmssfff}_{job.Type}.png";
                             var filePath = Path.Combine(directory, fileName);
 
                             File.WriteAllBytes(filePath, imageBytes);
 
-                            _databaseService.AddResult(job.Id, new JobResultInfoCreate()
+                            databaseService.AddResult(job.Id, new JobResultInfoCreate()
                             {
                                 FilePath = filePath,
-                                Info = Regex.Replace(response.html_info, "<.*?>", String.Empty),
-                                RenderTime = s.Elapsed.Milliseconds
+                                Info = info?.infotexts?[j] ?? string.Empty,
+                                RenderTime = s.Elapsed.TotalMilliseconds
                             });
                         }
-                        else
-                        {
-                            var response = JsonConvert.DeserializeObject<SdResponse>(str.Result);
-                            var info = JsonConvert.DeserializeObject<ResInfo>(response.info);
-                            for (int j = 0; j < response.images.Length; j++)
-                            {
-                                string? item = response.images[j];
-                                byte[] imageBytes = Convert.FromBase64String(item);
-                                var fileName = $"{DateTime.Now.ToString("yyyyMMddhhmmssfff")}_{job.Type}.png";
-                                var filePath = Path.Combine(directory, fileName);
-
-                                File.WriteAllBytes(filePath, imageBytes);
-                                //File.WriteAllText(filePath + ".txt", info.infotexts[j]);
-
-                                //inputMedia.Add(filePath);
-
-                                _databaseService.AddResult(job.Id, new JobResultInfoCreate()
-                                {
-                                    FilePath = filePath,
-                                    Info = info.infotexts[j],
-                                    RenderTime = s.Elapsed.TotalMilliseconds
-                                });
-                            }
-
-                        }
                     }
-                    else
-                    {
-                        var text = "Error calliing API. Check SD console:" + taskResult.ReasonPhrase;
-                        _logger.LogError(text);
-                        throw new RenderFailedException(taskResult.ReasonPhrase);
-                    }
-
                 }
-
-                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готово. Прогрес 100%. Збираю та відправляю зображення");
+                else
+                {
+                    var text = "Error calliing API. Check SD console:" + taskResult.ReasonPhrase;
+                    logger.LogError(text);
+                    throw new RenderFailedException(taskResult.ReasonPhrase);
+                }
             }
+
+            await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готово. Прогрес 100%. Збираю та відправляю зображення");
         }
 
         private async Task MonitorProgress(JobInfo job, int batch_count, double progressPerItem, int i, Task<HttpResponseMessage> result)
@@ -344,110 +309,56 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 await Task.Delay(5000);
                 try
                 {
-
-                    using (HttpClient progressHttpClient = new HttpClient()
+                    using HttpClient progressHttpClient = new()
                     {
                         BaseAddress = ActiveHost.Uri
-                    })
+                    };
+                    var progressResponce = await progressHttpClient.GetAsync(_progressPath);
+                    var progressobj = JsonConvert.DeserializeObject<ProgressResponse>(await progressResponce.Content.ReadAsStringAsync());
+                    double localProgress = progressobj.progress;
+                    var eta = progressobj.eta_relative;
+
+                    //var progress = (localProgress * 100 + i * 100) / batch_count;
+                    localProgress = localProgress == 0 ? 1 : localProgress;
+                    var progress = (progressPerItem * i) + (localProgress * 100 / batch_count);
+                    logger.LogTrace($"{job.ChatId} {job.BotMessageId} - {Math.Round(progress, 2)}%");
+
+                    if (progress != oldProgress)
                     {
-                        var progressResponce = await progressHttpClient.GetAsync(progressPath);
-                        var progressobj = JsonConvert.DeserializeObject<ProgressResponse>(await progressResponce.Content.ReadAsStringAsync());
-                        double localProgress = progressobj.progress;
-                        var eta = progressobj.eta_relative;
+                        var timespan = TimeSpan.FromSeconds(eta).ToString("hh\\:mm\\:ss");
+                        await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
 
-                        //var progress = (localProgress * 100 + i * 100) / batch_count;
-                        localProgress = localProgress == 0 ? 1 : localProgress;
-                        var progress = (progressPerItem * i) + (localProgress * 100 / batch_count);
-                        _logger.LogTrace($"{job.ChatId} {job.BotMessageId} - {Math.Round(progress, 2)}%");
+                        databaseService.PostProgress(job.Id, progress, "progress");
 
-                        if (progress != oldProgress)
-                        {
-                            var timespan = TimeSpan.FromSeconds(eta).ToString("hh\\:mm\\:ss");
-                            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
-
-                            _databaseService.PostProgress(job.Id, progress, "progress");
-
-                            oldProgress = progress;
-                        }
-
+                        oldProgress = progress;
                     }
                 }
                 catch (Exception ex)
                 {
                     var error = "Не можу оновити прогрес, чекай на результат";
-                    _logger.LogTrace(ex, error);
-                    await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Працюю... {error}");
+                    logger.LogTrace(ex, error);
+                    await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Працюю... {error}");
                     result.Wait();
                 }
             }
         }
 
-        public override bool CanHnadle(JobType type)
+        public override bool CanHandle(JobType type)
         {
-            switch (type)
+            return type switch
             {
-                case JobType.Text2Image:
-                case JobType.HiresFix:
-                case JobType.Upscale:
-                    return true;
-                case JobType.Vingette:
-                case JobType.Noise:
-                    return false;
-                default: return false;
-            }
+                JobType.Text2Image or JobType.HiresFix or JobType.Upscale => true,
+                JobType.Vingette or JobType.Noise => false,
+                _ => false,
+            };
         }
+
+        [GeneratedRegex("<.*?>")]
+        private static partial Regex ParseInfoRegex();
     }
 
-    public class Automatic1111Cache
-    {
-        const string samplerPath = "/sdapi/v1/samplers";
-        const string checkpointsInfo = "/sdapi/v1/sd-models";
-
-        record SamplerChache(string server, IEnumerable<Sampler> samplers);
-        record CheckpointsCache(string server, IEnumerable<CheckpointsInfo> checkpoints);
-
-
-        private static ICollection<SamplerChache> _samplers = new List<SamplerChache>();
-        private static ICollection<CheckpointsCache> _checkpointsInfo = new List<CheckpointsCache>();
-
-        public static void InitCache(Uri server)
-        {
-            if(!_samplers.Any(x=>x.server == server.Host))
-            {
-                _samplers.Add(new SamplerChache(server.Host, LoadFromServer<Sampler>(server, samplerPath).Result));
-            }
-
-            if (!_checkpointsInfo.Any(x => x.server == server.Host))
-            {
-                _checkpointsInfo.Add(new CheckpointsCache(server.Host, LoadFromServer<CheckpointsInfo>(server, checkpointsInfo).Result));
-            }
-        }
-        
-        public static IEnumerable<Sampler> GetSampler(Uri server)
-        {
-            return _samplers.Single(x => x.server == server.Host).samplers;
-        }
-
-        public static IEnumerable<CheckpointsInfo> GetCheckpoints(Uri server)
-        {
-            return _checkpointsInfo.Single(x => x.server == server.Host).checkpoints;
-        }
-
-        private static async Task<IEnumerable<T>> LoadFromServer<T>(Uri uri, string path)
-        {
-            using (var client = new HttpClient() { BaseAddress = uri })
-            {
-                var response = await client.GetAsync(path);
-                if (response.IsSuccessStatusCode)
-                {
-                    return JsonConvert.DeserializeObject<IEnumerable<T>>(await response.Content.ReadAsStringAsync());
-                }
-            }
-
-            return null;
-        }
-    }
-
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+#pragma warning disable IDE1006 // Naming Styles
 
     public class Sampler
     {
@@ -466,7 +377,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         public string? solver_type { get; set; }
     }
 
-
     public class CheckpointsInfo
     {
         public string title { get; set; }
@@ -477,5 +387,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         public string? config { get; set; }
     }
 
-
+#pragma warning restore IDE1006 // Naming Styles
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 }

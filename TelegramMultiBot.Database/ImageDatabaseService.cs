@@ -24,8 +24,6 @@ namespace Bober.Database.Services
             _context.Database.Migrate();
         }
 
-
-
         public IEnumerable<ImageJob> ActiveJobs
         {
             get
@@ -33,6 +31,7 @@ namespace Bober.Database.Services
                 return _context.Jobs.Where(x => x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running);
             }
         }
+
         public int RunningJobs
         {
             get
@@ -50,9 +49,7 @@ namespace Bober.Database.Services
                 item.Finised = DateTime.Now;
             }
             _context.SaveChanges();
-
         }
-
 
         public Guid Enqueue(IInputData message)
         {
@@ -81,7 +78,7 @@ namespace Bober.Database.Services
 
             job.BotMessageId = message.BotMessageId;
             job.PostInfo = job.Text.Contains("#info");
-            if(job.Text.Contains("#auto"))
+            if (job.Text.Contains("#auto"))
             {
                 job.Diffusor = "Automatic1111";
             }
@@ -92,7 +89,7 @@ namespace Bober.Database.Services
 
             _context.Jobs.Add(job);
             _context.SaveChanges();
-            _logger.LogDebug(job.Id + " added to the queue");
+            _logger.LogDebug("{jobId} added to the queue", job.Id);
 
             return job.Id;
         }
@@ -103,7 +100,7 @@ namespace Bober.Database.Services
             job.UpscaleModifyer = data.Upscale;
 
             JobResult result = _context.JobResult.Include(x => x.Job).Single(x => x.Id == data.PreviousJobResultId);
-            if(result.Job is null)
+            if (result.Job is null)
             {
                 throw new NullReferenceException(nameof(result.Job));
             }
@@ -124,23 +121,24 @@ namespace Bober.Database.Services
 
             _context.Jobs.Add(job);
             _context.SaveChanges();
-            _logger.LogDebug(job.Id + " added to the queue");
+            _logger.LogDebug("{jobId} added to the queue", job.Id);
 
             return job.Id;
         }
 
-        private ImageJob JobFromData(IInputData data)
+        private static ImageJob JobFromData(IInputData data)
         {
-            var job = new ImageJob();
-            job.UserId = data.UserId;
-            job.ChatId = data.ChatId;
-            job.MessageId = data.MessageId;
-            job.MessageThreadId = data.MessageThreadId;
-            job.Status = ImageJobStatus.Queued;
-            job.Type = data.JobType;
-            job.TextStatus = "added";
-            job.BotMessageId = data.BotMessageId;
-            return job;
+            return new ImageJob
+            {
+                UserId = data.UserId,
+                ChatId = data.ChatId,
+                MessageId = data.MessageId,
+                MessageThreadId = data.MessageThreadId,
+                Status = ImageJobStatus.Queued,
+                Type = data.JobType,
+                TextStatus = "added",
+                BotMessageId = data.BotMessageId
+            };
         }
 
         public IEnumerable<JobInfo> GetJobsOlderThan(DateTime date)
@@ -171,7 +169,6 @@ namespace Bober.Database.Services
 
                     job = _mapper.Map<JobInfo>(imageJob);
 
-
                     return true;
                 }
                 else
@@ -179,7 +176,6 @@ namespace Bober.Database.Services
                     job = default;
                     return false;
                 }
-
             }
             catch (Exception)
             {
@@ -209,27 +205,21 @@ namespace Bober.Database.Services
             _context.SaveChanges();
         }
 
-        public JobInfo? GetJob(string jobId)
+        /// <summary>
+        /// 
+        /// </summary>
+        /// <param name="jobId"></param>
+        /// <returns></returns>
+        public JobInfo GetJob(string jobId)
         {
-            if (Guid.TryParse(jobId, out var id))
-            {
-                var job = _context.Jobs.FirstOrDefault(x => x.Id == Guid.Parse(jobId));
-                if (job != null)
-                    return _mapper.Map<JobInfo>(job);
-            }
-            return default;
+            var job = _context.Jobs.FirstOrDefault(x => x.Id == Guid.Parse(jobId));
+            return _mapper.Map<JobInfo>(job);
         }
-
-
-
 
         public JobResultInfoView? GetJobResult(string jobResultId)
         {
             var job = _context.JobResult.FirstOrDefault(x => x.Id == Guid.Parse(jobResultId));
-            if (job != null)
-                return _mapper.Map<JobResultInfoView>(job);
-
-            return default;
+            return job is null ? null : _mapper.Map<JobResultInfoView>(job);
         }
 
         public int ActiveJobsCount(long userId)
@@ -240,23 +230,16 @@ namespace Bober.Database.Services
         public void AddResult(string id, JobResultInfoCreate jobResultInfo)
         {
             var jobResult = _mapper.Map<JobResult>(jobResultInfo);
-            var job = _context.Jobs.FirstOrDefault(x => x.Id.ToString() == id);
-
-            if (job == null)
-            {
-                throw new InvalidOperationException($"Job {id} not found");
-            }
-
+            var job = _context.Jobs.First(x => x.Id.ToString() == id);
             job.Results.Add(jobResult);
             _context.SaveChanges();
-
         }
 
         public void Update(JobInfo job)
         {
             var entity = _mapper.Map<ImageJob>(job);
 
-            _context.Entry(entity).State  = EntityState.Modified;
+            _context.Entry(entity).State = EntityState.Modified;
             _context.SaveChanges();
         }
 

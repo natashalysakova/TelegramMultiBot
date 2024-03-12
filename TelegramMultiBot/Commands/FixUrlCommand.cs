@@ -1,14 +1,9 @@
-﻿using AngleSharp.Io;
-using Microsoft.Extensions.Logging;
-using Telegram.Bot;
-using Telegram.Bot.Requests;
-using Telegram.Bot.Types;
+﻿using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-
 
 namespace TelegramMultiBot.Commands
 {
-    class FixUrlCommand : BaseCommand
+    internal class FixUrlCommand : BaseCommand
     {
         private readonly TelegramClientWrapper _client;
 
@@ -19,10 +14,15 @@ namespace TelegramMultiBot.Commands
 
         public override bool CanHandle(Message message)
         {
-            if(message.Text is null)
+            if (message.Text is null)
                 return false;
 
             return ServiceItems.Any(x => message.Text.ToLower().Contains(x.service));
+        }
+
+        public override bool CanHandle(InlineQuery query)
+        {
+            return false;
         }
 
         public override async Task Handle(Message message)
@@ -59,7 +59,7 @@ namespace TelegramMultiBot.Commands
                     await _client.DeleteMessageAsync(message);
                     var oldMessage = message.Text.Replace(link, newlink);
 
-                    if(message.From is null)
+                    if (message.From is null)
                     {
                         throw new NullReferenceException(nameof(message.From));
                     }
@@ -77,7 +77,6 @@ namespace TelegramMultiBot.Commands
                     newMessage = $"\U0001f9ab {name}: {oldMessage}\n";
 
                     //await _client.SendTextMessageAsync(message.Chat, newMessage, disableNotification: false, replyToMessageId: replyTo, messageThreadId: messageThread);
-
                 }
                 else
                 {
@@ -85,22 +84,20 @@ namespace TelegramMultiBot.Commands
                     //await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
                 }
 
-
                 await _client.SendMessageAsync(message, newMessage, true, disableNotification: false);
-
             }
         }
 
-        record ServiceItem(string service, string? whatReplace, string? replaceWith);
-        List<ServiceItem> ServiceItems = new List<ServiceItem>()
-    {
+        private record ServiceItem(string service, string? whatReplace, string? replaceWith);
+
+        private List<ServiceItem> ServiceItems =
+    [
         new ServiceItem("https://www.instagram.com", "instagram", "ddinstagram"),
         new ServiceItem("https://x.com", "x", "fixupx"),
         new ServiceItem("https://twitter.com", "twitter", "fxtwitter"),
         new ServiceItem("https://www.ddinstagram.com", null, null),
         new ServiceItem("https://facebook.com", null, null)
-    };
-
+    ];
 
         private string CutTrackingInfo(string link)
         {

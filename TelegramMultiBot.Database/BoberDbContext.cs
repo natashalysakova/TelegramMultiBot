@@ -6,20 +6,14 @@ using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database
 {
-    public class BoberDbContext : DbContext
+    public class BoberDbContext(DbContextOptions options) : DbContext(options)
     {
-        public BoberDbContext(DbContextOptions options) : base(options)
-        {
-        }
-
         public virtual DbSet<ImageJob> Jobs { get; set; }
         public virtual DbSet<JobResult> JobResult { get; set; }
-
     }
 
     public class BoberDbContextFactory : IDesignTimeDbContextFactory<BoberDbContext>
     {
-
         public BoberDbContext CreateDbContext(string[] args)
         {
             IConfigurationRoot configuration = new ConfigurationBuilder()
@@ -68,7 +62,5 @@ namespace TelegramMultiBot.Database
             while (version is null);
             return version;
         }
-
     }
 }
-

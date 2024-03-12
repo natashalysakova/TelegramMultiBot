@@ -10,6 +10,5 @@ namespace TelegramMultiBot.Database.Interfaces
         public int? MessageThreadId { get; set; }
         public JobType JobType { get; set; }
         public int BotMessageId { get; set; }
-
     }
 }

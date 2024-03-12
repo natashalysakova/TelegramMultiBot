@@ -1,12 +1,10 @@
 ﻿using System.Text.Json;
-using Telegram.Bot.Types;
 using TelegramMultiBot.Database.DTO;
-using static System.Net.Mime.MediaTypeNames;
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    public class GenerationParams 
-    {        
+    public class GenerationParams
+    {
         public GenerationParams(JobInfo job)
         {
             var text = job.Text;
@@ -41,13 +39,13 @@ namespace TelegramMultiBot.ImageGenerators
             {
                 int indexOfModel = text.IndexOf("#model") + 6;
                 int nextSpace = text.IndexOf(' ', indexOfModel);
-                if(nextSpace != -1)
+                if (nextSpace != -1)
                 {
                     Model = text.Substring(indexOfModel + 1, nextSpace - indexOfModel).Trim();
                 }
                 else
                 {
-                    Model = text.Substring(indexOfModel+1).Trim();
+                    Model = text.Substring(indexOfModel + 1).Trim();
                 }
             }
 
@@ -57,20 +55,20 @@ namespace TelegramMultiBot.ImageGenerators
                 int indexOfSeed = text.IndexOf("#seed:");
                 int startOfSeed = text.IndexOf(":", indexOfSeed);
                 int endOfSeed = text.IndexOf(" ", indexOfSeed);
-                if(endOfSeed != -1)
+                if (endOfSeed != -1)
                 {
-                    Seed = long.Parse(text.Substring(startOfSeed+1, endOfSeed - startOfSeed).Trim());
+                    Seed = long.Parse(text.Substring(startOfSeed + 1, endOfSeed - startOfSeed).Trim());
                 }
                 else
                 {
-                    Seed = long.Parse(text.Substring(startOfSeed+1).Trim());
+                    Seed = long.Parse(text.Substring(startOfSeed + 1).Trim());
                 }
             }
 
             var resolution = supportedResolutions.Where(x => text.Contains(x.hashtag)).FirstOrDefault();
-            if(resolution == default)
+            if (resolution == default)
             {
-                Width = defaultResolution.width; 
+                Width = defaultResolution.width;
                 Height = defaultResolution.height;
             }
             else
@@ -78,7 +76,6 @@ namespace TelegramMultiBot.ImageGenerators
                 Width = resolution.width;
                 Height = resolution.height;
             }
-
         }
 
         public int BatchCount { get; internal set; }
@@ -107,7 +104,7 @@ namespace TelegramMultiBot.ImageGenerators
 
         public static (int width, int height, string ar) defaultResolution = (1024, 1024, "1\\:1");
 
-        public static (string hashtag, int width, int height, string ar)[] supportedResolutions = new[] 
+        public static (string hashtag, int width, int height, string ar)[] supportedResolutions = new[]
         {
             ("#vertical", 768, 1344, "9\\:16"),
             ("#widescreen", 1365 , 768, "16\\:9"),
@@ -126,6 +123,5 @@ namespace TelegramMultiBot.ImageGenerators
         1365 x 768: Widescreen (16:9)
         1564 x 670: Cinematic (21:9)
          */
-
     }
 }

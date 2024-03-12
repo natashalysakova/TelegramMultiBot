@@ -1,7 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
-abstract class BaseDialog<T> : IDialog where T: struct
+internal abstract class BaseDialog<T> : IDialog where T : struct
 {
-    Dictionary<T, T> _states = new Dictionary<T, T>();
+    private Dictionary<T, T> _states = [];
     public Dictionary<T, T> States { get => _states; }
 
     public BaseDialog()
@@ -16,7 +16,7 @@ abstract class BaseDialog<T> : IDialog where T: struct
     public bool IsFinished { get; set; }
     public T State { get; set; }
 
-    abstract protected IEnumerable<StateTransition> GetStates();
+    protected abstract IEnumerable<StateTransition> GetStates();
 
     public void SetNextState()
     {

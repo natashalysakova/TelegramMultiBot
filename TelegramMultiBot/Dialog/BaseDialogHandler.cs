@@ -1,7 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Telegram.Bot.Types;
 
-abstract class BaseDialogHandler<T> : IDialogHandler where T : class, IDialog
+internal abstract class BaseDialogHandler<T> : IDialogHandler where T : class, IDialog
 {
     public void Handle(IDialog dialog, Message message)
     {
@@ -15,7 +15,7 @@ abstract class BaseDialogHandler<T> : IDialogHandler where T : class, IDialog
         }
     }
 
-    abstract public Func<T, Message, Task<bool>> GetHandler(T dialog);
+    public abstract Func<T, Message, Task<bool>> GetHandler(T dialog);
 
     public bool CanHandle(IDialog type)
     {

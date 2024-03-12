@@ -1,6 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 
-class AddJobDialog : BaseDialog<AddDialogState>
+internal class AddJobDialog : BaseDialog<AddDialogState>
 {
     public string? Name { get; set; }
     public string? CRON { get; set; }

@@ -1,59 +1,41 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Telegram.Bot;
-using Telegram.Bot.Types;
+﻿using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("delete")]
-    internal class DeleteCommand : BaseCommand
+    internal class DeleteCommand(TelegramClientWrapper client) : BaseCommand
     {
-        private readonly TelegramClientWrapper _client;
-        private readonly ILogger<DeleteCommand> _logger;
-
-        public DeleteCommand(TelegramClientWrapper client, ILogger<DeleteCommand> logger)
+        public override async Task Handle(Message message)
         {
-            _client = client;
-            _logger = logger;
-        }
-
-        public async override Task Handle(Message message)
-        {
-            if (message.ReplyToMessage == null || message.ReplyToMessage.Type == Telegram.Bot.Types.Enums.MessageType.ForumTopicCreated)
+            if (message.ReplyToMessage == null || message.ReplyToMessage.Type == MessageType.ForumTopicCreated || message.ReplyToMessage.From == null)
             {
-                await _client.SendMessageAsync(message, "Не знаю що видаляти. Надішли повідомлення з командою у відповідь на повідомлення бота");
+                await client.SendMessageAsync(message, "Не знаю що видаляти. Надішли повідомлення з командою у відповідь на повідомлення бота");
                 return;
             }
 
-
-            if (!message.ReplyToMessage.From.IsBot || message.ReplyToMessage.From.Id != _client.BotId)
+            if (!message.ReplyToMessage.From.IsBot || message.ReplyToMessage.From.Id != client.BotId)
             {
-                await _client.SendMessageAsync(message, "Я можу видалити лише власні повідомлення");
+                await client.SendMessageAsync(message, "Я можу видалити лише власні повідомлення");
                 return;
             }
 
             var hours = message.ReplyToMessage.Chat.Type == ChatType.Private ? -24 : -48;
-            if(message.ReplyToMessage.Date < DateTime.Now.AddHours(hours)) 
+            if (message.ReplyToMessage.Date < DateTime.Now.AddHours(hours))
             {
-                await _client.SendMessageAsync(message, $"Неможливо видалити повідомлення, що було відправлено більше ніж {Math.Abs(hours)} години тому ");
+                await client.SendMessageAsync(message, $"Неможливо видалити повідомлення, що було відправлено більше ніж {Math.Abs(hours)} години тому ");
                 return;
             }
 
-            var bot = await _client.GetChatMemberAsync(message.Chat.Id, _client.BotId.Value);
+            var bot = await client.GetChatMemberAsync(message.Chat.Id, client.BotId.Value);
             var canDeleteMessages = bot.Status == ChatMemberStatus.Administrator;
 
-            await _client.DeleteMessageAsync(message.ReplyToMessage.Chat.Id, message.ReplyToMessage.MessageId);
+            await client.DeleteMessageAsync(message.ReplyToMessage.Chat.Id, message.ReplyToMessage.MessageId);
 
             if (canDeleteMessages)
             {
-                await _client.DeleteMessageAsync(message.Chat, message.MessageId);
+                await client.DeleteMessageAsync(message.Chat, message.MessageId);
             }
-
         }
     }
 }

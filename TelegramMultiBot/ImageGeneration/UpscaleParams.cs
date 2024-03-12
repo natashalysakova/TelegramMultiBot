@@ -1,19 +1,16 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json.Linq;
-using System.Globalization;
-using Telegram.Bot.Types;
+﻿using System.Globalization;
 using TelegramMultiBot.Database.DTO;
-using TelegramMultiBot.ImageGenerators;
 
 namespace TelegramMultiBot.ImageGeneration
 {
     public class UpscaleParams
     {
-        public UpscaleParams(JobResultInfoView previousJob) 
-        {         
+        public UpscaleParams(JobResultInfoView previousJob)
+        {
             FilePath = previousJob.FilePath;
             ParseInfo(previousJob.Info);
         }
+
         public string Prompt { get; set; }
         public string NegativePrompt { get; set; }
         public long Seed { get; set; }
@@ -31,10 +28,11 @@ namespace TelegramMultiBot.ImageGeneration
 
         public string FilePath { get; internal set; }
 
+        private static readonly char[] _separator = ['\n', '\r'];
 
         internal void ParseInfo(string info)
         {
-            var split = info.Split(new[] { '\n', '\r' }, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            var split = info.Split(_separator, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             if (split.Length < 2 || split.Length > 3)
             {
                 throw new Exception("Failed to parse info from DB");
@@ -51,7 +49,6 @@ namespace TelegramMultiBot.ImageGeneration
                 NegativePrompt = ParseParemeter(split[1]);
                 ParseParameters(split[2]);
             }
-
         }
 
         private void ParseParameters(string parameters)
@@ -77,7 +74,7 @@ namespace TelegramMultiBot.ImageGeneration
 
             //Score = double.Parse(split.Single(x => x.Contains("Score:")));
 
-            if(split.Any(x => x.Contains("Denoising strength:")))
+            if (split.Any(x => x.Contains("Denoising strength:")))
             {
                 Denoising = double.Parse(ParseParemeter(split.Single(x => x.Contains("Denoising strength:"))), CultureInfo.InvariantCulture);
             }
@@ -88,9 +85,9 @@ namespace TelegramMultiBot.ImageGeneration
             Height = int.Parse(splitSize[1]);
         }
 
-        private string ParseParemeter(string paremeter)
+        private static string ParseParemeter(string paremeter)
         {
-            return paremeter.Substring(paremeter.IndexOf(":") + 1).Trim();
+            return paremeter[(paremeter.IndexOf(':') + 1)..].Trim();
         }
     }
 }

@@ -1,13 +1,15 @@
 ﻿using System.ComponentModel.DataAnnotations.Schema;
 
-public class Reminder
+namespace TelegramMultiBot.Database.Models
 {
-    [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-    public Guid Id { get; }
-    public string Name { get; }
-    public string Message { get; }
-    public string Config { get; }
-    public long ChatId { get; }
+    public class Reminder
+    {
+        [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
+        public Guid Id { get; }
 
+        public required string Name { get; set; }
+        public required string Message { get; set; }
+        public required string Config { get; set; }
+        public long ChatId { get; }
+    }
 }
-

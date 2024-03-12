@@ -5,11 +5,10 @@ namespace TelegramMultiBot
     {
         public static DateTime ParseNext(string cron)
         {
-
             if (Cronos.CronExpression.TryParse(cron, out var exp))
             {
                 var next = exp.GetNextOccurrence(DateTimeOffset.Now, TimeZoneInfo.Local);
-                if(next.HasValue)
+                if (next.HasValue)
                     return next.Value.DateTime;
             }
 

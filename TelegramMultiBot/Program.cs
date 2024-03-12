@@ -35,7 +35,7 @@ internal class Program
 
         var bot = serviceProvider.GetService<BotService>();
 
-        CancellationTokenSource cancellationToken = new CancellationTokenSource();
+        CancellationTokenSource cancellationToken = new();
         bot.Run(cancellationToken);
     }
 
@@ -63,13 +63,12 @@ internal class Program
         serviceCollection.AddScoped<IDatabaseService, ImageDatabaseService>();
         serviceCollection.AddScoped<CleanupService>();
 
-
         var botKey = configuration["token"];
         if (string.IsNullOrEmpty(botKey))
             throw new KeyNotFoundException("token");
 
-        serviceCollection.AddSingleton(new TelegramBotClient(botKey) { Timeout = TimeSpan.FromSeconds(600)});
-        
+        serviceCollection.AddSingleton(new TelegramBotClient(botKey) { Timeout = TimeSpan.FromSeconds(600) });
+
         serviceCollection.AddScoped<BotService>();
         serviceCollection.AddScoped<TelegramClientWrapper>();
         serviceCollection.AddScoped<ImageGenerator>();
@@ -90,7 +89,6 @@ internal class Program
         });
         cfg.AssertConfigurationIsValid();
         serviceCollection.AddTransient(x => { return cfg.CreateMapper(); });
-
 
         return serviceCollection.BuildServiceProvider();
     }
@@ -156,7 +154,7 @@ internal class Program
 
         foreach (var item in services)
         {
-            serviceCollection.AddScoped(typeof(T), item);
+            serviceCollection.AddTransient(typeof(T), item);
         }
 
         return serviceCollection;

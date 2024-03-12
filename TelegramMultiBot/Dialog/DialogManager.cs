@@ -3,7 +3,7 @@ using Telegram.Bot.Types;
 
 internal class DialogManager
 {
-    readonly List<IDialog> _dialogList = new();
+    private readonly List<IDialog> _dialogList = [];
     private readonly DialogHandlerFactory _factory;
 
     public DialogManager(DialogHandlerFactory factory)

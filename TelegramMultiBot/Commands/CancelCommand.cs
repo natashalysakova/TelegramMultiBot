@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Telegram.Bot;
-using Telegram.Bot.Types;
+﻿using Telegram.Bot.Types;
 
 namespace TelegramMultiBot.Commands
 {
@@ -23,7 +17,7 @@ namespace TelegramMultiBot.Commands
         public override async Task Handle(Message message)
         {
             var activeDialog = _dialogManager[message.Chat.Id];
-            if(activeDialog != null)
+            if (activeDialog != null)
             {
                 _dialogManager.Remove(activeDialog);
                 await _client.SendMessageAsync(message, "Операцію зупинено", disableNotification: true);

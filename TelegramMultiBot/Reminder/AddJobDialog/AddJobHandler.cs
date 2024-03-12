@@ -1,13 +1,9 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using Microsoft.Extensions.Logging;
-using Telegram.Bot;
-using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using TelegramMultiBot;
 
-class AddJobHandler : BaseDialogHandler<AddJobDialog>
+internal class AddJobHandler : BaseDialogHandler<AddJobDialog>
 {
-
     private readonly TelegramClientWrapper _client;
     private readonly JobManager _jobManager;
 
@@ -15,7 +11,6 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
     {
         _client = client;
         _jobManager = jobManager;
-
     }
 
     public override Func<AddJobDialog, Message, Task<bool>> GetHandler(AddJobDialog dialog)
@@ -26,12 +21,16 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
         {
             case AddDialogState.Start:
                 return Start;
+
             case AddDialogState.CheckName:
                 return CheckName;
+
             case AddDialogState.CheckCron:
                 return CheckCron;
+
             case AddDialogState.CheckMessage:
                 return CheckMessage;
+
             default:
                 return (job, message) => { return Task.Run(() => { return false; }); };
         }
@@ -71,16 +70,10 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
             return false;
         }
 
-        
-
-
         dialog.CRON = message.Text;
         await _client.SendMessageAsync(message, "Введіть повідомлення, яке буде відправлятися");
         return true;
-
     }
-
-    
 
     private async Task<bool> Start(AddJobDialog dialog, Message message)
     {
@@ -88,7 +81,7 @@ class AddJobHandler : BaseDialogHandler<AddJobDialog>
         return true;
     }
 
-    async Task<bool> CheckName(AddJobDialog dialog, Message message)
+    private async Task<bool> CheckName(AddJobDialog dialog, Message message)
     {
         if (string.IsNullOrEmpty(message.Text) || message.Text.StartsWith('/'))
         {

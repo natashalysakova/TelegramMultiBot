@@ -1,5 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using System.Text;
+
 namespace TelegramMultiBot.Commands.CallbackDataTypes
 {
     public abstract class CallbackData<T> where T : struct
@@ -7,7 +8,8 @@ namespace TelegramMultiBot.Commands.CallbackDataTypes
         public string? Id { get; set; }
         public string Command { get; set; }
         public T JobType { get; set; }
-        object?[] _parameters;
+
+        private object?[] _parameters;
         protected object?[] Parameters { get => _parameters; }
 
         protected CallbackData()
@@ -39,9 +41,7 @@ namespace TelegramMultiBot.Commands.CallbackDataTypes
             }
         }
 
-
-
-        public CallbackData(string command, T type, string? id, object?[] parameters)
+        public CallbackData(string command, T type, string? id, params object?[] parameters)
         {
             Command = command;
             JobType = type;

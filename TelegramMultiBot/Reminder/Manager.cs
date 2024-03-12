@@ -8,12 +8,12 @@ namespace TelegramMultiBot.Reminder
         protected readonly ILogger _logger;
         protected List<T> list;
         protected CancellationToken token;
-        abstract protected string fileName { get; }
+        protected abstract string fileName { get; }
 
         public Manager(ILogger<Manager<T>> logger)
         {
             _logger = logger;
-            list = new List<T>();
+            list = [];
         }
 
         protected List<T>? Load()

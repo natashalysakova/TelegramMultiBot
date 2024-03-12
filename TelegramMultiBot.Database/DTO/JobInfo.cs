@@ -9,7 +9,7 @@ public class JobInfo
     public int BotMessageId { get; set; }
     public int MessageId { get; set; }
 
-    public ICollection<JobResultInfoView> Results { get; set; } = new List<JobResultInfoView>();
+    public ICollection<JobResultInfoView> Results { get; set; } = [];
     public bool PostInfo { get; set; }
     public JobType Type { get; set; }
     public double? UpscaleModifyer { get; set; }

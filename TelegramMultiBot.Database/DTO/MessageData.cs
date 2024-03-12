@@ -1,5 +1,4 @@
-﻿using TelegramMultiBot.Database.DTO;
-using TelegramMultiBot.Database.Enums;
+﻿using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.Database.DTO

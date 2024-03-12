@@ -1,5 +1,6 @@
 ﻿namespace TelegramMultiBot.Database.Enums;
+
 public enum ImageJobStatus
 {
-    Queued, Running , Succseeded , Failed
+    Queued, Running, Succseeded, Failed
 }

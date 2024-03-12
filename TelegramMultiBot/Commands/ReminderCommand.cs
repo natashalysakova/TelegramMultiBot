@@ -1,38 +1,14 @@
-﻿using AngleSharp.Html;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Reflection;
-using System.Resources;
-using System.Text;
-using System.Threading.Tasks;
-using Telegram.Bot;
-using Telegram.Bot.Requests;
+﻿using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Commands.CallbackDataTypes;
 using TelegramMultiBot.Properties;
-using static TelegramMultiBot.Commands.ReminderCommand;
 
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("reminder")]
-    internal class ReminderCommand : BaseCommand, ICallbackHandler
+    internal class ReminderCommand(TelegramClientWrapper client, ILogger<ReminderCommand> logger, DialogManager dialogManager, JobManager jobManager) : BaseCommand, ICallbackHandler
     {
-        private readonly TelegramClientWrapper _client;
-        private readonly ILogger<ReminderCommand> _logger;
-        private readonly DialogManager _dialogManager;
-        private readonly JobManager _jobManager;
-
-        public ReminderCommand(TelegramClientWrapper client, ILogger<ReminderCommand> logger, DialogManager dialogManager, JobManager jobManager)
-        {
-            _client = client;
-            _logger = logger;
-            _dialogManager = dialogManager;
-            _jobManager = jobManager;
-        }
-
         public override async Task Handle(Message message)
         {
             var buttons2 = new[]
@@ -45,7 +21,7 @@ namespace TelegramMultiBot.Commands
 
             using var stream = new MemoryStream(Resources.reminder);
             var photo = InputFile.FromStream(stream, "beaver.png");
-            await _client.SendPhotoAsync(message, photo, "Привіт, я бобер-нагадувач. Обери що ти хочеш зробити", markup: menu2);
+            await client.SendPhotoAsync(message, photo, "Привіт, я бобер-нагадувач. Обери що ти хочеш зробити", markup: menu2);
         }
 
         public async Task HandleCallback(CallbackQuery callbackQuery)
@@ -57,12 +33,15 @@ namespace TelegramMultiBot.Commands
                 case ReminderCommands.List:
                     await GetList(callbackQuery);
                     break;
+
                 case ReminderCommands.Add:
                     await AddJob(callbackQuery);
                     break;
+
                 case ReminderCommands.Delete:
                     await Delete(callbackQuery);
                     break;
+
                 case ReminderCommands.DeleteJob:
                     if (callbackData.Id is null)
                     {
@@ -70,69 +49,63 @@ namespace TelegramMultiBot.Commands
                     }
                     await DeleteJob(callbackQuery, callbackData.Id);
                     break;
+
                 default:
                     break;
             }
-
         }
 
         private async Task Delete(CallbackQuery callbackQuery)
         {
             var message = callbackQuery.Message as Message ?? throw new NullReferenceException("Query message is null");
 
-
-
             var buttons = new List<InlineKeyboardButton[]>();
-            var jobs = _jobManager.GetJobsByChatId(message.Chat.Id);
+            var jobs = jobManager.GetJobsByChatId(message.Chat.Id);
             if (jobs.Count != 0)
             {
-                await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
+                await client.AnswerCallbackQueryAsync(callbackQuery.Id);
 
                 foreach (var job in jobs)
                 {
                     var text = $"{job.Name} ({job.Config})";
-                    buttons.Add(new InlineKeyboardButton[]
-                    {
+                    buttons.Add(
+                    [
                         InlineKeyboardButton.WithCallbackData(text, new ReminderCallbackData(Command, ReminderCommands.DeleteJob,job.Id))
-                    });
+                    ]);
                 }
                 InlineKeyboardMarkup inlineKeyboard = new(buttons);
-                _logger.LogDebug("Sending list of available jobs");
-                await _client.SendMessageAsync(message, "Виберіть завдання, яке треба видалити", replyMarkup: inlineKeyboard);
-
+                logger.LogDebug("Sending list of available jobs");
+                await client.SendMessageAsync(message, "Виберіть завдання, яке треба видалити", replyMarkup: inlineKeyboard);
             }
             else
             {
-                _logger.LogDebug("No jobs found");
-                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдань не знайдено", true);
+                logger.LogDebug("No jobs found");
+                await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдань не знайдено", true);
             }
-
         }
 
         private async Task GetList(CallbackQuery callbackQuery)
         {
             var message = callbackQuery.Message as Message ?? throw new NullReferenceException("Query message is null");
 
-            var jobs = _jobManager.GetJobsByChatId(message.Chat.Id);
+            var jobs = jobManager.GetJobsByChatId(message.Chat.Id);
             var response = string.Join('\n', jobs.Select(x => $"{x.Name} ({x.Config}) Наступний запуск: {x.NextExecution} Текст: {x.Message}"));
             if (string.IsNullOrEmpty(response))
             {
-                await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдань не знайдено", true);
+                await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдань не знайдено", true);
 
                 return;
             }
 
-            await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
-            await _client.SendMessageAsync(message, response);
-
+            await client.AnswerCallbackQueryAsync(callbackQuery.Id);
+            await client.SendMessageAsync(message, response);
         }
-       
 
         private async Task DeleteJob(CallbackQuery callbackQuery, string jobId)
         {
-            _logger.LogDebug("Deleting job: {jobId}", jobId);
-            _jobManager.DeleteJob(long.Parse(jobId));
-            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдання видалено", true);
+            logger.LogDebug("Deleting job: {jobId}", jobId);
+            jobManager.DeleteJob(long.Parse(jobId));
+            await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдання видалено", true);
         }
 
         private async Task AddJob(CallbackQuery callbackQuery)
@@ -145,13 +118,12 @@ namespace TelegramMultiBot.Commands
                 ChatId = chatId
             };
 
-            _dialogManager[chatId] = dialog;
-            await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
-            await _dialogManager.HandleActiveDialog(message, dialog);
+            dialogManager[chatId] = dialog;
+            await client.AnswerCallbackQueryAsync(callbackQuery.Id);
+            await dialogManager.HandleActiveDialog(message, dialog);
         }
-
-
     }
+
     public enum ReminderCommands
     {
         List,

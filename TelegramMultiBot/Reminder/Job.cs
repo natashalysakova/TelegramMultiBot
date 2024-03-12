@@ -11,6 +11,7 @@ public class Job
     public string Message { get; }
     public string Config { get; }
     public long ChatId { get; }
+
     public DateTime NextExecution
     {
         get
@@ -34,11 +35,11 @@ public class Job
 
     public Job(int id, long chatId, string Name, string message, string config)
     {
-        this.Id = id;
-        this.ChatId = chatId;
+        Id = id;
+        ChatId = chatId;
         this.Name = Name;
-        this.Message = message;
-        this.Config = config;
+        Message = message;
+        Config = config;
     }
 
     public void Sended()

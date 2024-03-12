@@ -6,23 +6,26 @@ using TelegramMultiBot.Database.Enums;
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    interface IDiffusor
+    internal interface IDiffusor
     {
         string UI { get; }
-        HostSettings ActiveHost { get; set; }
+        HostSettings ActiveHost { get; }
 
-        bool CanHnadle(JobType type);
-        Task<bool> isAvailable();
-        Task<bool> isAvailable(HostSettings host);
+        bool CanHandle(JobType type);
+
+        bool IsAvailable();
+
+        //Task<bool> isAvailable(HostSettings host);
+
         Task<JobInfo> Run(JobInfo job);
     }
 
-    abstract public class Diffusor : IDiffusor
+    public abstract class Diffusor : IDiffusor
     {
         private readonly ILogger<Diffusor> _logger;
         private readonly IConfiguration _configuration;
 
-        protected Diffusor(ILogger<Diffusor> logger, IConfiguration configuration)
+        public Diffusor(ILogger<Diffusor> logger, IConfiguration configuration)
         {
             _logger = logger;
             _configuration = configuration;
@@ -31,22 +34,37 @@ namespace TelegramMultiBot.ImageGenerators
         public abstract string UI { get; }
         protected abstract string pingPath { get; }
 
-        public abstract bool CanHnadle(JobType type);
+        public abstract bool CanHandle(JobType type);
+
         public abstract Task<JobInfo> Run(JobInfo job);
 
-        public HostSettings ActiveHost { get; set; }
+        private HostSettings? _hostSettings;
+        public HostSettings ActiveHost
+        {
+            get
+            {
+                if (_hostSettings == null)
+                    _hostSettings = GetAvailable().Result;
+
+                return _hostSettings;
+            }
+        }
+
         public abstract bool ValidateConnection(string content);
-        public async Task<bool> isAvailable(HostSettings host)
+
+        private async Task<bool> isAvailable(HostSettings host)
         {
             if (!host.Enabled)
             {
-                _logger.LogTrace($"{host.Uri} disabled");
+                _logger.LogTrace("{uri} disabled", host.Uri);
                 return false;
             }
 
-            var httpClient = new HttpClient();
-            httpClient.BaseAddress = host.Uri;
-            httpClient.Timeout = TimeSpan.FromSeconds(10);
+            var httpClient = new HttpClient
+            {
+                BaseAddress = host.Uri,
+                Timeout = TimeSpan.FromSeconds(10)
+            };
             try
             {
                 var resp = await httpClient.GetAsync(pingPath);
@@ -55,7 +73,7 @@ namespace TelegramMultiBot.ImageGenerators
                 {
                     if (ValidateConnection(await resp.Content.ReadAsStringAsync()))
                     {
-                        ActiveHost = host;
+                        _logger.LogTrace($"{host.Uri} available");
                         return true;
                     }
                     else
@@ -67,28 +85,36 @@ namespace TelegramMultiBot.ImageGenerators
                 {
                     _logger.LogDebug($"{host.Uri} request is not successful");
                 }
-                
             }
             catch (Exception)
             {
                 _logger.LogTrace($"{host.Uri} not available");
             }
             return false;
-
         }
-        public async Task<bool> isAvailable()
+
+        private async Task<HostSettings?> GetAvailable()
         {
-            var hosts = _configuration.GetSection(HostSettings.Name).Get<IEnumerable<HostSettings>>().Where(x => x.UI == this.UI);
+            var hostSettings = _configuration.GetSection(HostSettings.Name).Get<IEnumerable<HostSettings>>();
+            if (hostSettings == null)
+                throw new InvalidOperationException($"Cannot get {HostSettings.Name} section");
+
+            var hosts = hostSettings.Where(x => x.UI == UI);
 
             foreach (var host in hosts)
             {
                 if (await isAvailable(host))
                 {
-                    return true;
+                    return host;
                 }
             }
 
-            return false;
+            return default;
+        }
+
+        public bool IsAvailable()
+        {
+            return ActiveHost is not null;
         }
     }
 }

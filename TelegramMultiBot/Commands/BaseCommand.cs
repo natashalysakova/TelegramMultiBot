@@ -1,18 +1,18 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Telegram.Bot.Types;
+﻿using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 
 namespace TelegramMultiBot.Commands
 {
-    abstract class BaseCommand : ICommand
+    internal abstract class BaseCommand : ICommand
     {
-        public bool CanHandleInlineQuery { get => this.GetType().IsAssignableTo(typeof(IInlineQueryHandler)); }
-        public bool CanHandleCallback { get => this.GetType().IsAssignableTo(typeof(ICallbackHandler)); }
+        public bool CanHandleInlineQuery { get => GetType().IsAssignableTo(typeof(IInlineQueryHandler)); }
+        public bool CanHandleCallback { get => GetType().IsAssignableTo(typeof(ICallbackHandler)); }
+
         public string Command
         {
             get
             {
-                var type = this.GetType();
+                var type = GetType();
 
                 var attribute = type.GetAttributeValue(
                     (ServiceKeyAttribute att) =>
@@ -57,7 +57,7 @@ namespace TelegramMultiBot.Commands
 
         public virtual bool CanHandle(InlineQuery query)
         {
-            return query.Query.StartsWith($"@{BotService.BotName} /{Command}", StringComparison.InvariantCultureIgnoreCase);
+            return query.Query.StartsWith($"@{BotService.BotName} /{Command}", StringComparison.InvariantCultureIgnoreCase) || query.Query.StartsWith($"/{Command}", StringComparison.InvariantCultureIgnoreCase);
         }
 
         public virtual bool CanHandle(string query)
@@ -86,20 +86,17 @@ namespace TelegramMultiBot.Commands
         }
     }
 
-
-
-
     [System.AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-    sealed class ServiceKeyAttribute : Attribute
+    internal sealed class ServiceKeyAttribute : Attribute
     {
-        // See the attribute guidelines at 
+        // See the attribute guidelines at
         //  http://go.microsoft.com/fwlink/?LinkId=85236
-        readonly string command;
+        private readonly string command;
 
         // This is a positional argument
         public ServiceKeyAttribute(string positionalString)
         {
-            this.command = positionalString;
+            command = positionalString;
 
             // TODO: Implement code here
 
