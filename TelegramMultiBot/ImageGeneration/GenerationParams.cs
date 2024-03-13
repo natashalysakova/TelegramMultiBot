@@ -7,18 +7,21 @@ namespace TelegramMultiBot.ImageGenerators
     {
         public GenerationParams(JobInfo job)
         {
+            if (job.Text == null)
+                throw new InvalidOperationException("Job has no text");
+
             var text = job.Text;
 
             if (text.Contains("#negative"))
             {
                 var startOfNegative = text.IndexOf("#negative");
                 var indexOfPrompt = text.IndexOf(' ');
-                Prompt = text.Substring(indexOfPrompt, startOfNegative - indexOfPrompt).Trim();
-                NegativePrompt = text.Substring(startOfNegative + 9).Trim();
+                Prompt = text[indexOfPrompt..startOfNegative].Trim();
+                NegativePrompt = text[(startOfNegative + 9)..].Trim();
             }
             else
             {
-                Prompt = text.Substring(text.IndexOf(' '));
+                Prompt = text[text.IndexOf(' ')..];
                 NegativePrompt = string.Empty;
             }
 
@@ -45,7 +48,7 @@ namespace TelegramMultiBot.ImageGenerators
                 }
                 else
                 {
-                    Model = text.Substring(indexOfModel + 1).Trim();
+                    Model = text[(indexOfModel + 1)..].Trim();
                 }
             }
 
@@ -53,33 +56,33 @@ namespace TelegramMultiBot.ImageGenerators
             if (text.Contains("#seed:"))
             {
                 int indexOfSeed = text.IndexOf("#seed:");
-                int startOfSeed = text.IndexOf(":", indexOfSeed);
-                int endOfSeed = text.IndexOf(" ", indexOfSeed);
+                int startOfSeed = text.IndexOf(':', indexOfSeed);
+                int endOfSeed = text.IndexOf(' ', indexOfSeed);
                 if (endOfSeed != -1)
                 {
                     Seed = long.Parse(text.Substring(startOfSeed + 1, endOfSeed - startOfSeed).Trim());
                 }
                 else
                 {
-                    Seed = long.Parse(text.Substring(startOfSeed + 1).Trim());
+                    Seed = long.Parse(text[(startOfSeed + 1)..].Trim());
                 }
             }
 
-            var resolution = supportedResolutions.Where(x => text.Contains(x.hashtag)).FirstOrDefault();
+            var resolution = supportedResolutions.Where(x => text.Contains(x.Hashtag)).FirstOrDefault();
             if (resolution == default)
             {
-                Width = defaultResolution.width;
-                Height = defaultResolution.height;
+                Width = defaultResolution.Width;
+                Height = defaultResolution.Height;
             }
             else
             {
-                Width = resolution.width;
-                Height = resolution.height;
+                Width = resolution.Width;
+                Height = resolution.Height;
             }
         }
 
         public int BatchCount { get; internal set; }
-        public string Model { get; internal set; }
+        public string? Model { get; internal set; }
         public string Prompt { get; set; }
         public string NegativePrompt { get; set; }
         public int Width { get; set; }
@@ -87,9 +90,9 @@ namespace TelegramMultiBot.ImageGenerators
 
         public long Seed { get; set; }
 
-        protected string RemoveHashtags(string text)
+        protected static string RemoveHashtags(string text)
         {
-            var hashtags = text.Split(" ").Where(x => x.StartsWith("#"));
+            var hashtags = text.Split(' ').Where(x => x.StartsWith('#'));
             foreach (var hasthag in hashtags)
             {
                 text = text.Replace(hasthag, string.Empty);
@@ -97,23 +100,24 @@ namespace TelegramMultiBot.ImageGenerators
             return text;
         }
 
-        private string ClearPrompt(string prompt)
+        private static string ClearPrompt(string prompt)
         {
             return JsonEncodedText.Encode(prompt).Value.Trim();
         }
 
-        public static (int width, int height, string ar) defaultResolution = (1024, 1024, "1\\:1");
+        public static readonly Resolution defaultResolution = new("#square", 1024, 1024, "1\\:1");
 
-        public static (string hashtag, int width, int height, string ar)[] supportedResolutions = new[]
-        {
-            ("#vertical", 768, 1344, "9\\:16"),
-            ("#widescreen", 1365 , 768, "16\\:9"),
-            ("#portrait", 915 , 1144, "4\\:5"),
-            ("#photo", 1182 , 886, "4\\:3"),
-            ("#landscape", 1254 , 836, "3\\:2"),
-            ("#cinematic", 1564 , 670, "21\\:9"),
-        };
+        public static readonly Resolution[] supportedResolutions =
+        [
+            new("#vertical", 768, 1344, "9\\:16"),
+            new("#widescreen", 1365 , 768, "16\\:9"),
+            new("#portrait", 915 , 1144, "4\\:5"),
+            new("#photo", 1182 , 886, "4\\:3"),
+            new("#landscape", 1254 , 836, "3\\:2"),
+            new("#cinematic", 1564 , 670, "21\\:9"),
+        ];
 
+        
         /*
          768 x 1344: Vertical (9:16)
         915 x 1144: Portrait (4:5)
@@ -124,4 +128,5 @@ namespace TelegramMultiBot.ImageGenerators
         1564 x 670: Cinematic (21:9)
          */
     }
+    public record Resolution(string Hashtag, int Width, int Height, string Ar);
 }

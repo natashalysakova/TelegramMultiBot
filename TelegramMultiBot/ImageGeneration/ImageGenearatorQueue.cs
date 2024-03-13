@@ -52,7 +52,7 @@ namespace TelegramMultiBot.ImageGenerators
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError(ex, "Cannot dequeue: " + ex.Message);
+                            _logger.LogError(ex, "Cannot dequeue: {error}", ex.Message);
                             await Task.Delay(30000);
                         }
                     }
@@ -61,13 +61,13 @@ namespace TelegramMultiBot.ImageGenerators
                     {
                         //var task =  Task.Run(async () =>
                         //{
-                        _logger.LogDebug("Starting " + job.Id);
+                        _logger.LogDebug("Starting {id}", job.Id);
 
                         try
                         {
                             var result = await _imageGenerator.Run(job);
                             JobFinished?.Invoke(result);
-                            _logger.LogDebug("Finished " + job.Id);
+                            _logger.LogDebug("Finished {id}", job.Id);
                         }
                         catch (SdNotAvailableException)
                         {
@@ -76,7 +76,7 @@ namespace TelegramMultiBot.ImageGenerators
                                 var databaseService = scope.ServiceProvider.GetRequiredService<IDatabaseService>();
                                 databaseService.ReturnToQueue(job);
                             }
-                            _logger.LogDebug("SD not available, job returned to the queue " + job.Id);
+                            _logger.LogDebug("SD not available, job returned to the queue {id}", job.Id);
                             await Task.Delay(10000);
                         }
                         catch (Exception ex)
@@ -89,7 +89,7 @@ namespace TelegramMultiBot.ImageGenerators
                             }
 
                             JobFailed?.Invoke(job, ex);
-                            _logger.LogDebug("Failed " + job.Id);
+                            _logger.LogDebug("Failed {id}", job.Id);
                         }
                         //});
                     }

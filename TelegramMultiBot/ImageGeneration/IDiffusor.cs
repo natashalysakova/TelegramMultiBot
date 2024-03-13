@@ -9,7 +9,7 @@ namespace TelegramMultiBot.ImageGenerators
     internal interface IDiffusor
     {
         string UI { get; }
-        HostSettings ActiveHost { get; }
+        HostSettings? ActiveHost { get; }
 
         bool CanHandle(JobType type);
 
@@ -20,43 +20,32 @@ namespace TelegramMultiBot.ImageGenerators
         Task<JobInfo> Run(JobInfo job);
     }
 
-    public abstract class Diffusor : IDiffusor
+    public abstract class Diffusor(ILogger<Diffusor> logger, IConfiguration configuration) : IDiffusor
     {
-        private readonly ILogger<Diffusor> _logger;
-        private readonly IConfiguration _configuration;
-
-        public Diffusor(ILogger<Diffusor> logger, IConfiguration configuration)
-        {
-            _logger = logger;
-            _configuration = configuration;
-        }
-
         public abstract string UI { get; }
-        protected abstract string pingPath { get; }
+        protected abstract string PingPath { get; }
 
         public abstract bool CanHandle(JobType type);
 
         public abstract Task<JobInfo> Run(JobInfo job);
 
         private HostSettings? _hostSettings;
-        public HostSettings ActiveHost
+        public HostSettings? ActiveHost
         {
             get
             {
-                if (_hostSettings == null)
-                    _hostSettings = GetAvailable().Result;
-
+                _hostSettings ??= GetAvailable().Result;
                 return _hostSettings;
             }
         }
 
         public abstract bool ValidateConnection(string content);
 
-        private async Task<bool> isAvailable(HostSettings host)
+        private async Task<bool> IsAvailable(HostSettings host)
         {
             if (!host.Enabled)
             {
-                _logger.LogTrace("{uri} disabled", host.Uri);
+                logger.LogTrace("{uri} disabled", host.Uri);
                 return false;
             }
 
@@ -67,43 +56,40 @@ namespace TelegramMultiBot.ImageGenerators
             };
             try
             {
-                var resp = await httpClient.GetAsync(pingPath);
+                var resp = await httpClient.GetAsync(PingPath);
 
                 if (resp.IsSuccessStatusCode)
                 {
                     if (ValidateConnection(await resp.Content.ReadAsStringAsync()))
                     {
-                        _logger.LogTrace($"{host.Uri} available");
+                        logger.LogTrace("{uri} available", host.Uri);
                         return true;
                     }
                     else
                     {
-                        _logger.LogDebug($"{host.Uri} host not valid");
+                        logger.LogDebug("{uri} host not valid", host.Uri);
                     }
                 }
                 else
                 {
-                    _logger.LogDebug($"{host.Uri} request is not successful");
+                    logger.LogDebug("{uri} request is not successful", host.Uri);
                 }
             }
             catch (Exception)
             {
-                _logger.LogTrace($"{host.Uri} not available");
+                logger.LogTrace("{uri} not available", host.Uri);
             }
             return false;
         }
 
         private async Task<HostSettings?> GetAvailable()
         {
-            var hostSettings = _configuration.GetSection(HostSettings.Name).Get<IEnumerable<HostSettings>>();
-            if (hostSettings == null)
-                throw new InvalidOperationException($"Cannot get {HostSettings.Name} section");
-
+            var hostSettings = configuration.GetSection(HostSettings.Name).Get<IEnumerable<HostSettings>>() ?? throw new InvalidOperationException($"Cannot get {HostSettings.Name} section");
             var hosts = hostSettings.Where(x => x.UI == UI);
 
             foreach (var host in hosts)
             {
-                if (await isAvailable(host))
+                if (await IsAvailable(host))
                 {
                     return host;
                 }

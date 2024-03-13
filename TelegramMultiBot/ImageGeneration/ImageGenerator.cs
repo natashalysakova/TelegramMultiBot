@@ -11,7 +11,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         public ImageGenerator(IEnumerable<IDiffusor> diffusors, IConfiguration configuration)
         {
-            var directory = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().BaseOutputDirectory;
+            var directory = (configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new InvalidOperationException("Cannot get ImageGeneationSettings")).BaseOutputDirectory;
             if (!Directory.Exists(directory))
             {
                 Directory.CreateDirectory(directory);
@@ -23,7 +23,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         public async Task<JobInfo> Run(JobInfo job)
         {
 
-            var diffusor = _diffusors.Where(x => x.IsAvailable() && x.CanHandle(job.Type) && job.Diffusor is null ? true : x.UI == job.Diffusor).OrderBy(x => x.ActiveHost.Priority).FirstOrDefault();
+            var diffusor = _diffusors.Where(x => x.IsAvailable() && x.CanHandle(job.Type) && (job.Diffusor is null || x.UI == job.Diffusor)).OrderBy(x => x.ActiveHost!.Priority).FirstOrDefault();
 
             if(diffusor != null)
             {

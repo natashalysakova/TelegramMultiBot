@@ -7,20 +7,11 @@ using TelegramMultiBot.ImageGenerators;
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("help")]
-    internal class HelpCommand : BaseCommand
+    internal class HelpCommand(TelegramClientWrapper client, IConfiguration configuration) : BaseCommand
     {
-        private readonly TelegramClientWrapper _client;
-        private readonly IConfiguration _configuration;
-
-        public HelpCommand(TelegramClientWrapper client, IConfiguration configuration)
-        {
-            _client = client;
-            _configuration = configuration;
-        }
-
         public override async Task Handle(Message message)
         {
-            var config = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+            var config = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
             if (config is null)
                 throw new NullReferenceException(nameof(config));
 
@@ -39,11 +30,11 @@ https\:\/\/crontab\.guru
 >Використовуй `\#1`, `\#2`, `\#3` або `\#4` щоб вказати кількість зображень, які ти хочеш отримати
 
 >Стандартний формат зображення "
-+ $"{GenerationParams.defaultResolution.width}x{GenerationParams.defaultResolution.height}: \\({GenerationParams.defaultResolution.ar}\\)"
++ $"{GenerationParams.defaultResolution.Width}x{GenerationParams.defaultResolution.Height}: \\({GenerationParams.defaultResolution.Ar}\\)"
 + @"
 >Використовуй хештеги формату, щоб керувати форматом зображення
 " +
-string.Join("\n", GenerationParams.supportedResolutions.Select(x => $">{x.width}x{x.height}: `\\{x.hashtag}` \\({x.ar}\\)"))
+string.Join("\n", GenerationParams.supportedResolutions.Select(x => $">{x.Width}x{x.Height}: `\\{x.Hashtag}` \\({x.Ar}\\)"))
 + @"
 
 >Якщо бажаєш попрацювати над деталями зображення \- використуй повторно його seed
@@ -74,7 +65,7 @@ string.Join("\n", config.Models.Select(x => $">`#model_{x.Name}`"))
 Цей функціонал мже не працювати як потрібно або не працювати взагалі, бо він залежить від сторонніх сервісів\.
 ";
 
-            await _client.SendMessageAsync(message, html, parseMode: ParseMode.MarkdownV2, linkPreviewOptions: new LinkPreviewOptions() { IsDisabled = true });
+            await client.SendMessageAsync(message, html, parseMode: ParseMode.MarkdownV2, linkPreviewOptions: new LinkPreviewOptions() { IsDisabled = true });
             //_client.SendTextMessageAsync(message.Chat.Id, html, parseMode: ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId, disableWebPagePreview: true);
         }
     }

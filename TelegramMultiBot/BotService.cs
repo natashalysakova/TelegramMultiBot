@@ -186,7 +186,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
     {
         try
         {
-            logger.LogTrace(inlineQuery.Query);
+            logger.LogTrace("{query}", inlineQuery.Query);
             var commands = serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(inlineQuery) && x.CanHandleInlineQuery).Select(x => (IInlineQueryHandler)x).ToList();
 
             if (commands.Count == 0)

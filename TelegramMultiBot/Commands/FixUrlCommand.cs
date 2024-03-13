@@ -90,7 +90,7 @@ namespace TelegramMultiBot.Commands
 
         private record ServiceItem(string service, string? whatReplace, string? replaceWith);
 
-        private List<ServiceItem> ServiceItems =
+        private readonly List<ServiceItem> ServiceItems =
     [
         new ServiceItem("https://www.instagram.com", "instagram", "ddinstagram"),
         new ServiceItem("https://x.com", "x", "fixupx"),
@@ -103,7 +103,7 @@ namespace TelegramMultiBot.Commands
         {
             if (link.Contains('?'))
             {
-                return link.Replace(link.Substring(link.IndexOf('?')), string.Empty);
+                return link.Replace(link[link.IndexOf('?')..], string.Empty);
             }
 
             return link;

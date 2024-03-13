@@ -33,7 +33,7 @@ internal class Program
         var context = serviceProvider.GetRequiredService<BoberDbContext>();
         context.Database.Migrate();
 
-        var bot = serviceProvider.GetService<BotService>();
+        var bot = serviceProvider.GetRequiredService<BotService>();
 
         CancellationTokenSource cancellationToken = new();
         bot.Run(cancellationToken);

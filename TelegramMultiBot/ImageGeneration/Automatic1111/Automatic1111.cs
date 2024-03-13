@@ -14,9 +14,13 @@ using TelegramMultiBot.ImageGenerators.Automatic1111.Api;
 
 namespace TelegramMultiBot.ImageGenerators.Automatic1111
 {
-    internal partial class Automatic1111(TelegramClientWrapper client, IConfiguration configuration, ILogger<Automatic1111> logger, IDatabaseService databaseService) : Diffusor(logger, configuration)
+    internal partial class Automatic1111 : Diffusor
     {
-        private readonly IConfiguration _configuration = configuration;
+        private readonly TelegramClientWrapper _client;
+        private readonly ILogger<Automatic1111> _logger;
+        private readonly IDatabaseService _databaseService;
+        private readonly ImageGeneationSettings _settings;
+        private readonly Automatic1111Settings _automaticSettings;
 
         // private readonly IServiceProvider _serviceProvider;
         private const string _text2imagePath = "/sdapi/v1/txt2img";
@@ -25,8 +29,17 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private const string _extrasPath = "/sdapi/v1/extra-single-image";
         private const string _progressPath = "/sdapi/v1/progress?skip_current_image=true";
 
+        public Automatic1111(TelegramClientWrapper client, IConfiguration configuration, ILogger<Automatic1111> logger, IDatabaseService databaseService) : base(logger, configuration)
+        {
+            _client = client;
+            _logger = logger;
+            _databaseService = databaseService;
+            _settings = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new NullReferenceException(nameof(_settings));
+            _automaticSettings = configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>() ?? throw new NullReferenceException(nameof(_automaticSettings));
 
-        protected override string pingPath => "/internal/sysinfo";
+        }
+
+        protected override string PingPath => "/internal/sysinfo";
 
         public override string UI { get => nameof(Automatic1111); }
 
@@ -37,17 +50,12 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         public override async Task<JobInfo> Run(JobInfo job)
         {
-            await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Завдання розпочато");
+            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Завдання розпочато");
 
-            Automatic1111Cache.InitCache(ActiveHost.Uri);
+            Automatic1111Cache.InitCache(ActiveHost!.Uri);
 
-            var baseDir = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>()?.BaseOutputDirectory;
-            if (baseDir is null)
-                throw new NullReferenceException(nameof(baseDir));
-
-            var outputDir = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>()?.OutputDirectory;
-            if (outputDir is null)
-                throw new NullReferenceException(nameof(outputDir));
+            var baseDir = _settings.BaseOutputDirectory;
+            var outputDir = _automaticSettings.OutputDirectory;
 
             var directory = Path.Combine(baseDir, outputDir, DateTime.Today.ToString("yyyyMMdd"));
 
@@ -72,15 +80,15 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         await Img2ImgUpscale(job, directory);
                         break;
                 }
-                databaseService.PostProgress(job.Id, 100, "ok");
+                _databaseService.PostProgress(job.Id, 100, "ok");
             }
             catch (Exception ex)
             {
-                databaseService.PostProgress(job.Id, -1, ex.Message);
+                _databaseService.PostProgress(job.Id, -1, ex.Message);
                 throw;
             }
 
-            return databaseService.GetJob(job.Id);
+            return _databaseService.GetJob(job.Id);
         }
 
         private async Task<JobInfo?> PostProcessingUpscale(JobInfo job, string directory)
@@ -88,17 +96,12 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             if (job.PreviousJobResultId is null)
                 throw new NullReferenceException(nameof(job.PreviousJobResultId));
 
-            var jobResultInfo = databaseService.GetJobResult(job.PreviousJobResultId);
+            var jobResultInfo = _databaseService.GetJobResult(job.PreviousJobResultId);
             if (jobResultInfo is null)
                 throw new NullReferenceException(nameof(jobResultInfo));
 
             var upscaleparams = new UpscaleParams(jobResultInfo);
-
-            var settings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
-            if (settings is null)
-                throw new NullReferenceException(nameof(settings));
-
-            var payload = File.ReadAllText(Path.Combine(settings.UpscalePath, "extras-single.json"));
+            var payload = File.ReadAllText(Path.Combine(_automaticSettings.UpscalePath, "extras-single.json"));
 
             JObject json = JObject.Parse(payload);
             json["image"] = "data:image/png;base64," + Convert.ToBase64String(File.ReadAllBytes(upscaleparams.FilePath));
@@ -112,21 +115,13 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         private async Task<JobInfo> Img2ImgUpscale(JobInfo job, string directory)
         {
-            var settings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
-            if (settings is null)
-                throw new NullReferenceException(nameof(settings));
-
-            var generalSettings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
-            if (generalSettings is null)
-                throw new NullReferenceException(nameof(generalSettings));
-
             if (job.PreviousJobResultId is null)
                 throw new NullReferenceException(nameof(job.PreviousJobResultId));
 
-            var previousResult = databaseService.GetJobResult(job.PreviousJobResultId) ?? throw new NullReferenceException(nameof(job.PreviousJobResultId));
+            var previousResult = _databaseService.GetJobResult(job.PreviousJobResultId) ?? throw new NullReferenceException(nameof(job.PreviousJobResultId));
             var upscaleparams = new UpscaleParams(previousResult);
 
-            var payload = File.ReadAllText(Path.Combine(settings.UpscalePath, "img2img.json"));
+            var payload = File.ReadAllText(Path.Combine(_automaticSettings.UpscalePath, "img2img.json"));
 
             JObject json = JObject.Parse(payload);
             json["prompt"] = upscaleparams.Prompt;
@@ -134,17 +129,17 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             {
                 json["negative_prompt"] = upscaleparams.NegativePrompt;
             }
-            json["width"] = upscaleparams.Width * generalSettings.UpscaleMultiplier;
-            json["height"] = upscaleparams.Height * generalSettings.UpscaleMultiplier;
+            json["width"] = upscaleparams.Width * _settings.UpscaleMultiplier;
+            json["height"] = upscaleparams.Height * _settings.UpscaleMultiplier;
 
-            IEnumerable<Sampler> samplers = Automatic1111Cache.GetSampler(ActiveHost.Uri);
+            IEnumerable<Sampler> samplers = Automatic1111Cache.GetSampler(ActiveHost!.Uri);
             var sampler = samplers.First(x => x.name == upscaleparams.Sampler);
 
             json["sampler_name"] = samplers.Where(x => x.aliases.Contains(upscaleparams.Sampler) || x.name == upscaleparams.Sampler).First().name;
             json["steps"] = upscaleparams.Steps;
             json["cfg_scale"] = upscaleparams.CFGScale;
 
-            var model = generalSettings.Models.Single(x => Path.GetFileNameWithoutExtension(x.Path) == upscaleparams.Model);
+            var model = _settings.Models.Single(x => Path.GetFileNameWithoutExtension(x.Path) == upscaleparams.Model);
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             json["override_settings"]["sd_model_checkpoint"] = upscaleparams.Model;
             json["override_settings"]["CLIP_stop_at_last_layers"] = model.CLIPskip;
@@ -163,23 +158,17 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private async Task TextToImage(JobInfo job, string directory)
         {
             var genParams = new GenerationParams(job);
-            var settings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
-            if (settings is null)
-                throw new NullReferenceException(nameof(settings));
-            var automaticSettings = _configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>();
-            if (automaticSettings is null)
-                throw new NullReferenceException(nameof(automaticSettings));
 
-            var batchCount = settings.BatchCount;
+            var batchCount = _settings.BatchCount;
             if (string.IsNullOrEmpty(genParams.Model))
             {
-                genParams.Model = settings.DefaultModel;
+                genParams.Model = _settings.DefaultModel;
             }
             if (genParams.BatchCount != 0)
             {
                 batchCount = genParams.BatchCount;
             }
-            string payload = File.ReadAllText(Path.Combine(automaticSettings.PayloadPath, "sd-payload-sdxl.json"));
+            string payload = File.ReadAllText(Path.Combine(_automaticSettings.PayloadPath, "sd-payload-sdxl.json"));
 
             JObject json = JObject.Parse(payload);
             json["width"] = genParams.Width;
@@ -191,7 +180,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             ModelSettings model;
             try
             {
-                model = settings.Models.Single(x => x.Name == genParams.Model);
+                model = _settings.Models.Single(x => x.Name == genParams.Model);
             }
             catch (Exception)
             {
@@ -215,7 +204,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 samplerAlias += "_exp";
             }
 
-            var samplers = Automatic1111Cache.GetSampler(ActiveHost.Uri);
+            var samplers = Automatic1111Cache.GetSampler(ActiveHost!.Uri);
             var samplerName = samplers.Where(x => x.aliases.Contains(samplerAlias)).First().name;
 
             json["sampler_name"] = samplerName;
@@ -228,11 +217,11 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         {
             using HttpClient httpClient = new()
             {
-                BaseAddress = ActiveHost.Uri,
+                BaseAddress = ActiveHost!.Uri,
                 Timeout = TimeSpan.FromMinutes(60)
             };
 
-            await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готую рендер");
+            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готую рендер");
 
             var progressPerItem = 100.0 / batch_count;
             for (int i = 0; i < batch_count; i++)
@@ -260,7 +249,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                         File.WriteAllBytes(filePath, imageBytes);
 
-                        databaseService.AddResult(job.Id, new JobResultInfoCreate()
+                        _databaseService.AddResult(job.Id, new JobResultInfoCreate()
                         {
                             FilePath = filePath,
                             Info = ParseInfoRegex().Replace(response.html_info, String.Empty),
@@ -280,7 +269,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
                             File.WriteAllBytes(filePath, imageBytes);
 
-                            databaseService.AddResult(job.Id, new JobResultInfoCreate()
+                            _databaseService.AddResult(job.Id, new JobResultInfoCreate()
                             {
                                 FilePath = filePath,
                                 Info = info?.infotexts?[j] ?? string.Empty,
@@ -292,12 +281,12 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 else
                 {
                     var text = "Error calliing API. Check SD console:" + taskResult.ReasonPhrase;
-                    logger.LogError(text);
+                    _logger.LogError("{error}", text);
                     throw new RenderFailedException(taskResult.ReasonPhrase);
                 }
             }
 
-            await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готово. Прогрес 100%. Збираю та відправляю зображення");
+            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готово. Прогрес 100%. Збираю та відправляю зображення");
         }
 
         private async Task MonitorProgress(JobInfo job, int batch_count, double progressPerItem, int i, Task<HttpResponseMessage> result)
@@ -311,24 +300,24 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 {
                     using HttpClient progressHttpClient = new()
                     {
-                        BaseAddress = ActiveHost.Uri
+                        BaseAddress = ActiveHost!.Uri
                     };
                     var progressResponce = await progressHttpClient.GetAsync(_progressPath);
-                    var progressobj = JsonConvert.DeserializeObject<ProgressResponse>(await progressResponce.Content.ReadAsStringAsync());
+                    var progressobj = JsonConvert.DeserializeObject<ProgressResponse>(await progressResponce.Content.ReadAsStringAsync()) ?? throw new InvalidOperationException("Cannot deserialize responce");
                     double localProgress = progressobj.progress;
                     var eta = progressobj.eta_relative;
 
                     //var progress = (localProgress * 100 + i * 100) / batch_count;
                     localProgress = localProgress == 0 ? 1 : localProgress;
                     var progress = (progressPerItem * i) + (localProgress * 100 / batch_count);
-                    logger.LogTrace($"{job.ChatId} {job.BotMessageId} - {Math.Round(progress, 2)}%");
+                    _logger.LogTrace("{chatId} {botMId} - {progress}%", job.ChatId, job.BotMessageId, Math.Round(progress, 2));
 
                     if (progress != oldProgress)
                     {
                         var timespan = TimeSpan.FromSeconds(eta).ToString("hh\\:mm\\:ss");
-                        await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
+                        await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{batch_count} Прогресс: {Math.Round(progress, 2)}%");
 
-                        databaseService.PostProgress(job.Id, progress, "progress");
+                        _databaseService.PostProgress(job.Id, progress, "progress");
 
                         oldProgress = progress;
                     }
@@ -336,8 +325,8 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 catch (Exception ex)
                 {
                     var error = "Не можу оновити прогрес, чекай на результат";
-                    logger.LogTrace(ex, error);
-                    await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Працюю... {error}");
+                    _logger.LogTrace(ex, "{error}", error);
+                    await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Працюю... {error}");
                     result.Wait();
                 }
             }

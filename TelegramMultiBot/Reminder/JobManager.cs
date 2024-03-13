@@ -4,10 +4,10 @@ using TelegramMultiBot.Reminder;
 
 internal class JobManager : Manager<Job>, IDisposable
 {
-    private object locker = new();
-    private int nextId => list.Any() ? list.Max(x => x.Id) + 1 : 0;
+    private readonly object _locker = new();
+    private int NextId => list.Count != 0 ? list.Max(x => x.Id) + 1 : 0;
 
-    protected override string fileName => "jobs.json";
+    protected override string FileName => "jobs.json";
 
     public event Action<long, string> ReadyToSend = delegate { };
 
@@ -16,13 +16,13 @@ internal class JobManager : Manager<Job>, IDisposable
         try
         {
             list = Load();
-            _logger.LogDebug($"Loadded {list.Count} jobs");
+            _logger.LogDebug("Loadded {count} jobs", list.Count);
         }
         catch (Exception ex)
         {
-            _logger.LogDebug(ex.Message);
+            _logger.LogDebug("{error}", ex.Message);
             list = [];
-            _logger.LogDebug($"Created new job list");
+            _logger.LogDebug("Created new job list");
         }
     }
 
@@ -34,11 +34,11 @@ internal class JobManager : Manager<Job>, IDisposable
     public void Run(CancellationToken token)
     {
         this.token = token;
-        Task.Run(async () =>
+        _ = Task.Run(async () =>
         {
             while (!this.token.IsCancellationRequested)
             {
-                lock (locker)
+                lock (_locker)
                 {
                     var jobsToSend = list.Where(x => x.NextExecution < DateTime.Now).ToList();
                     foreach (var job in jobsToSend)
@@ -49,14 +49,14 @@ internal class JobManager : Manager<Job>, IDisposable
                 }
                 await Task.Delay(TimeSpan.FromSeconds(5));
             }
-        });
+        }, token);
     }
 
     internal DateTime AddJob(long chatid, string name, string cron, string text)
     {
-        var job = new Job(nextId, chatid, name, text, cron.ToString());
+        var job = new Job(NextId, chatid, name, text, cron.ToString());
         list.Add(job);
-        _logger.LogDebug($"Job {name} {cron} added");
+        _logger.LogDebug("Job {name} {cron} added", name, cron);
         Save();
         return job.NextExecution;
     }
@@ -69,14 +69,14 @@ internal class JobManager : Manager<Job>, IDisposable
     internal void DeleteJob(long id)
     {
         list.Remove(list.Single(x => x.Id == id));
-        _logger.LogDebug($"Job {id} removed");
+        _logger.LogDebug("Job {id} removed", id);
         Save();
     }
 
     internal void DeleteJobsForChat(long chatId)
     {
         list.RemoveAll(x => x.ChatId == chatId);
-        _logger.LogDebug($"Jobs for chat {chatId} removed");
+        _logger.LogDebug("Jobs for chat {chatId} removed", chatId);
         Save();
     }
 }

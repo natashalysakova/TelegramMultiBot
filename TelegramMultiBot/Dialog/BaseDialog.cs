@@ -1,7 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
 internal abstract class BaseDialog<T> : IDialog where T : struct
 {
-    private Dictionary<T, T> _states = [];
+    private readonly Dictionary<T, T> _states = [];
     public Dictionary<T, T> States { get => _states; }
 
     public BaseDialog()

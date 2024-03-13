@@ -5,14 +5,16 @@ namespace TelegramMultiBot.ImageGeneration
 {
     public class UpscaleParams
     {
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         public UpscaleParams(JobResultInfoView previousJob)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
         {
             FilePath = previousJob.FilePath;
             ParseInfo(previousJob.Info);
         }
 
         public string Prompt { get; set; }
-        public string NegativePrompt { get; set; }
+        public string? NegativePrompt { get; set; }
         public long Seed { get; set; }
         public int Steps { get; set; }
         public string Sampler { get; set; }
@@ -20,18 +22,20 @@ namespace TelegramMultiBot.ImageGeneration
         public int Width { get; set; }
         public int Height { get; set; }
         public string Model { get; set; }
-        public string ModelHash { get; set; }
+        public string? ModelHash { get; set; }
 
         public double Denoising { get; set; }
-        public string Version { get; set; }
-        public double Score { get; set; }
+        public string? Version { get; set; }
 
         public string FilePath { get; internal set; }
 
         private static readonly char[] _separator = ['\n', '\r'];
 
-        internal void ParseInfo(string info)
+        internal void ParseInfo(string? info)
         {
+            if (info == null)
+                return;
+
             var split = info.Split(_separator, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             if (split.Length < 2 || split.Length > 3)
             {
@@ -71,8 +75,6 @@ namespace TelegramMultiBot.ImageGeneration
             }
 
             CFGScale = double.Parse(ParseParemeter(split.Single(x => x.Contains("CFG scale:"))), CultureInfo.InvariantCulture);
-
-            //Score = double.Parse(split.Single(x => x.Contains("Score:")));
 
             if (split.Any(x => x.Contains("Denoising strength:")))
             {
