@@ -22,10 +22,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         public async Task<JobInfo> Run(JobInfo job)
         {
-
             var diffusor = _diffusors.Where(x => x.IsAvailable() && x.CanHandle(job.Type) && (job.Diffusor is null || x.UI == job.Diffusor)).OrderBy(x => x.ActiveHost!.Priority).FirstOrDefault();
 
-            if(diffusor != null)
+            if (diffusor != null)
             {
                 return await diffusor.Run(job);
             }

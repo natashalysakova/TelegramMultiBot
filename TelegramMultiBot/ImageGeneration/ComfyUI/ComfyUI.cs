@@ -96,7 +96,6 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         private async Task RunHiresFix(JobInfo job, string directory)
         {
-
             var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "hiresFix.json"));
             var previousJob = _databaseService.GetJobResult(job.PreviousJobResultId!)!;
             var upscaleParams = new UpscaleParams(previousJob);
@@ -158,7 +157,6 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         private async Task RunTextToImage(JobInfo job, string directory)
         {
-
             var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2image.json"));
 
             var genParams = new GenerationParams(job);

@@ -6,6 +6,7 @@ internal class AddJobDialog : BaseDialog<AddDialogState>
     {
         Name = CRON = Text = string.Empty;
     }
+
     public string Name { get; set; }
     public string CRON { get; set; }
     public string Text { get; set; }

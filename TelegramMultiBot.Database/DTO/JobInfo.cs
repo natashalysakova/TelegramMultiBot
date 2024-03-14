@@ -13,12 +13,12 @@ public class JobInfo
     public bool PostInfo { get; set; }
     public JobType Type { get; set; }
     public double? UpscaleModifyer { get; set; }
-    public required string Id { get; set; }
+    public string Id { get; set; }
     public string? PreviousJobResultId { get; set; }
     public string? Text { get; set; }
     public ExceptionInfo? Exception { get; set; }
     public double Progress { get; set; }
-    public required string TextStatus { get; set; }
+    public string TextStatus { get; set; }
     public ImageJobStatus Status { get; set; }
     public string? Diffusor { get; set; }
 }

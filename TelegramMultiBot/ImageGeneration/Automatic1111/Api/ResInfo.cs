@@ -2,7 +2,7 @@
 {
     public class ResInfo
     {
-        #pragma warning disable IDE1006 // Naming Styles
+#pragma warning disable IDE1006 // Naming Styles
         public string? prompt { get; set; }
         public string[]? all_prompts { get; set; }
         public string? negative_prompt { get; set; }
@@ -37,6 +37,5 @@
         public string? image { get; set; }
         public string? html_info { get; set; }
 #pragma warning restore IDE1006 // Naming Styles
-
     }
 }

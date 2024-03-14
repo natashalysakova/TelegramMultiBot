@@ -7,9 +7,9 @@ namespace TelegramMultiBot.Database.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public Guid Id { get; }
 
-        public required string Name { get; set; }
-        public required string Message { get; set; }
-        public required string Config { get; set; }
+        public string Name { get; set; }
+        public string Message { get; set; }
+        public string Config { get; set; }
         public long ChatId { get; }
     }
 }

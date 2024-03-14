@@ -206,7 +206,7 @@ namespace Bober.Database.Services
         }
 
         /// <summary>
-        /// 
+        ///
         /// </summary>
         /// <param name="jobId"></param>
         /// <returns></returns>

@@ -30,6 +30,7 @@ namespace TelegramMultiBot.ImageGenerators
         public abstract Task<JobInfo> Run(JobInfo job);
 
         private HostSettings? _hostSettings;
+
         public HostSettings? ActiveHost
         {
             get

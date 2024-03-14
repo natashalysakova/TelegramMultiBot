@@ -117,7 +117,6 @@ namespace TelegramMultiBot.ImageGenerators
             new("#cinematic", 1564 , 670, "21\\:9"),
         ];
 
-        
         /*
          768 x 1344: Vertical (9:16)
         915 x 1144: Portrait (4:5)
@@ -128,5 +127,6 @@ namespace TelegramMultiBot.ImageGenerators
         1564 x 670: Cinematic (21:9)
          */
     }
+
     public record Resolution(string Hashtag, int Width, int Height, string Ar);
 }

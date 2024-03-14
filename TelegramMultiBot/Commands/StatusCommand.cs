@@ -7,7 +7,6 @@ namespace TelegramMultiBot.Commands
     [ServiceKey("status")]
     internal class StatusCommand(TelegramClientWrapper client, IServiceProvider serviceProvider) : BaseCommand
     {
-
         public override async Task Handle(Message message)
         {
             var newMessage = await client.SendMessageAsync(message, "Чекай, перевіряю", true);

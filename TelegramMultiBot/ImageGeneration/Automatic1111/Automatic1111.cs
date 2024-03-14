@@ -36,7 +36,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             _databaseService = databaseService;
             _settings = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new NullReferenceException(nameof(_settings));
             _automaticSettings = configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>() ?? throw new NullReferenceException(nameof(_automaticSettings));
-
         }
 
         protected override string PingPath => "/internal/sysinfo";

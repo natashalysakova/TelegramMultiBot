@@ -8,11 +8,9 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.InlineQueryResults;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
-using TelegramMultiBot.ImageGeneration.Exceptions;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 
@@ -205,7 +203,6 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
             {
                 await item.HandleInlineQuery(inlineQuery);
             }
-
         }
         catch (Exception ex)
         {
@@ -216,7 +213,6 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 Results = []
             };
             await client.AnswerInlineQueryAsync(request);
-
         }
     }
 
