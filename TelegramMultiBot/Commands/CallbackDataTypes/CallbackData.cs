@@ -5,7 +5,7 @@ namespace TelegramMultiBot.Commands.CallbackDataTypes
 {
     public abstract class CallbackData<T> where T : struct
     {
-        public string? Id { get; set; }
+        public string JobId { get; set; }
         public string Command { get; set; }
         public T JobType { get; set; }
 
@@ -15,6 +15,7 @@ namespace TelegramMultiBot.Commands.CallbackDataTypes
         protected CallbackData()
         {
             _parameters = [];
+            JobId = string.Empty;
             Command = "unknown";
         }
 
@@ -32,7 +33,7 @@ namespace TelegramMultiBot.Commands.CallbackDataTypes
             JobType = Enum.Parse<T>(info[1]);
             if (info.Length > 2)
             {
-                Id = info[2];
+                JobId = info[2];
             }
 
             if (info.Length > 3)
@@ -41,11 +42,11 @@ namespace TelegramMultiBot.Commands.CallbackDataTypes
             }
         }
 
-        public CallbackData(string command, T type, string? id, params object?[] parameters)
+        public CallbackData(string command, T type, string id, params object?[] parameters)
         {
             Command = command;
             JobType = type;
-            Id = id;
+            JobId = id;
             _parameters = parameters;
         }
 
@@ -57,14 +58,14 @@ namespace TelegramMultiBot.Commands.CallbackDataTypes
         public override string ToString()
         {
             var stringBuilder = new StringBuilder($"{Command}|{JobType}");
-            if (Id != null)
+            if (JobId != null)
             {
-                stringBuilder.Append("|" + Id);
+                _ = stringBuilder.Append("|" + JobId);
             }
             if (_parameters != null)
             {
-                stringBuilder.Append('|');
-                stringBuilder.Append(string.Join("|", _parameters));
+                _ = stringBuilder.Append('|');
+                _ = stringBuilder.Append(string.Join("|", _parameters));
             }
             return stringBuilder.ToString();
         }

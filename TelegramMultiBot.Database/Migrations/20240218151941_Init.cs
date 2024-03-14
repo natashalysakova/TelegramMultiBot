@@ -10,10 +10,10 @@ namespace TelegramMultiBot.Database.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterDatabase()
+            _ = migrationBuilder.AlterDatabase()
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
+            _ = migrationBuilder.CreateTable(
                 name: "Jobs",
                 columns: table => new
                 {
@@ -39,11 +39,11 @@ namespace TelegramMultiBot.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_Jobs", x => x.Id);
+                    _ = table.PrimaryKey("PK_Jobs", x => x.Id);
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateTable(
+            _ = migrationBuilder.CreateTable(
                 name: "JobResult",
                 columns: table => new
                 {
@@ -58,8 +58,8 @@ namespace TelegramMultiBot.Database.Migrations
                 },
                 constraints: table =>
                 {
-                    table.PrimaryKey("PK_JobResult", x => x.Id);
-                    table.ForeignKey(
+                    _ = table.PrimaryKey("PK_JobResult", x => x.Id);
+                    _ = table.ForeignKey(
                         name: "FK_JobResult_Jobs_JobId",
                         column: x => x.JobId,
                         principalTable: "Jobs",
@@ -68,7 +68,7 @@ namespace TelegramMultiBot.Database.Migrations
                 })
                 .Annotation("MySql:CharSet", "utf8mb4");
 
-            migrationBuilder.CreateIndex(
+            _ = migrationBuilder.CreateIndex(
                 name: "IX_JobResult_JobId",
                 table: "JobResult",
                 column: "JobId");
@@ -77,10 +77,10 @@ namespace TelegramMultiBot.Database.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropTable(
+            _ = migrationBuilder.DropTable(
                 name: "JobResult");
 
-            migrationBuilder.DropTable(
+            _ = migrationBuilder.DropTable(
                 name: "Jobs");
         }
     }

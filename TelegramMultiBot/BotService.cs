@@ -12,6 +12,7 @@ using Telegram.Bot.Types.InlineQueryResults;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.ImageGeneration.Exceptions;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 

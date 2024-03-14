@@ -6,7 +6,7 @@
         {
         }
 
-        public ReminderCallbackData(string command, ReminderCommands type) : base(command, type, null)
+        public ReminderCallbackData(string command, ReminderCommands type) : base(command, type, string.Empty)
         {
         }
 

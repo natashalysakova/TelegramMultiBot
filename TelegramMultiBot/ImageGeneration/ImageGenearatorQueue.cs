@@ -35,7 +35,7 @@ namespace TelegramMultiBot.ImageGenerators
 
         public void Run(CancellationToken cancellationToken)
         {
-            Task.Run(async () =>
+            _ = Task.Run(async () =>
             {
                 while (!cancellationToken.IsCancellationRequested)
                 {
@@ -48,7 +48,7 @@ namespace TelegramMultiBot.ImageGenerators
                         try
                         {
                             var databaseService = scope.ServiceProvider.GetRequiredService<IDatabaseService>();
-                            databaseService.TryDequeue(out job);
+                            _ = databaseService.TryDequeue(out job);
                         }
                         catch (Exception ex)
                         {
@@ -117,7 +117,7 @@ namespace TelegramMultiBot.ImageGenerators
 
             try
             {
-                databaseService.Enqueue(message);
+                _ = databaseService.Enqueue(message);
             }
             catch
             {

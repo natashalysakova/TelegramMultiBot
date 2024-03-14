@@ -10,7 +10,7 @@ namespace TelegramMultiBot.Database.Migrations
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<string>(
+            _ = migrationBuilder.AlterColumn<string>(
                 name: "Diffusor",
                 table: "Jobs",
                 type: "longtext",
@@ -24,14 +24,14 @@ namespace TelegramMultiBot.Database.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.UpdateData(
+            _ = migrationBuilder.UpdateData(
                 table: "Jobs",
                 keyColumn: "Diffusor",
                 keyValue: null,
                 column: "Diffusor",
                 value: "");
 
-            migrationBuilder.AlterColumn<string>(
+            _ = migrationBuilder.AlterColumn<string>(
                 name: "Diffusor",
                 table: "Jobs",
                 type: "longtext",

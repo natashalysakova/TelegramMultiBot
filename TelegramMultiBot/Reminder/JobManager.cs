@@ -68,14 +68,14 @@ internal class JobManager : Manager<Job>, IDisposable
 
     internal void DeleteJob(long id)
     {
-        list.Remove(list.Single(x => x.Id == id));
+        _ = list.Remove(list.Single(x => x.Id == id));
         _logger.LogDebug("Job {id} removed", id);
         Save();
     }
 
     internal void DeleteJobsForChat(long chatId)
     {
-        list.RemoveAll(x => x.ChatId == chatId);
+        _ = list.RemoveAll(x => x.ChatId == chatId);
         _logger.LogDebug("Jobs for chat {chatId} removed", chatId);
         Save();
     }

@@ -61,7 +61,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
             if (!Directory.Exists(directory))
             {
-                Directory.CreateDirectory(directory);
+                _ = Directory.CreateDirectory(directory);
             }
 
             try
@@ -73,11 +73,11 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         break;
 
                     case JobType.Upscale:
-                        await PostProcessingUpscale(job, directory);
+                        _ = await PostProcessingUpscale(job, directory);
                         break;
 
                     case JobType.HiresFix:
-                        await Img2ImgUpscale(job, directory);
+                        _ = await Img2ImgUpscale(job, directory);
                         break;
                 }
                 _databaseService.PostProgress(job.Id, 100, "ok");
@@ -138,7 +138,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["sampler_name"] = samplers.Where(x => x.aliases.Contains(upscaleparams.Sampler) || x.name == upscaleparams.Sampler).First().name;
             json["steps"] = upscaleparams.Steps;
             json["cfg_scale"] = upscaleparams.CFGScale;
-
+            json["denoising_strength"] = _settings.HiresFixDenoise;
             var model = _settings.Models.Single(x => Path.GetFileNameWithoutExtension(x.Path) == upscaleparams.Model);
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             json["override_settings"]["sd_model_checkpoint"] = upscaleparams.Model;
@@ -264,7 +264,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         {
                             string? item = response.images[j];
                             byte[] imageBytes = Convert.FromBase64String(item);
-                            var fileName = $"{DateTime.Now:yyyyMMddhhmmssfff}_{job.Type}.png";
+                            var fileName = $"{DateTime.Now:yyyyMMddhhmmssfff}_{info?.seed}_{job.Type}.png";
                             var filePath = Path.Combine(directory, fileName);
 
                             File.WriteAllBytes(filePath, imageBytes);

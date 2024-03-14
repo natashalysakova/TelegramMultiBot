@@ -16,6 +16,7 @@
         public double UpscaleMultiplier { get; set; }
         public required string UpscaleModel { get; set; }
         public double HiresFixDenoise { get; set; }
+        public bool Watermark { get; set; }
     }
 
     internal class Automatic1111Settings

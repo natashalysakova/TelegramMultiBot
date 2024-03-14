@@ -8,15 +8,15 @@ namespace TelegramMultiBot.Database.Profiles
     {
         public ImageJobProfile()
         {
-            CreateMap<ImageJob, JobInfo>()
+            _ = CreateMap<ImageJob, JobInfo>()
                 .ForMember(x => x.Exception, act => act.Ignore())
                 .ReverseMap()
                 .ForMember(x => x.Progress, act => act.Ignore());
 
-            CreateMap<JobResult, JobResultInfoView>()
+            _ = CreateMap<JobResult, JobResultInfoView>()
                 .ForMember(x => x.Seed, act => act.MapFrom(y => GetSeed(y.Info)));
 
-            CreateMap<JobResultInfoCreate, JobResult>()
+            _ = CreateMap<JobResultInfoCreate, JobResult>()
                 .ForMember(x => x.Id, act => act.Ignore())
                 .ForMember(x => x.Index, act => act.Ignore())
                 .ForMember(x => x.Job, act => act.Ignore())

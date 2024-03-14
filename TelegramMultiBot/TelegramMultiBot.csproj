@@ -21,6 +21,8 @@
   <ItemGroup>
     <PackageReference Include="AngleSharp" Version="1.1.1" />
     <PackageReference Include="Cronos" Version="0.8.4" />
+    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="13.6.0" />
+    <PackageReference Include="Magick.NET.Core" Version="13.6.0" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.2" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
@@ -50,6 +52,13 @@
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 			<DependentUpon>tokens.json</DependentUpon>
 		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Compile Remove="images\**" />
+	  <Content Remove="images\**" />
+	  <EmbeddedResource Remove="images\**" />
+	  <None Remove="images\**" />
 	</ItemGroup>
 
 	<ItemGroup>

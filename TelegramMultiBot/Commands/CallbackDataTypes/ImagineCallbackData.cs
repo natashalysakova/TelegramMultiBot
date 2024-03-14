@@ -4,7 +4,7 @@
     {
         public double? Upscale { get; set; }
 
-        public ImagineCallbackData(string command, ImagineCommands type, string? id = null, double? upscale = null) : base(command, type, id, upscale)
+        public ImagineCallbackData(string command, ImagineCommands type, string id, double? upscale = null) : base(command, type, id, upscale)
         {
             Upscale = upscale;
         }

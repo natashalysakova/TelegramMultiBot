@@ -59,7 +59,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
             if (!Directory.Exists(directory))
             {
-                Directory.CreateDirectory(directory);
+                _ = Directory.CreateDirectory(directory);
             }
 
             try
@@ -235,10 +235,10 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 //big pink kids cake with five candles and flowers
                 //Steps: 5, Sampler: DPM++ SDE Karras, CFG scale: 2.5, Seed: 552689683, Size: 1024x1024, Model hash: 4726d3bab1, Model: dreamshaperXL_v2TurboDpmppSDE, Version: v1.7.0
 
-                builder.AppendLine(genParams.Prompt);
+                _ = builder.AppendLine(genParams.Prompt);
                 if (!string.IsNullOrEmpty(genParams.NegativePrompt))
                 {
-                    builder.Append("Negative: " + genParams.NegativePrompt + ", ");
+                    _ = builder.Append("Negative: " + genParams.NegativePrompt + ", ");
                 }
 
                 var samplerAlias = "k_" + model.Sampler;
@@ -251,12 +251,12 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                     samplerAlias += "_exp";
                 }
 
-                builder.Append("Steps: " + model.Steps + ", ");
-                builder.Append("Sampler: " + samplerAlias + ", ");
-                builder.Append("CFG scale: " + model.CGF.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + ", ");
-                builder.Append("Seed: " + (genParams.Seed + i) + ", ");
-                builder.Append("Size: " + genParams.Width + "x" + genParams.Height + ", ");
-                builder.Append("Model: " + Path.GetFileNameWithoutExtension(model.Path));
+                _ = builder.Append("Steps: " + model.Steps + ", ");
+                _ = builder.Append("Sampler: " + samplerAlias + ", ");
+                _ = builder.Append("CFG scale: " + model.CGF.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + ", ");
+                _ = builder.Append("Seed: " + (genParams.Seed + i) + ", ");
+                _ = builder.Append("Size: " + genParams.Width + "x" + genParams.Height + ", ");
+                _ = builder.Append("Model: " + Path.GetFileNameWithoutExtension(model.Path));
 
                 yield return builder.ToString();
             }
@@ -598,7 +598,4 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         public string sid { get; set; }
         public Output output { get; set; }
     }
-
-#pragma warning restore IDE1006 // Naming Styles
-#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
 }

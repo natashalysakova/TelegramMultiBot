@@ -29,7 +29,7 @@ namespace TelegramMultiBot.Database
                 throw new NullReferenceException(nameof(connectionString));
             }
             var serverVersion = GetServerVersion(connectionString);
-            optionsBuilder.UseMySql(connectionString, serverVersion);
+            _ = optionsBuilder.UseMySql(connectionString, serverVersion);
             return new BoberDbContext(optionsBuilder.Options);
         }
 

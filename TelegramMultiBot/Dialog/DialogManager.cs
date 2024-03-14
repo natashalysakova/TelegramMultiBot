@@ -1,15 +1,9 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Telegram.Bot.Types;
 
-internal class DialogManager
+internal class DialogManager(DialogHandlerFactory factory)
 {
     private readonly List<IDialog> _dialogList = [];
-    private readonly DialogHandlerFactory _factory;
-
-    public DialogManager(DialogHandlerFactory factory)
-    {
-        _factory = factory;
-    }
 
     public IDialog? this[long chatId]
     {
@@ -37,12 +31,12 @@ internal class DialogManager
 
     internal void Remove(IDialog dialog)
     {
-        _dialogList.Remove(dialog);
+        _ = _dialogList.Remove(dialog);
     }
 
     public Task HandleActiveDialog(Message message, IDialog activeDialog)
     {
-        var handler = _factory.CreateHandler(activeDialog);
+        var handler = factory.CreateHandler(activeDialog);
         handler.Handle(activeDialog, message);
 
         if (activeDialog.IsFinished)

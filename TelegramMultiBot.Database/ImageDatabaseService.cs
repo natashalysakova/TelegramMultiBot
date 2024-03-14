@@ -48,7 +48,7 @@ namespace Bober.Database.Services
                 item.Status = ImageJobStatus.Failed;
                 item.Finised = DateTime.Now;
             }
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
         }
 
         public Guid Enqueue(IInputData message)
@@ -87,8 +87,8 @@ namespace Bober.Database.Services
                 job.Diffusor = "ComfyUI";
             }
 
-            _context.Jobs.Add(job);
-            _context.SaveChanges();
+            _ = _context.Jobs.Add(job);
+            _ = _context.SaveChanges();
             _logger.LogDebug("{jobId} added to the queue", job.Id);
 
             return job.Id;
@@ -119,8 +119,8 @@ namespace Bober.Database.Services
                 return Guid.Empty;
             }
 
-            _context.Jobs.Add(job);
-            _context.SaveChanges();
+            _ = _context.Jobs.Add(job);
+            _ = _context.SaveChanges();
             _logger.LogDebug("{jobId} added to the queue", job.Id);
 
             return job.Id;
@@ -151,7 +151,7 @@ namespace Bober.Database.Services
             var jobs = _context.Jobs.Where(x => jobsToDelete.Contains(x.Id.ToString()));
 
             _context.Jobs.RemoveRange(jobs);
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
         }
 
         public bool TryDequeue(out JobInfo? job)
@@ -165,7 +165,7 @@ namespace Bober.Database.Services
                     var imageJob = queued.First();
                     imageJob.Started = DateTime.Now;
                     imageJob.Status = ImageJobStatus.Running;
-                    _context.SaveChanges();
+                    _ = _context.SaveChanges();
 
                     job = _mapper.Map<JobInfo>(imageJob);
 
@@ -202,7 +202,7 @@ namespace Bober.Database.Services
 
             job.Progress = progress;
             job.TextStatus = text;
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
         }
 
         /// <summary>
@@ -232,7 +232,7 @@ namespace Bober.Database.Services
             var jobResult = _mapper.Map<JobResult>(jobResultInfo);
             var job = _context.Jobs.First(x => x.Id.ToString() == id);
             job.Results.Add(jobResult);
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
         }
 
         public void Update(JobInfo job)
@@ -240,7 +240,7 @@ namespace Bober.Database.Services
             var entity = _mapper.Map<ImageJob>(job);
 
             _context.Entry(entity).State = EntityState.Modified;
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
         }
 
         public void PushBotId(string jobId, int messageId)
@@ -248,7 +248,7 @@ namespace Bober.Database.Services
             var job = _context.Jobs.Single(x => x.Id == Guid.Parse(jobId));
 
             job.BotMessageId = messageId;
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
         }
 
         public void ReturnToQueue(JobInfo job)
@@ -257,7 +257,7 @@ namespace Bober.Database.Services
             jobentity.Status = ImageJobStatus.Queued;
             jobentity.Started = default;
 
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
         }
     }
 }

@@ -29,7 +29,7 @@ internal class AddJobHandler(TelegramClientWrapper client, JobManager jobManager
         dialog.Text = message.Text;
         dialog.IsFinished = true;
 
-        jobManager.AddJob(dialog.ChatId, dialog.Name, dialog.CRON, dialog.Text);
+        _ = jobManager.AddJob(dialog.ChatId, dialog.Name, dialog.CRON, dialog.Text);
         await client.SendMessageAsync(message, $"Завдання додано: {dialog.Name} ({dialog.CRON}) з текстом: {dialog.Text}");
 
         return true;
@@ -44,7 +44,7 @@ internal class AddJobHandler(TelegramClientWrapper client, JobManager jobManager
         }
         try
         {
-            Cronos.CronExpression.Parse(message.Text);
+            _ = Cronos.CronExpression.Parse(message.Text);
         }
         catch (Exception)
         {

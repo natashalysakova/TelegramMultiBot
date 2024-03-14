@@ -43,52 +43,52 @@ internal class Program
     {
         IConfiguration configuration = SetupConfiguration(args);
         var serviceCollection = new ServiceCollection();
-        serviceCollection.AddSingleton(configuration);
+        _ = serviceCollection.AddSingleton(configuration);
 
-        serviceCollection.AddLogging(loggerBuilder =>
+        _ = serviceCollection.AddLogging(loggerBuilder =>
         {
-            loggerBuilder.AddConfiguration(configuration.GetSection("Logging"));
-            loggerBuilder.ClearProviders();
-            loggerBuilder.AddConsole();
+            _ = loggerBuilder.AddConfiguration(configuration.GetSection("Logging"));
+            _ = loggerBuilder.ClearProviders();
+            _ = loggerBuilder.AddConsole();
         });
 
         string? connectionString = configuration.GetConnectionString("db");
         var serverVersion = GetServerVersion(connectionString);
 
-        serviceCollection.AddDbContext<BoberDbContext>(options =>
+        _ = serviceCollection.AddDbContext<BoberDbContext>(options =>
         {
-            options.UseMySql(connectionString, serverVersion);
-            options.LogTo(Console.WriteLine, LogLevel.Warning);
+            _ = options.UseMySql(connectionString, serverVersion);
+            _ = options.LogTo(Console.WriteLine, LogLevel.Warning);
         });
-        serviceCollection.AddScoped<IDatabaseService, ImageDatabaseService>();
-        serviceCollection.AddScoped<CleanupService>();
+        _ = serviceCollection.AddScoped<IDatabaseService, ImageDatabaseService>();
+        _ = serviceCollection.AddScoped<CleanupService>();
 
         var botKey = configuration["token"];
         if (string.IsNullOrEmpty(botKey))
             throw new KeyNotFoundException("token");
 
-        serviceCollection.AddSingleton(new TelegramBotClient(botKey) { Timeout = TimeSpan.FromSeconds(600) });
+        _ = serviceCollection.AddSingleton(new TelegramBotClient(botKey) { Timeout = TimeSpan.FromSeconds(600) });
 
-        serviceCollection.AddScoped<BotService>();
-        serviceCollection.AddScoped<TelegramClientWrapper>();
-        serviceCollection.AddScoped<ImageGenerator>();
+        _ = serviceCollection.AddScoped<BotService>();
+        _ = serviceCollection.AddScoped<TelegramClientWrapper>();
+        _ = serviceCollection.AddScoped<ImageGenerator>();
 
-        serviceCollection.AddSingleton<JobManager>();
-        serviceCollection.AddSingleton<DialogManager>();
-        serviceCollection.AddSingleton<ImageGenearatorQueue>();
+        _ = serviceCollection.AddSingleton<JobManager>();
+        _ = serviceCollection.AddSingleton<DialogManager>();
+        _ = serviceCollection.AddSingleton<ImageGenearatorQueue>();
 
-        RegisterMyServices<IDialogHandler>(serviceCollection);
-        RegisterMyServices<IDiffusor>(serviceCollection);
+        _ = RegisterMyServices<IDialogHandler>(serviceCollection);
+        _ = RegisterMyServices<IDiffusor>(serviceCollection);
         RegisterMyKeyedServices<ICommand>(serviceCollection);
 
-        serviceCollection.AddScoped<DialogHandlerFactory>();
+        _ = serviceCollection.AddScoped<DialogHandlerFactory>();
 
         var cfg = new MapperConfiguration(c =>
         {
             c.AddMaps(typeof(ImageJobProfile));
         });
         cfg.AssertConfigurationIsValid();
-        serviceCollection.AddTransient(x => { return cfg.CreateMapper(); });
+        _ = serviceCollection.AddTransient(x => { return cfg.CreateMapper(); });
 
         return serviceCollection.BuildServiceProvider();
     }
@@ -133,7 +133,7 @@ internal class Program
             var key = item.GetAttributeValue((ServiceKeyAttribute c) => { return c.Command; });
             if (key != null)
             {
-                services.AddKeyedScoped(typeof(T), key, item);
+                _ = services.AddKeyedScoped(typeof(T), key, item);
             }
         }
     }
@@ -154,7 +154,7 @@ internal class Program
 
         foreach (var item in services)
         {
-            serviceCollection.AddTransient(typeof(T), item);
+            _ = serviceCollection.AddTransient(typeof(T), item);
         }
 
         return serviceCollection;

@@ -8,16 +8,9 @@ using TelegramMultiBot.Database.DTO;
 
 namespace TelegramMultiBot
 {
-    public class TelegramClientWrapper
+    public class TelegramClientWrapper(TelegramBotClient client)
     {
-        private readonly TelegramBotClient _client;
-
-        public long? BotId { get => _client.BotId; }
-
-        public TelegramClientWrapper(TelegramBotClient client)
-        {
-            _client = client;
-        }
+        public long? BotId { get => client.BotId; }
 
         public async Task<bool> DeleteMessageAsync(Message message)
         {
@@ -31,7 +24,7 @@ namespace TelegramMultiBot
                 ChatId = chatId,
                 MessageId = messageId
             };
-            return await _client.DeleteMessageAsync(request);
+            return await client.DeleteMessageAsync(request);
         }
 
         public async Task<bool> AnswerCallbackQueryAsync(string id, string? text = null, bool showAlert = false)
@@ -42,13 +35,13 @@ namespace TelegramMultiBot
                 Text = text,
                 ShowAlert = showAlert
             };
-            return await _client.AnswerCallbackQueryAsync(request);
+            return await client.AnswerCallbackQueryAsync(request);
         }
 
         public async Task<bool> AnswerInlineQueryAsync(string inlineQueryId, InlineQueryResult[] results)
         {
             var request = new AnswerInlineQueryRequest() { InlineQueryId = inlineQueryId, Results = results };
-            return await _client.AnswerInlineQueryAsync(request);
+            return await client.AnswerInlineQueryAsync(request);
         }
 
         public async Task<Message> SendMessageAsync(Message message, string text, bool replyToMessage = false, IReplyMarkup? replyMarkup = null, bool? disableNotification = null, ParseMode? parseMode = null, bool? protectContent = null, LinkPreviewOptions? linkPreviewOptions = null)
@@ -65,7 +58,7 @@ namespace TelegramMultiBot
                 ParseMode = parseMode,
                 ProtectContent = protectContent
             };
-            return await _client.SendMessageAsync(request);
+            return await client.SendMessageAsync(request);
         }
 
         internal async Task<Message> SendPhotoAsync(ChatId chatId, InputFileStream photo, int? messageThreadId = null, string? caption = null, bool reply = false, int? messageId = null, IReplyMarkup? markup = null, ParseMode? parseMode = null)
@@ -81,7 +74,7 @@ namespace TelegramMultiBot
                 ReplyParameters = reply && messageId.HasValue ? new ReplyParameters() { MessageId = messageId.Value, ChatId = chatId } : null
             };
 
-            return await _client.SendPhotoAsync(request);
+            return await client.SendPhotoAsync(request);
         }
 
         internal async Task<Message> SendPhotoAsync(Message message, InputFileStream photo, string? caption = null, bool reply = false, IReplyMarkup? markup = null, ParseMode? parseMode = null)
@@ -117,7 +110,7 @@ namespace TelegramMultiBot
                 ReplyParameters = reply && messageId.HasValue ? new ReplyParameters() { MessageId = messageId.Value, ChatId = chatId } : null
             };
 
-            return await _client.SendDocumentAsync(request);
+            return await client.SendDocumentAsync(request);
         }
 
         internal async Task<Message> EditMessageReplyMarkupAsync(Message message, InlineKeyboardMarkup? keys = null)
@@ -134,7 +127,7 @@ namespace TelegramMultiBot
                 ReplyMarkup = keys
             };
 
-            return await _client.EditMessageReplyMarkupAsync(editRequest);
+            return await client.EditMessageReplyMarkupAsync(editRequest);
         }
 
         internal async Task<Message> EditMessageMediaAsync(Message message, InputMedia media, InlineKeyboardMarkup? keys = null)
@@ -152,7 +145,7 @@ namespace TelegramMultiBot
                 Media = media
             };
 
-            return await _client.EditMessageMediaAsync(editRequest);
+            return await client.EditMessageMediaAsync(editRequest);
         }
 
         public async Task<Message> EditMessageTextAsync(Message message, string text, InlineKeyboardMarkup? keyboardMarkup = null, ParseMode? parseMode = null, LinkPreviewOptions? linkPreviewOptions = null)
@@ -171,19 +164,19 @@ namespace TelegramMultiBot
                 ParseMode = parseMode,
                 LinkPreviewOptions = linkPreviewOptions
             };
-            return await _client.EditMessageTextAsync(request);
+            return await client.EditMessageTextAsync(request);
         }
 
         public async Task<MessageId> CopyMessageAsync(ChatId destinationChatId, ChatId originalChatId, int messageId)
         {
             var request = new CopyMessageRequest() { ChatId = destinationChatId, FromChatId = originalChatId, MessageId = messageId };
-            return await _client.CopyMessageAsync(request);
+            return await client.CopyMessageAsync(request);
         }
 
         public async Task<ChatMember> GetChatMemberAsync(ChatId chatId, long userId)
         {
             var request = new GetChatMemberRequest() { ChatId = chatId, UserId = userId };
-            return await _client.GetChatMemberAsync(request);
+            return await client.GetChatMemberAsync(request);
         }
     }
 }

@@ -8,7 +8,7 @@ internal abstract class BaseDialog<T> : IDialog where T : struct
     {
         foreach (var state in GetStates())
         {
-            States.Add(state.from, state.to);
+            States.Add(state.From, state.To);
         }
     }
 
@@ -30,5 +30,5 @@ internal abstract class BaseDialog<T> : IDialog where T : struct
         }
     }
 
-    protected record StateTransition(T from, T to);
+    protected record StateTransition(T From, T To);
 }

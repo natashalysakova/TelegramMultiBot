@@ -43,11 +43,11 @@ namespace TelegramMultiBot.Commands
                     break;
 
                 case ReminderCommands.DeleteJob:
-                    if (callbackData.Id is null)
+                    if (callbackData.JobId is null)
                     {
-                        throw new NullReferenceException(nameof(callbackData.Id));
+                        throw new NullReferenceException(nameof(callbackData.JobId));
                     }
-                    await DeleteJob(callbackQuery, callbackData.Id);
+                    await DeleteJob(callbackQuery, callbackData.JobId);
                     break;
 
                 default:

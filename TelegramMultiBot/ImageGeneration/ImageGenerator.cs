@@ -14,7 +14,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             var directory = (configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new InvalidOperationException("Cannot get ImageGeneationSettings")).BaseOutputDirectory;
             if (!Directory.Exists(directory))
             {
-                Directory.CreateDirectory(directory);
+                _ = Directory.CreateDirectory(directory);
             }
 
             _diffusors = diffusors;

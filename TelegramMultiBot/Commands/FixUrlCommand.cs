@@ -3,21 +3,14 @@ using Telegram.Bot.Types.Enums;
 
 namespace TelegramMultiBot.Commands
 {
-    internal class FixUrlCommand : BaseCommand
+    internal class FixUrlCommand(TelegramClientWrapper client) : BaseCommand
     {
-        private readonly TelegramClientWrapper _client;
-
-        public FixUrlCommand(TelegramClientWrapper client)
-        {
-            _client = client;
-        }
-
         public override bool CanHandle(Message message)
         {
             if (message.Text is null)
                 return false;
 
-            return ServiceItems.Any(x => message.Text.ToLower().Contains(x.service));
+            return _serviceItems.Any(x => message.Text.Contains(x.Service, StringComparison.CurrentCultureIgnoreCase));
         }
 
         public override bool CanHandle(InlineQuery query)
@@ -37,26 +30,26 @@ namespace TelegramMultiBot.Commands
 
             foreach (var link in links)
             {
-                var service = ServiceItems.SingleOrDefault(x => link.Contains(x.service));
+                var service = _serviceItems.SingleOrDefault(x => link.Contains(x.Service));
                 if (service is null)
                     return;
 
-                string newlink = string.IsNullOrEmpty(service.whatReplace) || string.IsNullOrEmpty(service.replaceWith)
+                string newlink = string.IsNullOrEmpty((string?)service.WhatReplace) || string.IsNullOrEmpty((string?)service.ReplaceWith)
                     ? link
-                    : link.Replace(service.whatReplace, service.replaceWith);
+                    : link.Replace((string)service.WhatReplace, (string)service.ReplaceWith);
 
                 newlink = CutTrackingInfo(newlink);
 
-                if (_client.BotId == null)
-                    throw new NullReferenceException(nameof(_client.BotId));
+                if (client.BotId == null)
+                    throw new NullReferenceException(nameof(client.BotId));
 
-                var bot = await _client.GetChatMemberAsync(message.Chat, _client.BotId.Value);
+                var bot = await client.GetChatMemberAsync(message.Chat, client.BotId.Value);
                 var canDeleteMessages = bot.Status == ChatMemberStatus.Administrator;
 
                 string newMessage = string.Empty;
                 if (canDeleteMessages)
                 {
-                    await _client.DeleteMessageAsync(message);
+                    await client.DeleteMessageAsync(message);
                     var oldMessage = message.Text.Replace(link, newlink);
 
                     if (message.From is null)
@@ -84,13 +77,13 @@ namespace TelegramMultiBot.Commands
                     //await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
                 }
 
-                await _client.SendMessageAsync(message, newMessage, true, disableNotification: false);
+                await client.SendMessageAsync(message, newMessage, true, disableNotification: false);
             }
         }
 
-        private record ServiceItem(string service, string? whatReplace, string? replaceWith);
+        private record ServiceItem(string Service, string? WhatReplace, string? ReplaceWith);
 
-        private readonly List<ServiceItem> ServiceItems =
+        private readonly List<ServiceItem> _serviceItems =
     [
         new ServiceItem("https://www.instagram.com", "instagram", "ddinstagram"),
         new ServiceItem("https://x.com", "x", "fixupx"),
@@ -99,7 +92,7 @@ namespace TelegramMultiBot.Commands
         new ServiceItem("https://facebook.com", null, null)
     ];
 
-        private string CutTrackingInfo(string link)
+        private static string CutTrackingInfo(string link)
         {
             if (link.Contains('?'))
             {
