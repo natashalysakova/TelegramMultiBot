@@ -6,7 +6,7 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>c63194ee-15cc-42ad-8296-88662a399a26</UserSecretsId>
-    <StartupObject></StartupObject>
+    <StartupObject>Program</StartupObject>
 	<Deterministic>False</Deterministic>
 	<AssemblyVersion>1.2.0.0</AssemblyVersion>
 	<FileVersion>$(AssemblyVersion)</FileVersion>
