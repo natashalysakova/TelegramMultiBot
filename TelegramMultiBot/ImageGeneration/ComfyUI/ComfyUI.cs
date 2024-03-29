@@ -2,6 +2,7 @@
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
+using System;
 using System.Diagnostics;
 using System.Net.WebSockets;
 using System.Text;
@@ -21,7 +22,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         protected override string PingPath => "/system_stats";
 
-        private readonly string _clientId = Guid.NewGuid().ToString();
+        private readonly string _clientId;
         private readonly ILogger<ComfyUI> _logger;
         private readonly IDatabaseService _databaseService;
         private readonly TelegramClientWrapper _client;
@@ -31,7 +32,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             _logger = logger;
             _databaseService = databaseService;
             _client = client;
-
+            _clientId = "bober_" + configuration["env"];
             _settings = configuration.GetSection(ComfyUISettings.Name).Get<ComfyUISettings>() ?? throw new InvalidOperationException(nameof(_settings));
             _generalSettings = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new InvalidOperationException(nameof(_settings));
         }
@@ -364,11 +365,11 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         private async Task StartAndMonitorJob(JobInfo job, string directory, IEnumerable<JObject> jsons, IEnumerable<string> infos, string outputNode, int maxTiles)
         {
-            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost!.UI}] {job.Type} - Працюю... 1/{jsons.Count()} Прогресс: 0%");
-
             using var comfyClient = new ComfyUiClient(ActiveHost);
             for (int i = 0; i < jsons.Count(); i++)
             {
+                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost!.UI}] {job.Type} - Працюю... {i+1}/{jsons.Count()} Прогресс: {100.0 / jsons.Count() * i }%");
+
                 var webcocketClient = new ClientWebSocket();
                 var uri = new Uri($"ws://{ActiveHost.Host}:{ActiveHost.Port}/ws?clientId={_clientId}");
                 await webcocketClient.ConnectAsync(uri, CancellationToken.None);
@@ -421,10 +422,12 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                     await Task.Delay(500);
                 }
                 s.Stop();
+                await webcocketClient.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
 
-                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Завантажую результат {i + 1}/{jsons.Count()}");
+                //await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Завантажую результат {i + 1}/{jsons.Count()}");
 
                 var str = await comfyClient.GetHistory(jobId);
+                _logger.LogTrace("jobid: {id}, history: {json}", jobId, str);
 
                 var history = JObject.Parse(str);
 

@@ -2,15 +2,15 @@
   "profiles": {
     "BoberBot.Dev": {
       "commandName": "Project",
-      "commandLineArgs": "dev"
+      "commandLineArgs": "--env=dev"
     },
     "BoberBot.Prod": {
       "commandName": "Project",
-      "commandLineArgs": "prod"
+      "commandLineArgs": "--env=prod"
     },
     "Container (Dockerfile)": {
       "commandName": "Docker",
-      "commandLineArgs": "dev"
+      "commandLineArgs": "--env=dev"
     }
   }
 }

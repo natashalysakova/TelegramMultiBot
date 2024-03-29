@@ -104,6 +104,12 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             return new InlineKeyboardMarkup(new List<InlineKeyboardButton> { repeat, copyPrompt });
         }
 
+        private InlineKeyboardMarkup? GetDeletedMarkup(string id)
+        {
+            InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(Command, ImagineCommands.Actions, id));
+            return new InlineKeyboardMarkup(new List<InlineKeyboardButton> { actions });
+        }
+
         private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCommands type, string id, double? upscale, string? prompt = null)
         {
             InlineKeyboardButton repeat = InlineKeyboardButton.WithCallbackData("🔄 Повторити", new ImagineCallbackData(Command, ImagineCommands.Repeat, id));
@@ -115,15 +121,25 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(Command, ImagineCommands.Actions, id));
             InlineKeyboardButton noise = InlineKeyboardButton.WithCallbackData("Шум", new ImagineCallbackData(Command, ImagineCommands.Noise, id));
             InlineKeyboardButton vingette = InlineKeyboardButton.WithCallbackData("Віньєтка", new ImagineCallbackData(Command, ImagineCommands.Vingette, id));
-            InlineKeyboardButton copyPrompt = InlineKeyboardButton.WithSwitchInlineQueryCurrentChat("📝 Змінити", prompt is null ? string.Empty : prompt);
+            InlineKeyboardButton? copyPrompt = prompt != null ? InlineKeyboardButton.WithSwitchInlineQueryCurrentChat("📝 Змінити", prompt) : null;
 
             switch (type)
             {
                 case ImagineCommands.Text2Image:
-                    return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
+                    if (copyPrompt != null)
                     {
-                        actions, copyPrompt, repeat
-                    });
+                        return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
+                        {
+                            actions, copyPrompt, repeat
+                        });
+                    }
+                    else
+                    {
+                        return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
+                        {
+                            actions
+                        });
+                    }
 
                 case ImagineCommands.HiresFix:
                     return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
@@ -155,7 +171,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     {
                         if (upscale == null) //original render
                         {
-                            return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
+                            if (copyPrompt != null)
+                            {
+                                return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
                             {
                                 new()
                                 {
@@ -174,6 +192,28 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                                      vingette, noise
                                 }
                             });
+                            }
+                            else
+                            {
+                                return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
+                                {
+                                    new()
+                                    {
+                                        original,
+                                    },
+                                    new()
+                                    {
+                                        hiresFix,
+                                        upscale2,
+                                        upscale4
+                                    },
+                                    new()
+                                    {
+                                         vingette, noise
+                                    }
+                                });
+                            }
+
                         }
                         else if (upscale == 0) // hires fix
                         {
@@ -186,26 +226,48 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     return null;
 
                 case ImagineCommands.Actions:
-                    return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
+                    if (copyPrompt != null)
                     {
-                        new() {
-                             info,
-                             original
-                        },
-                        new()
+
+
+                        return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
                         {
-                            copyPrompt,
-                            repeat
-                        },
-                        new() {
-                            hiresFix,
-                            upscale2,
-                            upscale4
-                        },
-                        new() {
-                             vingette, noise
-                        }
-                    });
+                            new() {
+                                 info,
+                                 original
+                            },
+                            new()
+                            {
+                                copyPrompt,
+                                repeat
+                            },
+                            new() {
+                                hiresFix,
+                                upscale2,
+                                upscale4
+                            },
+                            new() {
+                                 vingette, noise
+                            }
+                        });
+                    }
+                    else
+                    {
+                        return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
+                        {
+                            new() {
+                                 info,
+                                 original                            },
+                            new() {
+                                hiresFix,
+                                upscale2,
+                                upscale4
+                            },
+                            new() {
+                                 vingette, noise
+                            }
+                        });
+                    }
 
                 case ImagineCommands.Vingette:
                 case ImagineCommands.Noise:
@@ -226,7 +288,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 throw new NullReferenceException(nameof(callbackData.JobId));
 
             var result = databaseService.GetJobResult(callbackData.JobId);
-            if (result == null)
+            if (result == null && callbackData.JobType != ImagineCommands.Repeat)
             {
                 await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара каринка, бобер загубив усьо :(", true);
                 await HandleOldJobMessage(callbackQuery, callbackData);
@@ -240,10 +302,20 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Інформацію знайдено");
 
                         var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
-                        var replyMessage = message.ReplyToMessage ?? throw new NullReferenceException(nameof(message.ReplyToMessage));
+                        var replyMessage = message.ReplyToMessage;
+                        InlineKeyboardMarkup? keys;
+                        if(replyMessage != null)
+                        {
+                            var prompt = replyMessage.Text?[replyMessage.Text.IndexOf("/" + Command)..];
+                            keys = GetReplyMarkupForJob(callbackData, prompt);
 
-                        var prompt = replyMessage.Text?[replyMessage.Text.IndexOf("/" + Command)..];
-                        var keys = GetReplyMarkupForJob(callbackData, prompt: prompt);
+                        }
+                        else
+                        {
+                            keys = GetReplyMarkupForJob(callbackData);
+                        }
+
+
                         InputMedia? media;
                         if (message.Type == MessageType.Photo)
                         {
@@ -281,6 +353,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     }
                 case ImagineCommands.Original:
                     {
+                        AddWatermark(result);
                         var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
                         using (var stream = System.IO.File.OpenRead(result.FilePath))
                         {
@@ -296,12 +369,22 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         await client.AnswerCallbackQueryAsync(callbackQuery.Id);
 
                         var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
-                        var replyMessage = message.ReplyToMessage ?? throw new NullReferenceException(nameof(message.ReplyToMessage));
-                        if (replyMessage.Text is null)
-                            throw new NullReferenceException(nameof(replyMessage.Text));
+                        InlineKeyboardMarkup? keys;
+                        if (message.ReplyToMessage is null)
+                        {
+                            keys = GetReplyMarkupForJob(callbackData);
+                        }
+                        else
+                        {
+                            var replyMessage = message.ReplyToMessage;
+                            if (replyMessage.Text is null)
+                                throw new NullReferenceException(nameof(replyMessage.Text));
 
-                        var prompt = replyMessage.Text[replyMessage.Text.IndexOf("/" + Command)..];
-                        var keys = GetReplyMarkupForJob(callbackData, prompt);
+                            var prompt = replyMessage.Text[replyMessage.Text.IndexOf("/" + Command)..];
+                            keys = GetReplyMarkupForJob(callbackData, prompt);
+                        }
+
+
                         await client.EditMessageReplyMarkupAsync(message, keys);
                         return;
                     }
@@ -320,7 +403,13 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 case ImagineCommands.Repeat:
                     {
                         var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
-                        var replyMessage = message.ReplyToMessage ?? throw new NullReferenceException(nameof(message.ReplyToMessage));
+                        var replyMessage = message.ReplyToMessage;
+                        if (replyMessage is null)
+                        {
+                            await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Цей во, я забув шо я там малював :(", true);
+                            await HandleDeletedMessage(callbackQuery, callbackData);
+                            break;
+                        }
 
                         await AddJobToTheQueue(replyMessage, CreateMessageData(replyMessage));
                         await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Додано в чергу");
@@ -337,6 +426,13 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             if (callbackQuery.Message is Message message)
             {
                 await client.EditMessageReplyMarkupAsync(message, GetOldJobMarkup(callbackData.JobId, message.ReplyToMessage?.Text));
+            }
+        }
+        private async Task HandleDeletedMessage(CallbackQuery callbackQuery, ImagineCallbackData callbackData)
+        {
+            if (callbackQuery.Message is Message message && message.ReplyToMessage == null)
+            {
+                await client.EditMessageReplyMarkupAsync(message, GetDeletedMarkup(callbackData.JobId));
             }
         }
 
@@ -420,22 +516,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Запит було видалено");
                 return;
             }
-            var addWatermark = configuration.GetRequiredSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>()?.Watermark ?? false;
-            if (addWatermark)
+            foreach (var item in job.Results)
             {
-                foreach (var item in job.Results)
-                {
-                    using var image = new MagickImage(item.FilePath);
-                    var watermark = new MagickImage(Properties.Resources.watermark);
-                    watermark.Evaluate(Channels.Alpha, EvaluateOperator.Divide, 4);
-
-                    image.Composite(watermark, Gravity.Southeast, CompositeOperator.Over);
-                    var fileInfo = new FileInfo(item.FilePath);
-                    var directory = fileInfo.Directory?.FullName ?? string.Empty;
-                    var filename = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(fileInfo.Name)}_w{fileInfo.Extension}");
-                    image.Write(filename);
-                    item.FilePath = filename;
-                }
+                AddWatermark(item);
             }
 
             foreach (var item in job.Results)
@@ -478,6 +561,25 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
 
             await client.DeleteMessageAsync(job.ChatId, job.BotMessageId);
+        }
+
+        private void AddWatermark(JobResultInfoView item)
+        {
+            var addWatermark = configuration.GetRequiredSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>()?.Watermark ?? false;
+            if (addWatermark)
+            {
+
+                using var image = new MagickImage(item.FilePath);
+                var watermark = new MagickImage(Properties.Resources.watermark);
+                watermark.Evaluate(Channels.Alpha, EvaluateOperator.Divide, 4);
+
+                image.Composite(watermark, Gravity.Southeast, CompositeOperator.Over);
+                var fileInfo = new FileInfo(item.FilePath);
+                var directory = fileInfo.Directory?.FullName ?? string.Empty;
+                var filename = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(fileInfo.Name)}_w{fileInfo.Extension}");
+                image.Write(filename);
+                item.FilePath = filename;
+            }
         }
 
         private async Task<bool> OriginalMessageExists(long chatId, int messageId)

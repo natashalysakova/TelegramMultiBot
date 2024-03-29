@@ -1,5 +1,7 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
+using System.Globalization;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Enums;
@@ -83,6 +85,32 @@ namespace TelegramMultiBot.ImageGenerators
             return false;
         }
 
+        private bool CheckIfBusy(HostSettings host)
+        {
+            try
+            {
+                HttpClient client = new();
+                var responce = client.GetAsync($"http://{host.Host}:5001/gpu").Result;
+                if (responce.IsSuccessStatusCode)
+                {
+                    var value = responce.Content.ReadAsStringAsync().Result;
+                    var sum = float.Parse(value, CultureInfo.InvariantCulture);
+                    logger.LogTrace("Host GPU utilisation {host} - {sum}%", host.Host, sum);
+                    return sum > 15;
+                }
+                else
+                {
+                    return false;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning("Error getting host performance {host}: {error}", host.Host, ex.Message);
+                return false;
+            }
+        }
+
         private async Task<HostSettings?> GetAvailable()
         {
             var hostSettings = configuration.GetSection(HostSettings.Name).Get<IEnumerable<HostSettings>>() ?? throw new InvalidOperationException($"Cannot get {HostSettings.Name} section");
@@ -101,7 +129,7 @@ namespace TelegramMultiBot.ImageGenerators
 
         public bool IsAvailable()
         {
-            return ActiveHost is not null;
+            return ActiveHost is not null && !CheckIfBusy(ActiveHost);
         }
     }
 }

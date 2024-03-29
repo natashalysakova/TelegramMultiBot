@@ -43,19 +43,19 @@ namespace TelegramMultiBot.ImageGenerators
                     //if (_databaseService.RunningJobs < activeJobsNumber)
                     //{
                     JobInfo? job = default;
-                    using (var scope = _serviceProvider.CreateScope())
+                    using var scope = _serviceProvider.CreateScope();
+                    var databaseService = scope.ServiceProvider.GetRequiredService<IDatabaseService>();
+
+                    try
                     {
-                        try
-                        {
-                            var databaseService = scope.ServiceProvider.GetRequiredService<IDatabaseService>();
-                            _ = databaseService.TryDequeue(out job);
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError(ex, "Cannot dequeue: {error}", ex.Message);
-                            await Task.Delay(30000);
-                        }
+                        _ = databaseService.TryDequeue(out job);
                     }
+                    catch (Exception ex)
+                    {
+                        _logger.LogError(ex, "Cannot dequeue: {error}", ex.Message);
+                        await Task.Delay(30000);
+                    }
+
 
                     if (job != default)
                     {
@@ -71,23 +71,15 @@ namespace TelegramMultiBot.ImageGenerators
                         }
                         catch (SdNotAvailableException)
                         {
-                            using (var scope = _serviceProvider.CreateScope())
-                            {
-                                var databaseService = scope.ServiceProvider.GetRequiredService<IDatabaseService>();
                                 databaseService.ReturnToQueue(job);
-                            }
                             _logger.LogDebug("SD not available, job returned to the queue {id}", job.Id);
                             await Task.Delay(10000);
                         }
                         catch (Exception ex)
                         {
                             //refresh job info
-                            using (var scope = _serviceProvider.CreateScope())
-                            {
-                                var databaseService = scope.ServiceProvider.GetRequiredService<IDatabaseService>();
+                            databaseService.PostProgress(job.Id, -1, ex.Message);
                                 job = databaseService.GetJob(job.Id);
-                            }
-
                             JobFailed?.Invoke(job, ex);
                             _logger.LogDebug("Failed {id}", job.Id);
                         }

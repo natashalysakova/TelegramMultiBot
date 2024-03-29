@@ -168,7 +168,7 @@ internal class Program
         //    Console.WriteLine("add 'export ENV_NAME=({prod or dev})' to fix this");
         //}
 
-        var environment = args[0];
+        var environment = args[0].Split('=').Last();
 
         return new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
