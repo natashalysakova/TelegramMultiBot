@@ -2,7 +2,7 @@
 
 namespace TelegramMultiBot.Database.Interfaces
 {
-    public interface IDatabaseService
+    public interface IImageDatabaseService
     {
         int RunningJobs { get; }
 

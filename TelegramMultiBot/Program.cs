@@ -1,6 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using AutoMapper;
-using Bober.Database.Services;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -9,9 +8,12 @@ using MySqlConnector;
 using Telegram.Bot;
 using TelegramMultiBot;
 using TelegramMultiBot.Commands;
+using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Database;
 using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Database.Profiles;
+using TelegramMultiBot.Database.Services;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
@@ -60,7 +62,8 @@ internal class Program
             _ = options.UseMySql(connectionString, serverVersion);
             _ = options.LogTo(Console.WriteLine, LogLevel.Warning);
         });
-        _ = serviceCollection.AddScoped<IDatabaseService, ImageDatabaseService>();
+        _ = serviceCollection.AddScoped<IImageDatabaseService, ImageService>();
+        _ = serviceCollection.AddScoped<IBotMessageDatabaseService, BotMessageService>();
         _ = serviceCollection.AddScoped<CleanupService>();
 
         var botKey = configuration["token"];

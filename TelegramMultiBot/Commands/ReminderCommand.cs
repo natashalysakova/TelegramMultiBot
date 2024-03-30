@@ -2,6 +2,7 @@
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Commands.CallbackDataTypes;
+using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Properties;
 
 namespace TelegramMultiBot.Commands

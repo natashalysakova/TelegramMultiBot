@@ -9,10 +9,10 @@ using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramMultiBot.Commands;
+using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.ImageGenerators;
-using TelegramMultiBot.ImageGenerators.Automatic1111;
 
 internal class BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, IConfiguration configuration)
 {
@@ -27,6 +27,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         imageGenearatorQueue.Run(cancellationToken.Token);
         imageGenearatorQueue.JobFinished += ImageGenearatorQueue_JobFinished;
         imageGenearatorQueue.JobFailed += ImageGenearatorQueue_JobFailed;
+        imageGenearatorQueue.JobInQueue += ImageGenearatorQueue_JobInQueue;
 
         var config = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
         if (config is null)
@@ -53,7 +54,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 UpdateType.MessageReaction,
                 UpdateType.MessageReactionCount
             ],
-            ThrowPendingUpdates = true
+            ThrowPendingUpdates = false
         };
 
         client.StartReceiving(
@@ -75,6 +76,20 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         _timer.Stop();
         _timer.Elapsed -= RunCleanup;
         _timer.Dispose();
+    }
+
+    private async void ImageGenearatorQueue_JobInQueue(JobInfo info)
+    {
+        using var scope = serviceProvider.CreateScope();
+        try
+        {
+            var command = (ImagineCommand)scope.ServiceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
+            await command.JobInQueue(info);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{message}", ex.Message);
+        }
     }
 
     private async void RunCleanup(object? sender, ElapsedEventArgs e)
@@ -164,6 +179,9 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
                 case UpdateType.MessageReaction:
                     ///TODO: add update
+                    if(update.MessageReaction == null)
+                        throw new NullReferenceException(nameof(update.InlineQuery));
+                    return BotOnMessageReactionRecived(update.MessageReaction);
                     break;
 
                 case UpdateType.MessageReactionCount:
@@ -179,6 +197,23 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
             logger.LogError(ex, "{message}", ex.Message);
         }
         return Task.CompletedTask;
+    }
+
+    private async Task BotOnMessageReactionRecived(MessageReactionUpdated messageReaction)
+    {
+        try
+        {
+            var commands = serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(messageReaction) && x.CanHandleMessageReaction).Select(x => (IMessageReactionHandler)x).ToList();
+
+            foreach (var item in commands)
+            {
+                await item.HandleMessageReactionUpdate(messageReaction);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{message}", ex.Message);
+        }
     }
 
     private async Task BotOnInlineQueryRecived(InlineQuery inlineQuery)

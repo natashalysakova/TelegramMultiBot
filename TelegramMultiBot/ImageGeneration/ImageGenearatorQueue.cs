@@ -26,7 +26,7 @@ namespace TelegramMultiBot.ImageGenerators
             _serviceProvider = serviceProvider;
 
             using var scope = _serviceProvider.CreateScope();
-            var databaseService = scope.ServiceProvider.GetRequiredService<IDatabaseService>();
+            var databaseService = scope.ServiceProvider.GetRequiredService<IImageDatabaseService>();
             if (databaseService.RunningJobs > 0)
             {
                 databaseService.CancelUnfinishedJobs();
@@ -44,7 +44,7 @@ namespace TelegramMultiBot.ImageGenerators
                     //{
                     JobInfo? job = default;
                     using var scope = _serviceProvider.CreateScope();
-                    var databaseService = scope.ServiceProvider.GetRequiredService<IDatabaseService>();
+                    var databaseService = scope.ServiceProvider.GetRequiredService<IImageDatabaseService>();
 
                     try
                     {
@@ -71,15 +71,15 @@ namespace TelegramMultiBot.ImageGenerators
                         }
                         catch (SdNotAvailableException)
                         {
-                                databaseService.ReturnToQueue(job);
+                            databaseService.ReturnToQueue(job);
                             _logger.LogDebug("SD not available, job returned to the queue {id}", job.Id);
-                            await Task.Delay(10000);
+                            JobInQueue?.Invoke(job);
                         }
                         catch (Exception ex)
                         {
                             //refresh job info
                             databaseService.PostProgress(job.Id, -1, ex.Message);
-                                job = databaseService.GetJob(job.Id);
+                            job = databaseService.GetJob(job.Id);
                             JobFailed?.Invoke(job, ex);
                             _logger.LogDebug("Failed {id}", job.Id);
                         }
@@ -95,7 +95,7 @@ namespace TelegramMultiBot.ImageGenerators
         internal void AddJob(IInputData message)
         {
             using var scope = _serviceProvider.CreateScope();
-            var databaseService = scope.ServiceProvider.GetRequiredService<IDatabaseService>();
+            var databaseService = scope.ServiceProvider.GetRequiredService<IImageDatabaseService>();
 
             var config = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
             if (config is null)
@@ -118,6 +118,7 @@ namespace TelegramMultiBot.ImageGenerators
         }
 
         public event Action<JobInfo>? JobFinished;
+        public event Action<JobInfo>? JobInQueue;
 
         public event Action<JobInfo, Exception>? JobFailed;
     }

@@ -18,7 +18,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
     {
         private readonly TelegramClientWrapper _client;
         private readonly ILogger<Automatic1111> _logger;
-        private readonly IDatabaseService _databaseService;
+        private readonly IImageDatabaseService _databaseService;
         private readonly ImageGeneationSettings _settings;
         private readonly Automatic1111Settings _automaticSettings;
 
@@ -29,7 +29,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private const string _extrasPath = "/sdapi/v1/extra-single-image";
         private const string _progressPath = "/sdapi/v1/progress?skip_current_image=true";
 
-        public Automatic1111(TelegramClientWrapper client, IConfiguration configuration, ILogger<Automatic1111> logger, IDatabaseService databaseService) : base(logger, configuration)
+        public Automatic1111(TelegramClientWrapper client, IConfiguration configuration, ILogger<Automatic1111> logger, IImageDatabaseService databaseService) : base(logger, configuration)
         {
             _client = client;
             _logger = logger;
@@ -132,7 +132,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["height"] = upscaleparams.Height * _settings.UpscaleMultiplier;
 
             IEnumerable<Sampler> samplers = Automatic1111Cache.GetSampler(ActiveHost!.Uri);
-            var sampler = samplers.First(x => x.name == upscaleparams.Sampler);
+            //var sampler = samplers.First(x => x.name == upscaleparams.Sampler );
 
             json["sampler_name"] = samplers.Where(x => x.aliases.Contains(upscaleparams.Sampler) || x.name == upscaleparams.Sampler).First().name;
             json["steps"] = upscaleparams.Steps;

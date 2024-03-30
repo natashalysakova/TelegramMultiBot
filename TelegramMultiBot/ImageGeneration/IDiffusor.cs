@@ -87,6 +87,8 @@ namespace TelegramMultiBot.ImageGenerators
 
         private bool CheckIfBusy(HostSettings host)
         {
+            var maxGPUUtil = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().MaxGpuUtil;
+
             try
             {
                 HttpClient client = new();
@@ -96,7 +98,7 @@ namespace TelegramMultiBot.ImageGenerators
                     var value = responce.Content.ReadAsStringAsync().Result;
                     var sum = float.Parse(value, CultureInfo.InvariantCulture);
                     logger.LogTrace("Host GPU utilisation {host} - {sum}%", host.Host, sum);
-                    return sum > 15;
+                    return sum > maxGPUUtil;
                 }
                 else
                 {

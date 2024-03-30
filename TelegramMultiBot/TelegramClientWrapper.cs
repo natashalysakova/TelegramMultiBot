@@ -5,10 +5,12 @@ using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot
 {
-    public class TelegramClientWrapper(TelegramBotClient client)
+    public class TelegramClientWrapper(TelegramBotClient client, IBotMessageDatabaseService databaseService)
     {
         public long? BotId { get => client.BotId; }
 
@@ -58,7 +60,10 @@ namespace TelegramMultiBot
                 ParseMode = parseMode,
                 ProtectContent = protectContent
             };
-            return await client.SendMessageAsync(request);
+            var botMessage = await client.SendMessageAsync(request);
+            databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private), botMessage.Date);
+            return botMessage;
+
         }
 
         internal async Task<Message> SendPhotoAsync(ChatId chatId, InputFileStream photo, int? messageThreadId = null, string? caption = null, bool reply = false, int? messageId = null, IReplyMarkup? markup = null, ParseMode? parseMode = null)
@@ -73,8 +78,9 @@ namespace TelegramMultiBot
                 ReplyMarkup = markup,
                 ReplyParameters = reply && messageId.HasValue ? new ReplyParameters() { MessageId = messageId.Value, ChatId = chatId } : null
             };
-
-            return await client.SendPhotoAsync(request);
+            var botMessage = await client.SendPhotoAsync(request);
+            databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private), botMessage.Date);
+            return botMessage;
         }
 
         internal async Task<Message> SendPhotoAsync(Message message, InputFileStream photo, string? caption = null, bool reply = false, IReplyMarkup? markup = null, ParseMode? parseMode = null)
@@ -110,7 +116,9 @@ namespace TelegramMultiBot
                 ReplyParameters = reply && messageId.HasValue ? new ReplyParameters() { MessageId = messageId.Value, ChatId = chatId } : null
             };
 
-            return await client.SendDocumentAsync(request);
+            var botMessage = await client.SendDocumentAsync(request);
+            databaseService.AddMessage(new (botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private), botMessage.Date);
+            return botMessage;
         }
 
         internal async Task<Message> EditMessageReplyMarkupAsync(Message message, InlineKeyboardMarkup? keys = null)

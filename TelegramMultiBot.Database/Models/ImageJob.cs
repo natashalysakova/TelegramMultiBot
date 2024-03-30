@@ -35,4 +35,5 @@ public class ImageJob
     public double Progress { get; internal set; }
     public string TextStatus { get; internal set; }
     public string? Diffusor { get; set; }
+    public DateTime NextTry { get; internal set; }
 }

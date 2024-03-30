@@ -1,10 +1,11 @@
 ﻿using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("delete")]
-    internal class DeleteCommand(TelegramClientWrapper client) : BaseCommand
+    internal class DeleteCommand(TelegramClientWrapper client, IBotMessageDatabaseService messageDatabaseService) : BaseCommand, IMessageReactionHandler
     {
         public override async Task Handle(Message message)
         {
@@ -27,15 +28,34 @@ namespace TelegramMultiBot.Commands
                 return;
             }
 
-            var bot = await client.GetChatMemberAsync(message.Chat.Id, client.BotId.Value);
-            var canDeleteMessages = bot.Status == ChatMemberStatus.Administrator;
-
             await client.DeleteMessageAsync(message.ReplyToMessage.Chat.Id, message.ReplyToMessage.MessageId);
 
-            if (canDeleteMessages)
+            var bot = await client.GetChatMemberAsync(message.Chat.Id, client.BotId.Value);
+            if (bot.Status == ChatMemberStatus.Administrator)
             {
                 await client.DeleteMessageAsync(message.Chat, message.MessageId);
             }
+        }
+
+        public override bool CanHandle(MessageReactionUpdated reactions)
+        {
+            return true;
+        }
+
+        public async Task HandleMessageReactionUpdate(MessageReactionUpdated messageReaction)
+        {
+            var info = new BotMessageInfo(messageReaction.Chat.Id, messageReaction.MessageId);
+            if (messageDatabaseService.IsBotMessage(info) && !messageDatabaseService.IsActiveJob(info))
+            {
+                var emojis = messageReaction.NewReaction.Where(x => x.Type == ReactionTypeKind.Emoji).Select(x => (ReactionTypeEmoji)x);
+
+                if (emojis.Any(x => x.Emoji == KnownReactionTypeEmoji.PileOfPoo))
+                {
+                    await client.DeleteMessageAsync(info.chatId, info.messageId);
+                    messageDatabaseService.DeleteMessage(info);
+                }
+            }
+
         }
     }
 }

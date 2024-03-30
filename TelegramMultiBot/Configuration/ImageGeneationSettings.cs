@@ -17,6 +17,7 @@
         public string UpscaleModel { get; set; }
         public double HiresFixDenoise { get; set; }
         public bool Watermark { get; set; }
+        public int MaxGpuUtil { get; set; }
     }
 
     internal class Automatic1111Settings

@@ -1,24 +1,29 @@
 ﻿using ImageMagick;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Collections;
+using System.Net.WebSockets;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
-using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.CallbackDataTypes;
+using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration.Exceptions;
+using TelegramMultiBot.ImageGenerators;
+using TelegramMultiBot.Reminder;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 
-namespace TelegramMultiBot.ImageGenerators.Automatic1111
+namespace TelegramMultiBot.Commands
 {
     [ServiceKey("imagine")]
-    internal class ImagineCommand(TelegramClientWrapper client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IDatabaseService databaseService) : BaseCommand, ICallbackHandler, IInlineQueryHandler
+    internal class ImagineCommand(TelegramClientWrapper client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IImageDatabaseService databaseService) : BaseCommand, ICallbackHandler, IInlineQueryHandler
     {
         public override async Task Handle(Message message)
         {
@@ -304,7 +309,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
                         var replyMessage = message.ReplyToMessage;
                         InlineKeyboardMarkup? keys;
-                        if(replyMessage != null)
+                        if (replyMessage != null)
                         {
                             var prompt = replyMessage.Text?[replyMessage.Text.IndexOf("/" + Command)..];
                             keys = GetReplyMarkupForJob(callbackData, prompt);
@@ -499,6 +504,11 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, exception.Message);
                         break;
                     }
+                case WebSocketException:
+                    {
+                        await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Сервер розірвав з'єднання. Можливо він був виключений. Спробуй пізніше");
+                        break;
+                    }
                 default:
                     await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Невідома помилка");
                     logger.LogError(exception, "JobFailed Exception");
@@ -507,10 +517,23 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
         }
 
-        internal async Task JobFinished(JobInfo inputJob)
+        internal async Task JobInQueue(JobInfo job)
         {
-            var job = inputJob;
+            string clock = getClock(DateTime.Now.Second % 10);
+            string text = $"{clock} {DateTime.Now.ToString("HH:mm:ss")} Твій шедевр в черзі.\nЙого буде виконано як тільки знайдеться вільний [{job.Diffusor ?? "бобер"}]";
+            await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, text);
 
+        }
+
+        private string getClock(int number)
+        {
+            if (number < 0 || number > 12) 
+                throw new ArgumentOutOfRangeException(nameof(number));
+            return char.ConvertFromUtf32(0x1F550 + number);
+        }
+
+        internal async Task JobFinished(JobInfo job)
+        {
             if (!await OriginalMessageExists(job.ChatId, job.MessageId))
             {
                 await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Запит було видалено");

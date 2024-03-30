@@ -5,7 +5,7 @@ using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    internal class CleanupService(IDatabaseService databaseService, TelegramClientWrapper client, IConfiguration configuration, ILogger<CleanupService> logger)
+    internal class CleanupService(IImageDatabaseService databaseService, TelegramClientWrapper client, IConfiguration configuration, ILogger<CleanupService> logger)
     {
         internal async Task Run()
         {

@@ -1,6 +1,6 @@
 ﻿using Telegram.Bot.Types;
 
-namespace TelegramMultiBot.Commands
+namespace TelegramMultiBot.Commands.Interfaces
 {
     internal interface ICommand
     {
@@ -11,20 +11,12 @@ namespace TelegramMultiBot.Commands
         bool CanHandle(InlineQuery query);
 
         bool CanHandle(string query);
+        bool CanHandle(MessageReactionUpdated reactions);
 
         Task Handle(Message message);
 
         bool CanHandleInlineQuery { get; }
         bool CanHandleCallback { get; }
-    }
-
-    internal interface ICallbackHandler
-    {
-        Task HandleCallback(CallbackQuery callbackQuery);
-    }
-
-    internal interface IInlineQueryHandler
-    {
-        Task HandleInlineQuery(InlineQuery inlineQuery);
+        bool CanHandleMessageReaction { get; }
     }
 }

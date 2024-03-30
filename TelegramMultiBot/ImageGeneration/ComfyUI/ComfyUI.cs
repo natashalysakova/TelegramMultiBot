@@ -24,10 +24,10 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         private readonly string _clientId;
         private readonly ILogger<ComfyUI> _logger;
-        private readonly IDatabaseService _databaseService;
+        private readonly IImageDatabaseService _databaseService;
         private readonly TelegramClientWrapper _client;
 
-        public ComfyUI(ILogger<ComfyUI> logger, IConfiguration configuration, IDatabaseService databaseService, TelegramClientWrapper client) : base(logger, configuration)
+        public ComfyUI(ILogger<ComfyUI> logger, IConfiguration configuration, IImageDatabaseService databaseService, TelegramClientWrapper client) : base(logger, configuration)
         {
             _logger = logger;
             _databaseService = databaseService;
@@ -194,7 +194,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             var positivePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "positive");
             var negativePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "negative");
             var clipSkipNodeName = FindNodeNameByClassType(json, "CLIPSetLastLayer");
-            string outputNode = FindNodeNameByClassType(json, "SaveImage");
+            string outputNode = FindNodeNameByClassType(json, "PreviewImage");
 
             for (int i = 0; i < genParams.BatchCount; i++)
             {
@@ -348,7 +348,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             var inputImageNode = FindNodeNameByClassType(json, "LoadImage");
             json[inputImageNode]!["inputs"]!["image"] = Path.GetFileName(jobResultInfo.FilePath);
 
-            string outputNode = FindNodeNameByClassType(json, "SaveImage");
+            string outputNode = FindNodeNameByClassType(json, "PreviewImage");
 
             var dest = Path.Combine(_settings.InputDirectory, Path.GetFileName(jobResultInfo.FilePath));
 

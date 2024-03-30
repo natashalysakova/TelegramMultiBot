@@ -1,5 +1,6 @@
 ﻿using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using TelegramMultiBot.Commands.Interfaces;
 
 namespace TelegramMultiBot.Commands
 {
@@ -7,6 +8,7 @@ namespace TelegramMultiBot.Commands
     {
         public bool CanHandleInlineQuery { get => GetType().IsAssignableTo(typeof(IInlineQueryHandler)); }
         public bool CanHandleCallback { get => GetType().IsAssignableTo(typeof(ICallbackHandler)); }
+        public bool CanHandleMessageReaction { get => GetType().IsAssignableTo(typeof(IMessageReactionHandler)); }
 
         public string Command
         {
@@ -22,6 +24,7 @@ namespace TelegramMultiBot.Commands
                 return attribute ?? throw new InvalidOperationException("Cannot find command");
             }
         }
+
 
         public virtual bool CanHandle(Message message)
         {
@@ -63,6 +66,11 @@ namespace TelegramMultiBot.Commands
         public virtual bool CanHandle(string query)
         {
             return query.Split("|", StringSplitOptions.RemoveEmptyEntries)[0] == Command;
+        }
+
+        public virtual bool CanHandle(MessageReactionUpdated reactions)
+        {
+            return false;
         }
 
         public abstract Task Handle(Message message);

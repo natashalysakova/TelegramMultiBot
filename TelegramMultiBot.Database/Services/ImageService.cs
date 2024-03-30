@@ -7,15 +7,15 @@ using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 
-namespace Bober.Database.Services
+namespace TelegramMultiBot.Database.Services
 {
-    public class ImageDatabaseService : IDatabaseService
+    public class ImageService : IImageDatabaseService
     {
         private readonly BoberDbContext _context;
-        private readonly ILogger<ImageDatabaseService> _logger;
+        private readonly ILogger<ImageService> _logger;
         private readonly IMapper _mapper;
 
-        public ImageDatabaseService(BoberDbContext context, ILogger<ImageDatabaseService> logger, IMapper mapper)
+        public ImageService(BoberDbContext context, ILogger<ImageService> logger, IMapper mapper)
         {
             _context = context;
             _logger = logger;
@@ -47,6 +47,7 @@ namespace Bober.Database.Services
             {
                 item.Status = ImageJobStatus.Failed;
                 item.Finised = DateTime.Now;
+                item.TextStatus = "canceled on restart";
             }
             _ = _context.SaveChanges();
         }
@@ -113,7 +114,7 @@ namespace Bober.Database.Services
                 x.PreviousJobResultId == job.PreviousJobResultId
                 && (x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running)
                 && x.Type == job.Type
-                && (x.UpscaleModifyer == job.UpscaleModifyer)
+                && x.UpscaleModifyer == job.UpscaleModifyer
                 ))
             {
                 return Guid.Empty;
@@ -160,7 +161,18 @@ namespace Bober.Database.Services
             {
                 if (_context.Jobs.Any(x => x.Status == ImageJobStatus.Queued))
                 {
-                    var queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
+                    //var queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued && x.NextTry < DateTime.Now);
+                    //if(!queued.Any())
+                    //{
+                    //    _logger.LogDebug("nothing scheduled. looking for job with next run");
+                    //    queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
+                    //}
+                    var queued = _context.Jobs.Include(x=>x.Results).Where(x => x.Status == ImageJobStatus.Queued);
+                    if(queued.Any(x=>x.NextTry < DateTime.Now)) 
+                    {
+                        queued = queued.Where(x => x.NextTry < DateTime.Now);
+                    }
+
                     var ordered = queued.OrderBy(x => x.Created);
                     var imageJob = queued.First();
                     imageJob.Started = DateTime.Now;
@@ -256,6 +268,7 @@ namespace Bober.Database.Services
             var jobentity = _context.Jobs.Single(x => x.Id == Guid.Parse(job.Id));
             jobentity.Status = ImageJobStatus.Queued;
             jobentity.Started = default;
+            jobentity.NextTry = DateTime.Now.AddSeconds(10);
 
             _ = _context.SaveChanges();
         }

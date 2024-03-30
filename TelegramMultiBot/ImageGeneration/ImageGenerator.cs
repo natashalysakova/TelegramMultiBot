@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.ImageGeneration.Exceptions;
@@ -8,21 +9,22 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
     internal class ImageGenerator
     {
         private readonly IEnumerable<IDiffusor> _diffusors;
+        private readonly IServiceProvider _serviceProvider;
 
-        public ImageGenerator(IEnumerable<IDiffusor> diffusors, IConfiguration configuration)
+        public ImageGenerator(IConfiguration configuration, IServiceProvider serviceProvider)
         {
             var directory = (configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new InvalidOperationException("Cannot get ImageGeneationSettings")).BaseOutputDirectory;
             if (!Directory.Exists(directory))
             {
                 _ = Directory.CreateDirectory(directory);
             }
-
-            _diffusors = diffusors;
+            _serviceProvider = serviceProvider;
         }
 
         public async Task<JobInfo> Run(JobInfo job)
         {
-            var diffusor = _diffusors.Where(x => x.IsAvailable() && x.CanHandle(job.Type) && (job.Diffusor is null || x.UI == job.Diffusor)).OrderBy(x => x.ActiveHost!.Priority).FirstOrDefault();
+            var diffusors = _serviceProvider.GetRequiredService<IEnumerable<IDiffusor>>();
+            var diffusor = diffusors.Where(x => x.IsAvailable() && x.CanHandle(job.Type) && (job.Diffusor is null || x.UI == job.Diffusor)).OrderBy(x => x.ActiveHost!.Priority).FirstOrDefault();
 
             if (diffusor != null)
             {
