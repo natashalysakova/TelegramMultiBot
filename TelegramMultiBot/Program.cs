@@ -62,9 +62,9 @@ internal class Program
             _ = options.UseMySql(connectionString, serverVersion);
             _ = options.LogTo(Console.WriteLine, LogLevel.Warning);
         });
-        _ = serviceCollection.AddScoped<IImageDatabaseService, ImageService>();
-        _ = serviceCollection.AddScoped<IBotMessageDatabaseService, BotMessageService>();
-        _ = serviceCollection.AddScoped<CleanupService>();
+        _ = serviceCollection.AddTransient<IImageDatabaseService, ImageService>();
+        _ = serviceCollection.AddTransient<IBotMessageDatabaseService, BotMessageService>();
+        _ = serviceCollection.AddTransient<CleanupService>();
 
         var botKey = configuration["token"];
         if (string.IsNullOrEmpty(botKey))

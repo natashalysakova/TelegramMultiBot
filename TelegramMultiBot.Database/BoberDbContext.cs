@@ -11,7 +11,6 @@ namespace TelegramMultiBot.Database
         public virtual DbSet<ImageJob> Jobs { get; set; }
         public virtual DbSet<JobResult> JobResult { get; set; }
         public virtual DbSet<BotMessage> BotMessages { get; set; }
-
     }
 
     public class BoberDbContextFactory : IDesignTimeDbContextFactory<BoberDbContext>

@@ -167,8 +167,8 @@ namespace TelegramMultiBot.Database.Services
                     //    _logger.LogDebug("nothing scheduled. looking for job with next run");
                     //    queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
                     //}
-                    var queued = _context.Jobs.Include(x=>x.Results).Where(x => x.Status == ImageJobStatus.Queued);
-                    if(queued.Any(x=>x.NextTry < DateTime.Now)) 
+                    var queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
+                    if (queued.Any(x => x.NextTry < DateTime.Now))
                     {
                         queued = queued.Where(x => x.NextTry < DateTime.Now);
                     }
@@ -271,6 +271,44 @@ namespace TelegramMultiBot.Database.Services
             jobentity.NextTry = DateTime.Now.AddSeconds(10);
 
             _ = _context.SaveChanges();
+        }
+
+        public void AddFiles(IEnumerable<string> jobResultIds, IEnumerable<string> fileIds)
+        {
+            for (int i = 0; i < jobResultIds.Count(); i++)
+            {
+                AddFile(jobResultIds.ElementAt(i), fileIds.ElementAt(i));
+            }
+        }
+
+        public JobInfo? GetJobByFileId(string fileId)
+        {
+            var result = _context.Jobs.Include(x=>x.Results).AsNoTracking().SingleOrDefault(x=>x.Results.Any(x=>x.FileId == fileId));
+            
+            if (result != null)
+                return _mapper.Map<JobInfo?>(result);
+
+            return null;
+        }
+
+        public JobInfo GetJobByResultId(string id)
+        {
+            var result = _context.Jobs.Include(x => x.Results).AsNoTracking().Single(x => x.Results.Any(x=>x.Id == Guid.Parse(id)));
+            return _mapper.Map<JobInfo?>(result);
+
+        }
+
+        public void AddFile(string jobResultId, string fileId)
+        {
+            var guid = Guid.Parse(jobResultId);
+            var result = _context.JobResult.Single(x=>x.Id == guid);
+            if (result != null)
+            {
+                result.FileId = fileId;
+                _context.SaveChangesAsync().Wait();
+            }
+
+            
         }
     }
 }

@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TelegramMultiBot.Database;
 
@@ -11,13 +12,15 @@ using TelegramMultiBot.Database;
 namespace TelegramMultiBot.Database.Migrations
 {
     [DbContext(typeof(BoberDbContext))]
-    partial class BoberDbContextModelSnapshot : ModelSnapshot
+    [Migration("20240417143408_addFileStorage")]
+    partial class addFileStorage
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
-                .HasAnnotation("ProductVersion", "8.0.4")
+                .HasAnnotation("ProductVersion", "8.0.2")
                 .HasAnnotation("Relational:MaxIdentifierLength", 64);
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
@@ -43,6 +46,26 @@ namespace TelegramMultiBot.Database.Migrations
                     b.HasKey("Id");
 
                     b.ToTable("BotMessages");
+                });
+
+            modelBuilder.Entity("TelegramMultiBot.Database.Models.Files", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("FileId")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<Guid>("JobResultId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("JobResultId");
+
+                    b.ToTable("Files");
                 });
 
             modelBuilder.Entity("TelegramMultiBot.Database.Models.ImageJob", b =>
@@ -117,10 +140,6 @@ namespace TelegramMultiBot.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("FileId")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
                     b.Property<string>("FilePath")
                         .IsRequired()
                         .HasColumnType("longtext");
@@ -142,6 +161,17 @@ namespace TelegramMultiBot.Database.Migrations
                     b.HasIndex("JobId");
 
                     b.ToTable("JobResult");
+                });
+
+            modelBuilder.Entity("TelegramMultiBot.Database.Models.Files", b =>
+                {
+                    b.HasOne("TelegramMultiBot.Database.Models.JobResult", "JobResult")
+                        .WithMany()
+                        .HasForeignKey("JobResultId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("JobResult");
                 });
 
             modelBuilder.Entity("TelegramMultiBot.Database.Models.JobResult", b =>

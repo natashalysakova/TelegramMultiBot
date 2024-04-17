@@ -7,7 +7,8 @@ namespace TelegramMultiBot.Database.Interfaces
         int RunningJobs { get; }
 
         int ActiveJobsCount(long userId);
-
+        void AddFile(string jobId, string fileId);
+        void AddFiles(IEnumerable<string> jobResultIds, IEnumerable<string> fileIds);
         void AddResult(string id, JobResultInfoCreate jobResultInfo);
 
         void CancelUnfinishedJobs();
@@ -15,7 +16,8 @@ namespace TelegramMultiBot.Database.Interfaces
         Guid Enqueue(IInputData message);
 
         JobInfo GetJob(string jobId);
-
+        JobInfo? GetJobByFileId(string fileId);
+        JobInfo GetJobByResultId(string id);
         JobResultInfoView? GetJobResult(string jobResultId);
 
         IEnumerable<JobInfo> GetJobsOlderThan(DateTime date);

@@ -54,7 +54,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 UpdateType.MessageReaction,
                 UpdateType.MessageReactionCount
             ],
-            ThrowPendingUpdates = false
+            ThrowPendingUpdates = true
         };
 
         client.StartReceiving(

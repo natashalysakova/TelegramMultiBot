@@ -7,6 +7,7 @@ public class JobResultInfoView
     public string? Info { get; set; }
     public double RenderTime { get; set; }
     public string FilePath { get; set; }
+    public string? FileId { get; set; }
 }
 
 public class JobResultInfoCreate

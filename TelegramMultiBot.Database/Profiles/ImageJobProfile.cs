@@ -20,7 +20,8 @@ namespace TelegramMultiBot.Database.Profiles
                 .ForMember(x => x.Id, act => act.Ignore())
                 .ForMember(x => x.Index, act => act.Ignore())
                 .ForMember(x => x.Job, act => act.Ignore())
-                .ForMember(x => x.JobId, act => act.Ignore());
+                .ForMember(x => x.JobId, act => act.Ignore())
+                .ForMember(x => x.FileId, act => act.Ignore());
         }
 
         private static long GetSeed(string? info)

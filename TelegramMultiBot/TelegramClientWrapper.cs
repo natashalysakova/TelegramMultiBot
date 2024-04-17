@@ -56,7 +56,7 @@ namespace TelegramMultiBot
                 DisableNotification = disableNotification,
                 LinkPreviewOptions = linkPreviewOptions,
                 ReplyMarkup = replyMarkup,
-                ReplyParameters = replyToMessage ? new ReplyParameters() { MessageId = message.MessageId, ChatId = message.Chat, AllowSendingWithoutReply = true } : null,
+                ReplyParameters = replyToMessage ? new ReplyParameters() { MessageId = message.ReplyToMessage is null ? message.MessageId : message.ReplyToMessage.MessageId, ChatId = message.ReplyToMessage is null ? message.Chat : message.ReplyToMessage.Chat, AllowSendingWithoutReply = true } : null,
                 ParseMode = parseMode,
                 ProtectContent = protectContent
             };
@@ -119,6 +119,27 @@ namespace TelegramMultiBot
             var botMessage = await client.SendDocumentAsync(request);
             databaseService.AddMessage(new (botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private), botMessage.Date);
             return botMessage;
+        }
+        internal async Task<Message[]> SendMediaAlbumAsync(JobInfo job, IEnumerable<IAlbumInputMedia> media)
+        {
+            return await SendMediaAlbumAsync(job.ChatId, media, job.MessageThreadId, job.MessageId);
+        }
+        internal async Task<Message[]> SendMediaAlbumAsync(ChatId chatId, IEnumerable<IAlbumInputMedia> media, int? messageThreadId = null, int? replyToMessageId = null)
+        {
+            var request = new SendMediaGroupRequest()
+            {
+                ChatId = chatId,
+                Media = media,
+                MessageThreadId = messageThreadId,
+                ReplyParameters = replyToMessageId.HasValue ? new ReplyParameters() { MessageId = replyToMessageId.Value, ChatId = chatId } : null
+            };
+
+            var botMessages = await client.SendMediaGroupAsync(request);
+            foreach (var item in botMessages)
+            {
+                databaseService.AddMessage(new(item.Chat.Id, item.MessageId, item.Chat.Type == ChatType.Private), item.Date);
+            }
+            return botMessages;
         }
 
         internal async Task<Message> EditMessageReplyMarkupAsync(Message message, InlineKeyboardMarkup? keys = null)

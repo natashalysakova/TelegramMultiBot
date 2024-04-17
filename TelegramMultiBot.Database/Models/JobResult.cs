@@ -9,8 +9,10 @@ public class JobResult
 
     public Guid JobId { get; set; }
     public virtual ImageJob? Job { get; set; }
-    public string FilePath { get; set; }
+    public required string FilePath { get; set; }
     public string? Info { get; set; }
     public int Index { get; set; }
     public double RenderTime { get; set; }
+    public string FileId { get; set; } = string.Empty;
+
 }
