@@ -1,6 +1,4 @@
-﻿using System.Runtime.Serialization;
-
-namespace TelegramMultiBot.ImageGeneration.Exceptions
+﻿namespace TelegramMultiBot.ImageGeneration.Exceptions
 {
     [Serializable]
     internal class InputException : Exception
@@ -14,10 +12,6 @@ namespace TelegramMultiBot.ImageGeneration.Exceptions
         }
 
         public InputException(string? message, Exception? innerException) : base(message, innerException)
-        {
-        }
-
-        protected InputException(SerializationInfo info, StreamingContext context) : base(info, context)
         {
         }
     }

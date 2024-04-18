@@ -1,93 +1,137 @@
 ﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
+using System.Diagnostics;
+using System.Globalization;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Enums;
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    interface IDiffusor
+    internal interface IDiffusor
     {
         string UI { get; }
-        HostSettings ActiveHost { get; set; }
+        HostSettings? ActiveHost { get; }
 
-        bool CanHnadle(JobType type);
-        Task<bool> isAvailable();
-        Task<bool> isAvailable(HostSettings host);
+        bool CanHandle(JobType type);
+
+        bool IsAvailable();
+
+        //Task<bool> isAvailable(HostSettings host);
+
         Task<JobInfo> Run(JobInfo job);
     }
 
-    abstract public class Diffusor : IDiffusor
+    public abstract class Diffusor(ILogger<Diffusor> logger, IConfiguration configuration) : IDiffusor
     {
-        private readonly ILogger<Diffusor> _logger;
-        private readonly IConfiguration _configuration;
-
-        protected Diffusor(ILogger<Diffusor> logger, IConfiguration configuration)
-        {
-            _logger = logger;
-            _configuration = configuration;
-        }
-
         public abstract string UI { get; }
-        protected abstract string pingPath { get; }
+        protected abstract string PingPath { get; }
 
-        public abstract bool CanHnadle(JobType type);
+        public abstract bool CanHandle(JobType type);
+
         public abstract Task<JobInfo> Run(JobInfo job);
 
-        public HostSettings ActiveHost { get; set; }
+        private HostSettings? _hostSettings;
+
+        public HostSettings? ActiveHost
+        {
+            get
+            {
+                _hostSettings ??= GetAvailable().Result;
+                return _hostSettings;
+            }
+        }
+
         public abstract bool ValidateConnection(string content);
-        public async Task<bool> isAvailable(HostSettings host)
+
+        private async Task<bool> IsAvailable(HostSettings host)
         {
             if (!host.Enabled)
             {
-                _logger.LogTrace($"{host.Uri} disabled");
+                logger.LogTrace("{uri} disabled", host.Uri);
                 return false;
             }
 
-            var httpClient = new HttpClient();
-            httpClient.BaseAddress = host.Uri;
-            httpClient.Timeout = TimeSpan.FromSeconds(10);
+            var httpClient = new HttpClient
+            {
+                BaseAddress = host.Uri,
+                Timeout = TimeSpan.FromSeconds(10)
+            };
             try
             {
-                var resp = await httpClient.GetAsync(pingPath);
+                var resp = await httpClient.GetAsync(PingPath);
 
                 if (resp.IsSuccessStatusCode)
                 {
                     if (ValidateConnection(await resp.Content.ReadAsStringAsync()))
                     {
-                        ActiveHost = host;
+                        logger.LogTrace("{uri} available", host.Uri);
                         return true;
                     }
                     else
                     {
-                        _logger.LogDebug($"{host.Uri} host not valid");
+                        logger.LogDebug("{uri} host not valid", host.Uri);
                     }
                 }
                 else
                 {
-                    _logger.LogDebug($"{host.Uri} request is not successful");
+                    logger.LogDebug("{uri} request is not successful", host.Uri);
                 }
-                
             }
             catch (Exception)
             {
-                _logger.LogTrace($"{host.Uri} not available");
+                logger.LogTrace("{uri} not available", host.Uri);
             }
             return false;
-
         }
-        public async Task<bool> isAvailable()
+
+        private bool CheckIfBusy(HostSettings host)
         {
-            var hosts = _configuration.GetSection(HostSettings.Name).Get<IEnumerable<HostSettings>>().Where(x => x.UI == this.UI);
+            var maxGPUUtil = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().MaxGpuUtil;
+
+            try
+            {
+                HttpClient client = new();
+                var responce = client.GetAsync($"http://{host.Host}:5001/gpu").Result;
+                if (responce.IsSuccessStatusCode)
+                {
+                    var value = responce.Content.ReadAsStringAsync().Result;
+                    var sum = float.Parse(value, CultureInfo.InvariantCulture);
+                    logger.LogTrace("Host GPU utilisation {host} - {sum}%", host.Host, sum);
+                    return sum > maxGPUUtil;
+                }
+                else
+                {
+                    return false;
+                }
+
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning("Error getting host performance {host}: {error}", host.Host, ex.Message);
+                return false;
+            }
+        }
+
+        private async Task<HostSettings?> GetAvailable()
+        {
+            var hostSettings = configuration.GetSection(HostSettings.Name).Get<IEnumerable<HostSettings>>() ?? throw new InvalidOperationException($"Cannot get {HostSettings.Name} section");
+            var hosts = hostSettings.Where(x => x.UI == UI);
 
             foreach (var host in hosts)
             {
-                if (await isAvailable(host))
+                if (await IsAvailable(host))
                 {
-                    return true;
+                    return host;
                 }
             }
 
-            return false;
+            return default;
+        }
+
+        public bool IsAvailable()
+        {
+            return ActiveHost is not null && !CheckIfBusy(ActiveHost);
         }
     }
 }

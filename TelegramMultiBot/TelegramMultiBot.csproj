@@ -6,9 +6,9 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <UserSecretsId>c63194ee-15cc-42ad-8296-88662a399a26</UserSecretsId>
-    <StartupObject></StartupObject>
+    <StartupObject>Program</StartupObject>
 	<Deterministic>False</Deterministic>
-	<AssemblyVersion>1.1.*</AssemblyVersion>
+	<AssemblyVersion>1.2.0.0</AssemblyVersion>
 	<FileVersion>$(AssemblyVersion)</FileVersion>
 	<DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
   </PropertyGroup>
@@ -19,17 +19,20 @@
   </ItemGroup>
 
   <ItemGroup>
-    <PackageReference Include="AngleSharp" Version="1.1.1" />
+    <PackageReference Include="AngleSharp" Version="1.1.2" />
     <PackageReference Include="Cronos" Version="0.8.4" />
-    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.2" />
+    <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="13.6.0" />
+    <PackageReference Include="Magick.NET.Core" Version="13.6.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.4" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.UserSecrets" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Hosting" Version="8.0.0" />
-    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.19.6" />
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.20.1" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
-    <PackageReference Include="Telegram.Bot" Version="19.0.0" />
+    <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
+    <PackageReference Include="Telegram.Bot" Version="20.0.0-alpha.6.stj" />
   </ItemGroup>
 
 	<ItemGroup>
@@ -50,6 +53,13 @@
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 			<DependentUpon>tokens.json</DependentUpon>
 		</Content>
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Compile Remove="images\**" />
+	  <Content Remove="images\**" />
+	  <EmbeddedResource Remove="images\**" />
+	  <None Remove="images\**" />
 	</ItemGroup>
 
 	<ItemGroup>

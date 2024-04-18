@@ -11,15 +11,14 @@
   },
   "7": {
     "inputs": {
-      "filename_prefix": "PostProcess",
       "images": [
         "14",
         0
       ]
     },
-    "class_type": "SaveImage",
+    "class_type": "PreviewImage",
     "_meta": {
-      "title": "Save Image"
+      "title": "Preview Image"
     }
   },
   "14": {

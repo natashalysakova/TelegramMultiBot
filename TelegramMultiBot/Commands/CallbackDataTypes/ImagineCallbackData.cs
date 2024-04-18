@@ -1,10 +1,10 @@
 ﻿namespace TelegramMultiBot.Commands.CallbackDataTypes
 {
-    class ImagineCallbackData : CallbackData<ImagineCommands>
+    internal class ImagineCallbackData : CallbackData<ImagineCommands>
     {
         public double? Upscale { get; set; }
 
-        public ImagineCallbackData(string command, ImagineCommands type, string? id = null, double? upscale = null) : base(command, type, id, new object?[] { upscale })
+        public ImagineCallbackData(string command, ImagineCommands type, string id, double? upscale = null) : base(command, type, id, upscale)
         {
             Upscale = upscale;
         }
@@ -19,23 +19,11 @@
             callback.FillBaseFromString(data);
             if (callback.Parameters.Length > 0)
             {
-                callback.Upscale = double.Parse(callback.Parameters[0].ToString());
+                var value = callback.Parameters[0] as string;
+                if (!string.IsNullOrEmpty(value))
+                    callback.Upscale = double.Parse(value);
             }
             return callback;
         }
-
-    }
-
-    public enum ImagineCommands
-    {
-        Text2Image,
-        HiresFix,
-        Upscale,
-        Info,
-        Original,
-        Actions,
-        Repeat,
-        Vingette,
-        Noise,
     }
 }

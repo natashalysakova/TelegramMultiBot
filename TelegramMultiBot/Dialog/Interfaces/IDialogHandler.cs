@@ -1,9 +1,9 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using Telegram.Bot.Types;
 
-interface IDialogHandler
+internal interface IDialogHandler
 {
     void Handle(IDialog dialog, Message message);
-    bool CanHandle(IDialog type);
 
+    bool CanHandle(IDialog type);
 }

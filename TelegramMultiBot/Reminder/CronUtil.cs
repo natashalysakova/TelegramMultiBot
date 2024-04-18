@@ -1,9 +1,18 @@
 ﻿// See https://aka.ms/new-console-template for more information
-public static class CronUtil
+namespace TelegramMultiBot
 {
-    public static DateTime? ParseNext(string cron)
+    public static class CronUtil
     {
-        var exp = Cronos.CronExpression.Parse(cron);
-        return exp.GetNextOccurrence(DateTimeOffset.Now, TimeZoneInfo.Local).Value.DateTime;
+        public static DateTime ParseNext(string cron)
+        {
+            if (Cronos.CronExpression.TryParse(cron, out var exp))
+            {
+                var next = exp.GetNextOccurrence(DateTimeOffset.Now, TimeZoneInfo.Local);
+                if (next.HasValue)
+                    return next.Value.DateTime;
+            }
+
+            throw new InvalidDataException("cannot parse CRON");
+        }
     }
 }

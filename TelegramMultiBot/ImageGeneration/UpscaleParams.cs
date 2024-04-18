@@ -1,21 +1,21 @@
-﻿using Microsoft.Extensions.DependencyInjection;
-using Newtonsoft.Json.Linq;
-using System.Globalization;
-using Telegram.Bot.Types;
+﻿using System.Globalization;
 using TelegramMultiBot.Database.DTO;
-using TelegramMultiBot.ImageGenerators;
 
 namespace TelegramMultiBot.ImageGeneration
 {
     public class UpscaleParams
     {
-        public UpscaleParams(JobResultInfo previousJob) 
-        {         
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+
+        public UpscaleParams(JobResultInfoView previousJob)
+#pragma warning restore CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+        {
             FilePath = previousJob.FilePath;
             ParseInfo(previousJob.Info);
         }
+
         public string Prompt { get; set; }
-        public string NegativePrompt { get; set; }
+        public string? NegativePrompt { get; set; }
         public long Seed { get; set; }
         public int Steps { get; set; }
         public string Sampler { get; set; }
@@ -23,18 +23,21 @@ namespace TelegramMultiBot.ImageGeneration
         public int Width { get; set; }
         public int Height { get; set; }
         public string Model { get; set; }
-        public string ModelHash { get; set; }
+        public string? ModelHash { get; set; }
 
         public double Denoising { get; set; }
-        public string Version { get; set; }
-        public double Score { get; set; }
+        public string? Version { get; set; }
 
         public string FilePath { get; internal set; }
 
+        private static readonly char[] _separator = ['\n', '\r'];
 
-        internal void ParseInfo(string info)
+        internal void ParseInfo(string? info)
         {
-            var split = info.Split(new[] { '\n', '\r' }, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+            if (info == null)
+                return;
+
+            var split = info.Split(_separator, StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
             if (split.Length < 2 || split.Length > 3)
             {
                 throw new Exception("Failed to parse info from DB");
@@ -51,7 +54,6 @@ namespace TelegramMultiBot.ImageGeneration
                 NegativePrompt = ParseParemeter(split[1]);
                 ParseParameters(split[2]);
             }
-
         }
 
         private void ParseParameters(string parameters)
@@ -75,9 +77,7 @@ namespace TelegramMultiBot.ImageGeneration
 
             CFGScale = double.Parse(ParseParemeter(split.Single(x => x.Contains("CFG scale:"))), CultureInfo.InvariantCulture);
 
-            //Score = double.Parse(split.Single(x => x.Contains("Score:")));
-
-            if(split.Any(x => x.Contains("Denoising strength:")))
+            if (split.Any(x => x.Contains("Denoising strength:")))
             {
                 Denoising = double.Parse(ParseParemeter(split.Single(x => x.Contains("Denoising strength:"))), CultureInfo.InvariantCulture);
             }
@@ -88,9 +88,9 @@ namespace TelegramMultiBot.ImageGeneration
             Height = int.Parse(splitSize[1]);
         }
 
-        private string ParseParemeter(string paremeter)
+        private static string ParseParemeter(string paremeter)
         {
-            return paremeter.Substring(paremeter.IndexOf(":") + 1).Trim();
+            return paremeter[(paremeter.IndexOf(':') + 1)..].Trim();
         }
     }
 }

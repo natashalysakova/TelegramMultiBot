@@ -2,126 +2,128 @@
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
 using System.Timers;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
+using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using Telegram.Bot.Types.InlineQueryResults;
-using TelegramMultiBot;
 using TelegramMultiBot.Commands;
+using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.ImageGenerators;
-using TelegramMultiBot.ImageGenerators.Automatic1111;
 
-class BotService
+internal class BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, IConfiguration configuration)
 {
-    private readonly TelegramBotClient _client;
-    private readonly ILogger _logger;
-    JobManager _jobManager;
-    private readonly DialogManager _dialogManager;
-    private readonly IServiceProvider _serviceProvider;
-    private readonly ImageGenearatorQueue _imageGenearatorQueue;
-    private readonly IConfiguration _configuration;
-    public static string BotName;
-
-    System.Timers.Timer _timer;
-    public BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, IConfiguration configuration)
-    {
-        _client = client;
-        _logger = logger;
-        _jobManager = jobManager;
-        _dialogManager = dialogManager;
-        _serviceProvider = serviceProvider;
-        _imageGenearatorQueue = imageGenearatorQueue;
-        _configuration = configuration;
-    }
+    public static string? BotName;
+    private System.Timers.Timer? _timer;
 
     public void Run(CancellationTokenSource cancellationToken)
     {
-        _jobManager.Run(cancellationToken.Token);
-        _jobManager.ReadyToSend += JobManager_ReadyToSend;
+        jobManager.Run(cancellationToken.Token);
+        jobManager.ReadyToSend += JobManager_ReadyToSend;
 
-        _imageGenearatorQueue.Run(cancellationToken.Token);
-        _imageGenearatorQueue.JobFinished += _imageGenearatorQueue_JobFinished;
-        _imageGenearatorQueue.JobFailed += _imageGenearatorQueue_JobFailed;
+        imageGenearatorQueue.Run(cancellationToken.Token);
+        imageGenearatorQueue.JobFinished += ImageGenearatorQueue_JobFinished;
+        imageGenearatorQueue.JobFailed += ImageGenearatorQueue_JobFailed;
+        imageGenearatorQueue.JobInQueue += ImageGenearatorQueue_JobInQueue;
 
-        var interval = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().DatabaseCleanupInterval * 1000;
+        var config = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+        if (config is null)
+            throw new NullReferenceException(nameof(config));
 
-        _timer = new System.Timers.Timer(interval);
-        _timer.AutoReset = true;
+        var interval = config.DatabaseCleanupInterval * 1000;
+        _timer = new System.Timers.Timer()
+        {
+            Interval = interval,
+            AutoReset = true
+        };
 
         _timer.Elapsed += RunCleanup;
         _timer.Start();
 
-
         var receiverOptions = new ReceiverOptions
         {
-            AllowedUpdates = new[] { UpdateType.Message, UpdateType.InlineQuery, UpdateType.ChosenInlineResult, UpdateType.CallbackQuery  }
+            AllowedUpdates = [
+                UpdateType.Message,
+                UpdateType.InlineQuery,
+                UpdateType.ChosenInlineResult,
+                UpdateType.ShippingQuery,
+                UpdateType.CallbackQuery,
+                UpdateType.MessageReaction,
+                UpdateType.MessageReactionCount
+            ],
+            ThrowPendingUpdates = true
         };
 
-        _client.StartReceiving(
+        client.StartReceiving(
                 HandleUpdateAsync,
                 HandleErrorAsync,
                 receiverOptions,
                 cancellationToken.Token
             );
 
-        BotName = _client.GetMeAsync().Result.Username;
+        var response = client.GetMeAsync(new GetMeRequest()).Result;
+        BotName = response.Username;
 
         while (!cancellationToken.IsCancellationRequested)
         {
             Thread.Sleep(1000);
         }
 
-        _jobManager.Dispose();
+        jobManager.Dispose();
         _timer.Stop();
         _timer.Elapsed -= RunCleanup;
         _timer.Dispose();
+    }
 
+    private async void ImageGenearatorQueue_JobInQueue(JobInfo info)
+    {
+        using var scope = serviceProvider.CreateScope();
+        try
+        {
+            var command = (ImagineCommand)scope.ServiceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
+            await command.JobInQueue(info);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{message}", ex.Message);
+        }
     }
 
     private async void RunCleanup(object? sender, ElapsedEventArgs e)
     {
-        using (var scope = _serviceProvider.CreateScope())
+        using var scope = serviceProvider.CreateScope();
+        var cleanupService = scope.ServiceProvider.GetRequiredService<CleanupService>();
+        await cleanupService.Run();
+    }
+
+    private async void ImageGenearatorQueue_JobFailed(JobInfo obj, Exception exception)
+    {
+        using var scope = serviceProvider.CreateScope();
+        try
         {
-            var cleanupService = scope.ServiceProvider.GetService<CleanupService>();
-            await cleanupService.Run();
+            var command = (ImagineCommand)scope.ServiceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
+            await command.JobFailed(obj, exception);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{message}", ex.Message);
         }
     }
 
-
-    private async void _imageGenearatorQueue_JobFailed(JobInfo obj, Exception exception)
+    private async void ImageGenearatorQueue_JobFinished(JobInfo obj)
     {
-        using (var scope = _serviceProvider.CreateScope())
+        using var scope = serviceProvider.CreateScope();
+        try
         {
-            try
-            {
-                var command = (ImagineCommand)scope.ServiceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
-                await command.JobFailed(obj, exception);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, ex.Message);
-            }
+            var command = (ImagineCommand)scope.ServiceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
+            await command.JobFinished(obj);
         }
-    }
-
-    private async void _imageGenearatorQueue_JobFinished(JobInfo obj)
-    {
-        using (var scope = _serviceProvider.CreateScope())
+        catch (Exception ex)
         {
-            try
-            {
-                var command = (ImagineCommand)scope.ServiceProvider.GetServices<ICommand>().Single(x => x.GetType() == typeof(ImagineCommand));
-                await command.JobFinished(obj);
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError(ex, ex.Message);
-            }
+            logger.LogError(ex, "{message}", ex.Message);
         }
     }
 
@@ -129,121 +131,183 @@ class BotService
     {
         try
         {
-            _logger.LogDebug($"sending by schedule: {message}");
-            await _client.SendTextMessageAsync(chatId, message, disableWebPagePreview: true);
+            logger.LogDebug("sending by schedule: {message}", message);
+            var request = new SendMessageRequest() { ChatId = chatId, Text = message, LinkPreviewOptions = new LinkPreviewOptions() { IsDisabled = true } };
+            await client.SendMessageAsync(request);
+            //await _client.SendTextMessageAsync(chatId, message, disableWebPagePreview: true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, ex.Message);
+            logger.LogError(ex, "{message}", ex.Message);
             if (ex.Message.Contains("chat not found") || ex.Message.Contains("PEER_ID_INVALID") || ex.Message.Contains("bot was kicked from the group chat"))
             {
-                _jobManager.DeleteJobsForChat(chatId);
-                _logger.LogWarning("Removing all jobs for " + chatId);
+                jobManager.DeleteJobsForChat(chatId);
+                logger.LogWarning("Removing all jobs for {id}", chatId);
             }
         }
     }
 
     private Task HandleErrorAsync(ITelegramBotClient cleint, Exception e, CancellationToken token)
     {
-        _logger.LogDebug(e.ToString());
-        _logger.LogError(e.Message);
+        logger.LogDebug("{trace}", e.ToString());
+        logger.LogError("{message}", e.Message);
         return Task.CompletedTask;
     }
 
     private Task HandleUpdateAsync(ITelegramBotClient cleint, Update update, CancellationToken token)
     {
-        _logger.LogTrace(JsonConvert.SerializeObject(update));
+        logger.LogTrace("{update}", update.Type);
 
         try
         {
             switch (update.Type)
             {
                 case UpdateType.Message:
+                    if (update.Message == null)
+                        throw new NullReferenceException(nameof(update.Message));
                     return BotOnMessageRecived(update.Message);
+
                 case UpdateType.CallbackQuery:
+                    if (update.CallbackQuery == null)
+                        throw new NullReferenceException(nameof(update.CallbackQuery));
                     return BotOnCallbackRecived(update.CallbackQuery);
+
                 case UpdateType.InlineQuery:
+                    if (update.InlineQuery == null)
+                        throw new NullReferenceException(nameof(update.InlineQuery));
                     return BotOnInlineQueryRecived(update.InlineQuery);
+
+                case UpdateType.MessageReaction:
+                    ///TODO: add update
+                    if(update.MessageReaction == null)
+                        throw new NullReferenceException(nameof(update.InlineQuery));
+                    return BotOnMessageReactionRecived(update.MessageReaction);
+                    break;
+
+                case UpdateType.MessageReactionCount:
+                    ///TODO: add update
+                    break;
+
                 default:
                     return Task.CompletedTask;
             }
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, ex.Message);
+            logger.LogError(ex, "{message}", ex.Message);
         }
         return Task.CompletedTask;
     }
 
-    private async Task BotOnInlineQueryRecived(InlineQuery? inlineQuery)
-    {
-        var commands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(inlineQuery) && x.CanHandleInlineQuery).Select(x => (IInlineQueryHandler)x);
-
-        if(!commands.Any())
-        {
-            await _client.AnswerInlineQueryAsync(inlineQuery.Id, new List<InlineQueryResult>());
-            return;
-        }
-
-        foreach (var item in commands)
-        {
-            await item.HandleInlineQuery(inlineQuery);
-        }
-    }
-
-    private async Task BotOnCallbackRecived(CallbackQuery? callbackQuery)
+    private async Task BotOnMessageReactionRecived(MessageReactionUpdated messageReaction)
     {
         try
         {
-            var commands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandleCallback && x.CanHandle(callbackQuery.Data)).Select(x => (ICallbackHandler)x);
+            var commands = serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(messageReaction) && x.CanHandleMessageReaction).Select(x => (IMessageReactionHandler)x).ToList();
 
-            foreach (var command in commands)
+            foreach (var item in commands)
             {
-                _logger.LogDebug($"callback {command}");
-                await command.HandleCallback(callbackQuery);
+                await item.HandleMessageReactionUpdate(messageReaction);
             }
-        }
-        catch (Telegram.Bot.Exceptions.ApiRequestException ex)
-        {
-            _logger.LogError(ex, ex.Message);
-            _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message, showAlert: true);
         }
         catch (Exception ex)
         {
-            _logger.LogError(ex, ex.Message);
-            _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message, showAlert: true);
+            logger.LogError(ex, "{message}", ex.Message);
         }
     }
 
+    private async Task BotOnInlineQueryRecived(InlineQuery inlineQuery)
+    {
+        try
+        {
+            logger.LogTrace("{query}", inlineQuery.Query);
+            var commands = serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(inlineQuery) && x.CanHandleInlineQuery).Select(x => (IInlineQueryHandler)x).ToList();
 
+            if (commands.Count == 0)
+            {
+                var request = new AnswerInlineQueryRequest()
+                {
+                    InlineQueryId = inlineQuery.Id,
+                    Results = []
+                };
+                await client.AnswerInlineQueryAsync(request);
+                return;
+            }
+
+            foreach (var item in commands)
+            {
+                await item.HandleInlineQuery(inlineQuery);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{message}", ex.Message);
+            var request = new AnswerInlineQueryRequest()
+            {
+                InlineQueryId = inlineQuery.Id,
+                Results = []
+            };
+            await client.AnswerInlineQueryAsync(request);
+        }
+    }
+
+    private async Task BotOnCallbackRecived(CallbackQuery callbackQuery)
+    {
+        if (callbackQuery.Data == null)
+            throw new NullReferenceException(nameof(callbackQuery.Data));
+
+        try
+        {
+            var commands = serviceProvider.GetServices<ICommand>().Where(x => x.CanHandleCallback && x.CanHandle(callbackQuery.Data)).Select(x => (ICallbackHandler)x);
+
+            foreach (var command in commands)
+            {
+                logger.LogDebug("callback {command}", command);
+                await command.HandleCallback(callbackQuery);
+            }
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{message}", ex.Message);
+            var request = new AnswerCallbackQueryRequest()
+            {
+                CallbackQueryId = callbackQuery.Id,
+                Text = "Error:" + ex.Message,
+                ShowAlert = true
+            };
+            await client.AnswerCallbackQueryAsync(request);
+        }
+    }
 
     private async Task BotOnMessageRecived(Message message)
     {
-        if (message == null) { return; }
-        if (message.Text == null) { return; }
+        if (message.Type != MessageType.Text)
+            return;
+        ArgumentNullException.ThrowIfNull(message.From);
 
-        _logger.LogTrace($"Input message: {message.From.Username} in {message.Chat.Type}{" " + (message.Chat.Type == ChatType.Group ? message.Chat.Title : string.Empty)} : {message.Text}");
+        logger.LogTrace("Input message: {username} in {chatType} {chatTitle}: {Text}", message.From.Username,
+            message.Chat.Type,
+            (message.Chat.Type == ChatType.Group || message.Chat.Type == ChatType.Supergroup) ? message.Chat.Title : string.Empty,
+            message.Text);
 
-        var activeDialog = _dialogManager[message.Chat.Id];
+        var activeDialog = dialogManager[message.Chat.Id];
         if (activeDialog != null)
         {
-            var cancelCommand = _serviceProvider.GetKeyedService<ICommand>("cancel");
+            var cancelCommand = serviceProvider.GetRequiredKeyedService<ICommand>("cancel");
             if (cancelCommand.CanHandle(message))
             {
-                cancelCommand.Handle(message);
-                _dialogManager.Remove(activeDialog);
+                await cancelCommand.Handle(message);
+                dialogManager.Remove(activeDialog);
             }
             else
             {
-                await _dialogManager.HandleActiveDialog(message, activeDialog);
+                await dialogManager.HandleActiveDialog(message, activeDialog);
             }
         }
         else
         {
-
-            // var applicableComands = _serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(message));
             var applicableComands = new List<ICommand>();
-            foreach (var item in _serviceProvider.GetServices<ICommand>())
+            foreach (var item in serviceProvider.GetServices<ICommand>())
             {
                 if (item.CanHandle(message))
                 {
@@ -253,14 +317,14 @@ class BotService
 
             foreach (var command in applicableComands)
             {
-                _logger.LogDebug($"{command}");
+                logger.LogDebug("{command}", command);
                 try
                 {
                     await command.Handle(message);
                 }
                 catch (Exception ex)
                 {
-                    _logger.LogError(ex, ex.Message);
+                    logger.LogError(ex, "{message}", ex.Message);
                 }
             }
         }

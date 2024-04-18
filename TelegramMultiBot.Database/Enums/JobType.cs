@@ -1,4 +1,6 @@
-﻿public enum JobType
+﻿namespace TelegramMultiBot.Database.Enums;
+
+public enum JobType
 {
     Text2Image,
     HiresFix,
@@ -6,4 +8,3 @@
     Vingette,
     Noise,
 }
-

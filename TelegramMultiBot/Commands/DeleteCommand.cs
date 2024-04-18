@@ -1,57 +1,59 @@
-﻿using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using Telegram.Bot;
-using Telegram.Bot.Types;
+﻿using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("delete")]
-    internal class DeleteCommand : BaseCommand
+    internal class DeleteCommand(TelegramClientWrapper client, IBotMessageDatabaseService messageDatabaseService) : BaseCommand, IMessageReactionHandler
     {
-        private readonly TelegramBotClient _client;
-        private readonly ILogger<DeleteCommand> _logger;
-
-        public DeleteCommand(TelegramBotClient client, ILogger<DeleteCommand> logger)
+        public override async Task Handle(Message message)
         {
-            _client = client;
-            _logger = logger;
-        }
-
-        public async override Task Handle(Message message)
-        {
-            if (message.ReplyToMessage == null || message.ReplyToMessage.Type == Telegram.Bot.Types.Enums.MessageType.ForumTopicCreated)
+            if (message.ReplyToMessage == null || message.ReplyToMessage.Type == MessageType.ForumTopicCreated || message.ReplyToMessage.From == null)
             {
-                await _client.SendTextMessageAsync(message.Chat.Id, "Не знаю що видаляти. Надішли повідомлення з командою у відповідь на повідомлення бота", messageThreadId: message.MessageThreadId);
+                await client.SendMessageAsync(message, "Не знаю що видаляти. Надішли повідомлення з командою у відповідь на повідомлення бота");
                 return;
             }
 
-
-            if (!message.ReplyToMessage.From.IsBot || message.ReplyToMessage.From.Id != _client.BotId)
+            if (!message.ReplyToMessage.From.IsBot || message.ReplyToMessage.From.Id != client.BotId)
             {
-                await _client.SendTextMessageAsync(message.Chat.Id, "Я можу видалити лише власні повідомлення", messageThreadId: message.IsTopicMessage == true ? message.MessageThreadId : null);
+                await client.SendMessageAsync(message, "Я можу видалити лише власні повідомлення");
                 return;
             }
 
             var hours = message.ReplyToMessage.Chat.Type == ChatType.Private ? -24 : -48;
-            if(message.ReplyToMessage.Date < DateTime.Now.AddHours(hours)) 
+            if (message.ReplyToMessage.Date < DateTime.Now.AddHours(hours))
             {
-                await _client.SendTextMessageAsync(message.Chat.Id, $"Неможливо видалити повідомлення, що було відправлено більше ніж {Math.Abs(hours)} години тому ", messageThreadId: message.IsTopicMessage == true ? message.MessageThreadId : null);
+                await client.SendMessageAsync(message, $"Неможливо видалити повідомлення, що було відправлено більше ніж {Math.Abs(hours)} години тому ");
                 return;
             }
 
-            var bot = await _client.GetChatMemberAsync(message.Chat.Id, _client.BotId.Value);
-            var canDeleteMessages = bot.Status == ChatMemberStatus.Administrator;
+            await client.DeleteMessageAsync(message.ReplyToMessage.Chat.Id, message.ReplyToMessage.MessageId);
 
-            await _client.DeleteMessageAsync(message.ReplyToMessage.Chat.Id, message.ReplyToMessage.MessageId);
-
-            if (canDeleteMessages)
+            var bot = await client.GetChatMemberAsync(message.Chat.Id, client.BotId.Value);
+            if (bot.Status == ChatMemberStatus.Administrator)
             {
-                await _client.DeleteMessageAsync(message.Chat, message.MessageId);
+                await client.DeleteMessageAsync(message.Chat, message.MessageId);
+            }
+        }
+
+        public override bool CanHandle(MessageReactionUpdated reactions)
+        {
+            return true;
+        }
+
+        public async Task HandleMessageReactionUpdate(MessageReactionUpdated messageReaction)
+        {
+            var info = new BotMessageInfo(messageReaction.Chat.Id, messageReaction.MessageId);
+            if (messageDatabaseService.IsBotMessage(info) && !messageDatabaseService.IsActiveJob(info))
+            {
+                var emojis = messageReaction.NewReaction.Where(x => x.Type == ReactionTypeKind.Emoji).Select(x => (ReactionTypeEmoji)x);
+
+                if (emojis.Any(x => x.Emoji == KnownReactionTypeEmoji.PileOfPoo))
+                {
+                    await client.DeleteMessageAsync(info.chatId, info.messageId);
+                    messageDatabaseService.DeleteMessage(info);
+                }
             }
 
         }

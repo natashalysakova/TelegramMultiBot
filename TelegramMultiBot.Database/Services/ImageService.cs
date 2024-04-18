@@ -1,22 +1,21 @@
 ﻿using AutoMapper;
 using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Query.Internal;
 using Microsoft.Extensions.Logging;
-using TelegramMultiBot.Database.DTO;
-using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database;
-using static Microsoft.EntityFrameworkCore.DbLoggerCategory;
-using static System.Runtime.InteropServices.JavaScript.JSType;
+using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Enums;
+using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.Database.Models;
 
-namespace Bober.Database.Services
+namespace TelegramMultiBot.Database.Services
 {
-    public class ImageDatabaseService : IDatabaseService
+    public class ImageService : IImageDatabaseService
     {
         private readonly BoberDbContext _context;
-        private readonly ILogger<ImageDatabaseService> _logger;
+        private readonly ILogger<ImageService> _logger;
         private readonly IMapper _mapper;
 
-        public ImageDatabaseService(BoberDbContext context, ILogger<ImageDatabaseService> logger, IMapper mapper)
+        public ImageService(BoberDbContext context, ILogger<ImageService> logger, IMapper mapper)
         {
             _context = context;
             _logger = logger;
@@ -25,8 +24,6 @@ namespace Bober.Database.Services
             _context.Database.Migrate();
         }
 
-
-
         public IEnumerable<ImageJob> ActiveJobs
         {
             get
@@ -34,6 +31,7 @@ namespace Bober.Database.Services
                 return _context.Jobs.Where(x => x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running);
             }
         }
+
         public int RunningJobs
         {
             get
@@ -49,34 +47,39 @@ namespace Bober.Database.Services
             {
                 item.Status = ImageJobStatus.Failed;
                 item.Finised = DateTime.Now;
+                item.TextStatus = "canceled on restart";
             }
-            _context.SaveChanges();
-
+            _ = _context.SaveChanges();
         }
-
 
         public Guid Enqueue(IInputData message)
         {
             var type = message.GetType();
             if (type == typeof(MessageData))
             {
-                return Enqueue(message as MessageData);
+                return Enqueue((MessageData)message);
             }
 
             if (type == typeof(CallbackData))
             {
-                return Enqueue(message as CallbackData);
+                return Enqueue((CallbackData)message);
             }
             return Guid.Empty;
         }
+
         private Guid Enqueue(MessageData message)
         {
             var job = JobFromData(message);
-
             job.Text = message.Text;
-            job.BotMessageId = message.BotMessageId.Value;
+
+            if (job.Text is null)
+            {
+                throw new NullReferenceException(nameof(job.Text));
+            }
+
+            job.BotMessageId = message.BotMessageId;
             job.PostInfo = job.Text.Contains("#info");
-            if(job.Text.Contains("#auto"))
+            if (job.Text.Contains("#auto"))
             {
                 job.Diffusor = "Automatic1111";
             }
@@ -85,9 +88,9 @@ namespace Bober.Database.Services
                 job.Diffusor = "ComfyUI";
             }
 
-            _context.Jobs.Add(job);
-            _context.SaveChanges();
-            _logger.LogDebug(job.Id + " added to the queue");
+            _ = _context.Jobs.Add(job);
+            _ = _context.SaveChanges();
+            _logger.LogDebug("{jobId} added to the queue", job.Id);
 
             return job.Id;
         }
@@ -97,7 +100,11 @@ namespace Bober.Database.Services
             var job = JobFromData(data);
             job.UpscaleModifyer = data.Upscale;
 
-            var result = _context.JobResult.Include(x => x.Job).Single(x => x.Id == data.PreviousJobResultId);
+            JobResult result = _context.JobResult.Include(x => x.Job).Single(x => x.Id == data.PreviousJobResultId);
+            if (result.Job is null)
+            {
+                throw new NullReferenceException(nameof(result.Job));
+            }
 
             job.PostInfo = result.Job.PostInfo;
             job.PreviousJobResultId = result.Id;
@@ -107,31 +114,32 @@ namespace Bober.Database.Services
                 x.PreviousJobResultId == job.PreviousJobResultId
                 && (x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running)
                 && x.Type == job.Type
-                && (x.UpscaleModifyer == job.UpscaleModifyer)
+                && x.UpscaleModifyer == job.UpscaleModifyer
                 ))
             {
                 return Guid.Empty;
             }
 
-            _context.Jobs.Add(job);
-            _context.SaveChanges();
-            _logger.LogDebug(job.Id + " added to the queue");
+            _ = _context.Jobs.Add(job);
+            _ = _context.SaveChanges();
+            _logger.LogDebug("{jobId} added to the queue", job.Id);
 
             return job.Id;
         }
 
-        private ImageJob JobFromData(IInputData data)
+        private static ImageJob JobFromData(IInputData data)
         {
-            var job = new ImageJob();
-            job.UserId = data.UserId;
-            job.ChatId = data.ChatId;
-            job.MessageId = data.MessageId;
-            job.MessageThreadId = data.MessageThreadId;
-            job.Status = ImageJobStatus.Queued;
-            job.Type = data.JobType;
-            job.TextStatus = "added";
-            job.BotMessageId = data.BotMessageId.Value;
-            return job;
+            return new ImageJob
+            {
+                UserId = data.UserId,
+                ChatId = data.ChatId,
+                MessageId = data.MessageId,
+                MessageThreadId = data.MessageThreadId,
+                Status = ImageJobStatus.Queued,
+                Type = data.JobType,
+                TextStatus = "added",
+                BotMessageId = data.BotMessageId
+            };
         }
 
         public IEnumerable<JobInfo> GetJobsOlderThan(DateTime date)
@@ -144,7 +152,7 @@ namespace Bober.Database.Services
             var jobs = _context.Jobs.Where(x => jobsToDelete.Contains(x.Id.ToString()));
 
             _context.Jobs.RemoveRange(jobs);
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
         }
 
         public bool TryDequeue(out JobInfo? job)
@@ -153,15 +161,25 @@ namespace Bober.Database.Services
             {
                 if (_context.Jobs.Any(x => x.Status == ImageJobStatus.Queued))
                 {
+                    //var queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued && x.NextTry < DateTime.Now);
+                    //if(!queued.Any())
+                    //{
+                    //    _logger.LogDebug("nothing scheduled. looking for job with next run");
+                    //    queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
+                    //}
                     var queued = _context.Jobs.Include(x => x.Results).Where(x => x.Status == ImageJobStatus.Queued);
+                    if (queued.Any(x => x.NextTry < DateTime.Now))
+                    {
+                        queued = queued.Where(x => x.NextTry < DateTime.Now);
+                    }
+
                     var ordered = queued.OrderBy(x => x.Created);
                     var imageJob = queued.First();
                     imageJob.Started = DateTime.Now;
                     imageJob.Status = ImageJobStatus.Running;
-                    _context.SaveChanges();
+                    _ = _context.SaveChanges();
 
                     job = _mapper.Map<JobInfo>(imageJob);
-
 
                     return true;
                 }
@@ -170,7 +188,6 @@ namespace Bober.Database.Services
                     job = default;
                     return false;
                 }
-
             }
             catch (Exception)
             {
@@ -197,36 +214,24 @@ namespace Bober.Database.Services
 
             job.Progress = progress;
             job.TextStatus = text;
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
         }
 
-        public JobInfo? GetJob(string jobId)
+        /// <summary>
+        ///
+        /// </summary>
+        /// <param name="jobId"></param>
+        /// <returns></returns>
+        public JobInfo GetJob(string jobId)
         {
-            if (Guid.TryParse(jobId, out var id))
-            {
-                var job = _context.Jobs.FirstOrDefault(x => x.Id == Guid.Parse(jobId));
-
-                if (job == null)
-                    return null;
-
-                return _mapper.Map<JobInfo>(job);
-
-            }
-
-            return null;
+            var job = _context.Jobs.FirstOrDefault(x => x.Id == Guid.Parse(jobId));
+            return _mapper.Map<JobInfo>(job);
         }
 
-
-
-
-        public JobResultInfo? GetJobResult(string jobResultId)
+        public JobResultInfoView? GetJobResult(string jobResultId)
         {
             var job = _context.JobResult.FirstOrDefault(x => x.Id == Guid.Parse(jobResultId));
-
-            if (job == null)
-                return null;
-
-            return _mapper.Map<JobResultInfo>(job);
+            return job is null ? null : _mapper.Map<JobResultInfoView>(job);
         }
 
         public int ActiveJobsCount(long userId)
@@ -234,22 +239,20 @@ namespace Bober.Database.Services
             return ActiveJobs.Where(x => x.UserId == userId).Count();
         }
 
-        public void AddResult(string id, JobResultInfo jobResultInfo)
+        public void AddResult(string id, JobResultInfoCreate jobResultInfo)
         {
             var jobResult = _mapper.Map<JobResult>(jobResultInfo);
-            var job = _context.Jobs.FirstOrDefault(x => x.Id.ToString() == id);
-
+            var job = _context.Jobs.First(x => x.Id.ToString() == id);
             job.Results.Add(jobResult);
-            _context.SaveChanges();
-
+            _ = _context.SaveChanges();
         }
 
         public void Update(JobInfo job)
         {
             var entity = _mapper.Map<ImageJob>(job);
 
-            _context.Entry(entity).State  = EntityState.Modified;
-            _context.SaveChanges();
+            _context.Entry(entity).State = EntityState.Modified;
+            _ = _context.SaveChanges();
         }
 
         public void PushBotId(string jobId, int messageId)
@@ -257,7 +260,7 @@ namespace Bober.Database.Services
             var job = _context.Jobs.Single(x => x.Id == Guid.Parse(jobId));
 
             job.BotMessageId = messageId;
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
         }
 
         public void ReturnToQueue(JobInfo job)
@@ -265,8 +268,47 @@ namespace Bober.Database.Services
             var jobentity = _context.Jobs.Single(x => x.Id == Guid.Parse(job.Id));
             jobentity.Status = ImageJobStatus.Queued;
             jobentity.Started = default;
+            jobentity.NextTry = DateTime.Now.AddSeconds(10);
 
-            _context.SaveChanges();
+            _ = _context.SaveChanges();
+        }
+
+        public void AddFiles(IEnumerable<string> jobResultIds, IEnumerable<string> fileIds)
+        {
+            for (int i = 0; i < jobResultIds.Count(); i++)
+            {
+                AddFile(jobResultIds.ElementAt(i), fileIds.ElementAt(i));
+            }
+        }
+
+        public JobInfo? GetJobByFileId(string fileId)
+        {
+            var result = _context.Jobs.Include(x=>x.Results).AsNoTracking().SingleOrDefault(x=>x.Results.Any(x=>x.FileId == fileId));
+            
+            if (result != null)
+                return _mapper.Map<JobInfo?>(result);
+
+            return null;
+        }
+
+        public JobInfo GetJobByResultId(string id)
+        {
+            var result = _context.Jobs.Include(x => x.Results).AsNoTracking().Single(x => x.Results.Any(x=>x.Id == Guid.Parse(id)));
+            return _mapper.Map<JobInfo?>(result);
+
+        }
+
+        public void AddFile(string jobResultId, string fileId)
+        {
+            var guid = Guid.Parse(jobResultId);
+            var result = _context.JobResult.Single(x=>x.Id == guid);
+            if (result != null)
+            {
+                result.FileId = fileId;
+                _context.SaveChangesAsync().Wait();
+            }
+
+            
         }
     }
 }

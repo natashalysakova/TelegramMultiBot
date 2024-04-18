@@ -1,6 +1,4 @@
-﻿using System.Runtime.Serialization;
-
-namespace TelegramMultiBot.ImageGeneration.Exceptions;
+﻿namespace TelegramMultiBot.ImageGeneration.Exceptions;
 
 [Serializable]
 internal class OldJobException : Exception
@@ -14,10 +12,6 @@ internal class OldJobException : Exception
     }
 
     public OldJobException(string? message, Exception? innerException) : base(message, innerException)
-    {
-    }
-
-    protected OldJobException(SerializationInfo info, StreamingContext context) : base(info, context)
     {
     }
 }

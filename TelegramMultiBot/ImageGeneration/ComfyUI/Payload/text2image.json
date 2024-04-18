@@ -93,15 +93,14 @@
   },
   "24": {
     "inputs": {
-      "filename_prefix": "Text2Image",
       "images": [
         "11",
         0
       ]
     },
-    "class_type": "SaveImage",
+    "class_type": "PreviewImage",
     "_meta": {
-      "title": "Save Image"
+      "title": "Preview Image"
     }
   },
   "25": {

@@ -1,71 +1,51 @@
-﻿
+﻿using ImageMagick;
 using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Newtonsoft.Json.Linq;
 using System;
 using System.Collections;
-using System.Security.Cryptography;
-using Telegram.Bot;
+using System.IO;
+using System.Net.WebSockets;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
-using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.CallbackDataTypes;
+using TelegramMultiBot.Commands.Interfaces;
+using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
-using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGeneration.Exceptions;
+using TelegramMultiBot.ImageGenerators;
+using TelegramMultiBot.Reminder;
+using static System.Runtime.InteropServices.JavaScript.JSType;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 
-namespace TelegramMultiBot.ImageGenerators.Automatic1111
+namespace TelegramMultiBot.Commands
 {
     [ServiceKey("imagine")]
-
-    internal class ImagineCommand : BaseCommand, ICallbackHandler, IInlineQueryHandler
+    internal class ImagineCommand(TelegramClientWrapper client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IImageDatabaseService databaseService) : BaseCommand, ICallbackHandler, IInlineQueryHandler
     {
-        private readonly TelegramBotClient _client;
-        private readonly IConfiguration _configuration;
-        private readonly ILogger<ImagineCommand> _logger;
-        private readonly ImageGenearatorQueue _imageGenearatorQueue;
-        private readonly IDatabaseService _databaseService;
-
-        //private readonly IServiceProvider _serviceProvider;
-
-        public ImagineCommand(TelegramBotClient client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IDatabaseService databaseService)
-        {
-            _client = client;
-            _configuration = configuration;
-            _logger = logger;
-            _imageGenearatorQueue = imageGenearatorQueue;
-            _databaseService = databaseService;
-            //_serviceProvider = serviceProvider;
-        }
-
-
+        private static string imagineCommand = "imagine";
 
         public override async Task Handle(Message message)
         {
             if (message.Text == "/imagine" || message.Text == $"/imagine@{BotService.BotName}")
             {
-                var markup = new ForceReplyMarkup();
-                markup.InputFieldPlaceholder = "/imagine cat driving a bike";
-                markup.Selective = true;
+                var markup = new ForceReplyMarkup
+                {
+                    InputFieldPlaceholder = "/imagine cat driving a bike",
+                    Selective = true
+                };
 
                 var reply =
-@"Привіт, я бобер\-художник, і я сприймаю повідомлення в наступному форматі 
+@"Привіт, я бобер\-художник, і я сприймаю повідомлення в наступному форматі
 `/imagine cat driving a bike`
 Щоб дізнатися більше /help";
 
-                using (var stream = new MemoryStream(Properties.Resources.artist))
-                {
-                    var photo = InputFile.FromStream(stream, "beaver.png");
-                    await _client.SendPhotoAsync(message.Chat, photo, message.MessageThreadId, reply, ParseMode.MarkdownV2, replyMarkup: markup);
-                }
-
-
-                //await _client.SendTextMessageAsync(message.Chat.Id, reply, replyMarkup: markup, parseMode: Telegram.Bot.Types.Enums.ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId);
+                using var stream = new MemoryStream(Properties.Resources.artist);
+                var photo = InputFile.FromStream(stream, "beaver.png");
+                await client.SendPhotoAsync(message, photo, reply, markup: markup, parseMode: ParseMode.MarkdownV2);
             }
             else
             {
@@ -73,90 +53,162 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
         }
 
+        private MessageData CreateMessageData(JobInfo job, long userId)
+        {
+
+            return new MessageData()
+            {
+                ChatId = job.ChatId,
+                JobType = JobType.Text2Image,
+                MessageId = job.MessageId,
+                MessageThreadId = job.MessageThreadId,
+                Text = job.Text,
+                UserId = userId
+            };
+        }
+
         private MessageData CreateMessageData(Message message)
         {
+            ArgumentNullException.ThrowIfNull(message.Text);
+            ArgumentNullException.ThrowIfNull(message.From);
+
             return new MessageData()
             {
                 ChatId = message.Chat.Id,
                 JobType = JobType.Text2Image,
                 MessageId = message.MessageId,
                 MessageThreadId = message.MessageThreadId,
-                Text = message.Text.Substring(message.Text.IndexOf("/" + Command)),
+                Text = message.Text[message.Text.IndexOf("/" + Command)..],
                 UserId = message.From.Id
             };
         }
 
-        private CallbackData CreateCallbackData(CallbackQuery query, ImagineCallbackData data)
+        private static CallbackData CreateCallbackData(CallbackQuery query, ImagineCallbackData data)
         {
-            Guid.TryParse(data.Id, out var guid);
+            var message = query.Message as Message;
+            ArgumentNullException.ThrowIfNull(message);
+
+            _ = Guid.TryParse(data.JobId, out var guid);
             return new CallbackData()
             {
-                ChatId = query.Message.Chat.Id,
+                ChatId = message.Chat.Id,
                 JobType = Enum.Parse<JobType>(data.JobType.ToString()),
-                MessageId = query.Message.MessageId,
-                MessageThreadId = query.Message.MessageThreadId,
+                MessageId = message.MessageId,
+                MessageThreadId = message.MessageThreadId,
                 UserId = query.From.Id,
                 PreviousJobResultId = guid,
                 Upscale = data.Upscale,
             };
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCallbackData callbackData, InlineKeyboardMarkup? inlineKeyboardMarkup = null, string? prompt = null)
+        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCallbackData callbackData, string? prompt = null)
         {
-            return GetReplyMarkupForJob(callbackData.JobType, callbackData.Id, callbackData.Upscale, inlineKeyboardMarkup, prompt);
+            if (callbackData.JobId is null)
+                throw new NullReferenceException(nameof(callbackData.JobId));
+
+            return GetReplyMarkupForJob(callbackData.JobType, callbackData.JobId, callbackData.Upscale, prompt);
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(JobType type, string id, double? upscale, string prompt, InlineKeyboardMarkup? inlineKeyboardMarkup = null)
+        public static InlineKeyboardMarkup? GetReplyMarkupForJob(JobType type, string id, double? upscale, string? prompt)
         {
             if (Enum.TryParse<ImagineCommands>(type.ToString(), out var s))
             {
-                return GetReplyMarkupForJob(s, id, upscale, inlineKeyboardMarkup, prompt);
+                return GetReplyMarkupForJob(s, id, upscale, prompt);
             }
             return null;
         }
 
-        private InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCommands type, string id, double? upscale, InlineKeyboardMarkup? inlineKeyboardMarkup = null, string? prompt = null)
+        public static InlineKeyboardMarkup? GetOldJobMarkup(string id, string? prompt)
         {
-            //InlineKeyboardButton repeat = InlineKeyboardButton.WithCallbackData("Повторити", new ImagineCallbackData(Command, ImagineCommands.Repeat));
-            InlineKeyboardButton original = InlineKeyboardButton.WithCallbackData("Оригінал", new ImagineCallbackData(Command, ImagineCommands.Original, id));
-            InlineKeyboardButton hiresFix = InlineKeyboardButton.WithCallbackData($"Hires Fix", new ImagineCallbackData(Command, ImagineCommands.HiresFix, id, 0));
-            InlineKeyboardButton upscale2 = InlineKeyboardButton.WithCallbackData("Upscale x2", new ImagineCallbackData(Command, ImagineCommands.Upscale, id, 2));
-            InlineKeyboardButton upscale4 = InlineKeyboardButton.WithCallbackData("Upscale x4", new ImagineCallbackData(Command, ImagineCommands.Upscale, id, 4));
-            InlineKeyboardButton info = InlineKeyboardButton.WithCallbackData("Інфо", new ImagineCallbackData(Command, ImagineCommands.Info, id, upscale));
-            InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(Command, ImagineCommands.Actions, id));
-            InlineKeyboardButton noise = InlineKeyboardButton.WithCallbackData("Шум", new ImagineCallbackData(Command, ImagineCommands.Noise, id));
-            InlineKeyboardButton vingette = InlineKeyboardButton.WithCallbackData("Віньєтка", new ImagineCallbackData(Command, ImagineCommands.Vingette, id));
-            InlineKeyboardButton copyPrompt = InlineKeyboardButton.WithSwitchInlineQueryCurrentChat("Змінити запит", prompt is null ? string.Empty : prompt);
+            InlineKeyboardButton repeat = InlineKeyboardButton.WithCallbackData("🔄 Повторити", new ImagineCallbackData(imagineCommand, ImagineCommands.Repeat, id));
+            InlineKeyboardButton copyPrompt = InlineKeyboardButton.WithSwitchInlineQueryCurrentChat("📝 Змінити запит", prompt is null ? string.Empty : prompt);
+
+            return new InlineKeyboardMarkup(new List<InlineKeyboardButton> { repeat, copyPrompt });
+        }
+
+        public static InlineKeyboardMarkup? GetDeletedMarkup(string id)
+        {
+            InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(imagineCommand, ImagineCommands.Actions, id));
+            return new InlineKeyboardMarkup(new List<InlineKeyboardButton> { actions });
+        }
+
+        public static InlineKeyboardMarkup? GetReplyMarkupForJob(ImagineCommands type, string id, double? upscale, string? prompt = null)
+        {
+            InlineKeyboardButton repeat = InlineKeyboardButton.WithCallbackData("🔄 Повторити", new ImagineCallbackData(imagineCommand, ImagineCommands.Repeat, id));
+            InlineKeyboardButton original = InlineKeyboardButton.WithCallbackData("⤵️ Оригінал", new ImagineCallbackData(imagineCommand, ImagineCommands.Original, id));
+            InlineKeyboardButton hiresFix = InlineKeyboardButton.WithCallbackData($"🔧 HiresFix", new ImagineCallbackData(imagineCommand, ImagineCommands.HiresFix, id, 0));
+            InlineKeyboardButton upscale2 = InlineKeyboardButton.WithCallbackData("Upscale ⬆️2️⃣", new ImagineCallbackData(imagineCommand, ImagineCommands.Upscale, id, 2));
+            InlineKeyboardButton upscale4 = InlineKeyboardButton.WithCallbackData("Upscale ⬆️4️⃣", new ImagineCallbackData(imagineCommand, ImagineCommands.Upscale, id, 4));
+            InlineKeyboardButton info = InlineKeyboardButton.WithCallbackData("ℹ️ Інфо", new ImagineCallbackData(imagineCommand, ImagineCommands.Info, id, upscale));
+            //InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(imagineCommand, ImagineCommands.Actions, id));
+            InlineKeyboardButton noise = InlineKeyboardButton.WithCallbackData("Шум", new ImagineCallbackData(imagineCommand, ImagineCommands.Noise, id));
+            InlineKeyboardButton vingette = InlineKeyboardButton.WithCallbackData("Віньєтка", new ImagineCallbackData(imagineCommand, ImagineCommands.Vingette, id));
+            InlineKeyboardButton? copyPrompt = prompt != null ? InlineKeyboardButton.WithSwitchInlineQueryCurrentChat("📝 Змінити", prompt) : null;
 
             switch (type)
             {
                 case ImagineCommands.Text2Image:
-                    return new InlineKeyboardMarkup(new List<InlineKeyboardButton>
+                    if (copyPrompt != null)
                     {
-                        actions, copyPrompt
-                    });
+
+
+                        return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
+                        {
+                            new() {
+                                 //info,
+                                 original,
+                                copyPrompt,
+                                repeat
+                            },
+                            new() {
+                                hiresFix,
+                                upscale2,
+                                upscale4
+                            },
+                            new() {
+                                 vingette, noise
+                            }
+                        });
+                    }
+                    else
+                    {
+                        return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
+                        {
+                            new() {
+                                 //info,
+                                 original                            },
+                            new() {
+                                hiresFix,
+                                upscale2,
+                                upscale4
+                            },
+                            new() {
+                                 vingette, noise
+                            }
+                        });
+                    }
+
                 case ImagineCommands.HiresFix:
                     return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
                     {
-                        new List<InlineKeyboardButton>
-                        {
+                        new() {
                             info,
                             upscale2,
                         },
-                        new List<InlineKeyboardButton>()
+                        new()
                         {
                              vingette, noise
                         }
                     });
+
                 case ImagineCommands.Upscale:
                     {
                         return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
                         {
-                            new List<InlineKeyboardButton>
-                            {
+                            new() {
                                 info
                             },
-                            new List<InlineKeyboardButton>()
+                            new()
                             {
                                  vingette, noise
                             }
@@ -166,24 +218,49 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     {
                         if (upscale == null) //original render
                         {
-                            return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
+                            if (copyPrompt != null)
                             {
-                                new List<InlineKeyboardButton>()
+                                return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
+                            {
+                                new()
                                 {
                                     original,
-                                    copyPrompt
+                                    copyPrompt,
+                                    repeat
                                 },
-                                new List<InlineKeyboardButton>()
+                                new()
                                 {
                                     hiresFix,
                                     upscale2,
                                     upscale4
-                                },                             
-                                new List<InlineKeyboardButton>()
+                                },
+                                new()
                                 {
                                      vingette, noise
                                 }
                             });
+                            }
+                            else
+                            {
+                                return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
+                                {
+                                    new()
+                                    {
+                                        original,
+                                    },
+                                    new()
+                                    {
+                                        hiresFix,
+                                        upscale2,
+                                        upscale4
+                                    },
+                                    new()
+                                    {
+                                         vingette, noise
+                                    }
+                                });
+                            }
+
                         }
                         else if (upscale == 0) // hires fix
                         {
@@ -194,147 +271,219 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     }
                 case ImagineCommands.Original:
                     return null;
-                case ImagineCommands.Actions:
-                    return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
-                    {
-                        new List<InlineKeyboardButton>
-                        {
-                             info,
-                             original,
-                             copyPrompt,
-                        },
-                        new List<InlineKeyboardButton>
-                        {
-                            hiresFix,
-                            upscale2,
-                            upscale4
-                        },
-                        new List<InlineKeyboardButton>
-                        {
-                             vingette, noise
-                        }
-                    });
+
+                //case ImagineCommands.Actions:
+                //    if (copyPrompt != null)
+                //    {
+
+
+                //        return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
+                //        {
+                //            new() {
+                //                 info,
+                //                 original
+                //            },
+                //            new()
+                //            {
+                //                copyPrompt,
+                //                repeat
+                //            },
+                //            new() {
+                //                hiresFix,
+                //                upscale2,
+                //                upscale4
+                //            },
+                //            new() {
+                //                 vingette, noise
+                //            }
+                //        });
+                //    }
+                //    else
+                //    {
+                //        return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>
+                //        {
+                //            new() {
+                //                 info,
+                //                 original                            },
+                //            new() {
+                //                hiresFix,
+                //                upscale2,
+                //                upscale4
+                //            },
+                //            new() {
+                //                 vingette, noise
+                //            }
+                //        });
+                //    }
+
                 case ImagineCommands.Vingette:
                 case ImagineCommands.Noise:
-                    return new InlineKeyboardMarkup(new List<InlineKeyboardButton>()
-                    {
-                        vingette, noise
-                    });
+                    return new InlineKeyboardMarkup(new List<List<InlineKeyboardButton>>()
+                        {
+                            new() {
+                                info
+                            },
+                            new()
+                            {
+                                 vingette, noise
+                            }
+                        });
+
                 default:
                     return default;
             }
-
         }
 
         public async Task HandleCallback(CallbackQuery callbackQuery)
         {
             var callbackData = ImagineCallbackData.FromString(callbackQuery.Data);
+            if (callbackData.JobId is null)
+                throw new NullReferenceException(nameof(callbackData.JobId));
+
+            var result = databaseService.GetJobResult(callbackData.JobId);
+            if (result == null && callbackData.JobType != ImagineCommands.Repeat)
+            {
+                await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара каринка, бобер загубив усьо :(", true);
+                await HandleOldJobMessage(callbackQuery, callbackData);
+                return;
+            }
 
             switch (callbackData.JobType)
             {
                 case ImagineCommands.Info:
                     {
-                        var result = _databaseService.GetJobResult(callbackData.Id);
+                        await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Інформацію знайдено");
 
-                        if (result == null)
+                        var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
+
+                        //var replyMessage = message.ReplyToMessage;
+                        //InlineKeyboardMarkup? keys;
+                        //if (replyMessage != null)
+                        //{
+                        //    var prompt = replyMessage.Text?[replyMessage.Text.IndexOf("/" + Command)..];
+                        //    keys = GetReplyMarkupForJob(callbackData, prompt);
+
+                        //}
+                        //else
+                        //{
+                            var keys = GetReplyMarkupForJob(callbackData);
+                        //}
+
+
+                        InputMedia? media;
+                        if (message.Type == MessageType.Photo)
                         {
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара картинка. Інформаця про неї загубилась", showAlert: true);
-                            return;
+                            var photo = (message.Photo ?? throw new NullReferenceException(nameof(message.Photo))).Last();
+                            media = new InputMediaPhoto
+                            {
+                                Media = InputFile.FromFileId(photo.FileId),
+                                Caption = $"#seed:{result.Seed}\nRender time: {TimeSpan.FromMilliseconds(result.RenderTime)}\n{result.Info}"
+                            };
+                        }
+                        else if (message.Type == MessageType.Document)
+                        {
+                            var document = message.Document ?? throw new NullReferenceException(nameof(message.Document));
+                            media = new InputMediaDocument
+                            {
+                                Media = InputFile.FromFileId(document.FileId),
+                                Caption = $"Render time: {TimeSpan.FromMilliseconds(result.RenderTime)}\n{result.Info}"
+                            };
                         }
                         else
                         {
+                            throw new NullReferenceException(nameof(media));
+                        }
 
-
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Інформацію знайдено");
-                            var prompt = callbackQuery.Message.ReplyToMessage.Text.Substring(callbackQuery.Message.ReplyToMessage.Text.IndexOf("/" + Command));
-                            var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup, prompt: prompt);
-                            InputMedia media = default;
-                            if (callbackQuery.Message.Type == MessageType.Photo)
-                            {
-                                media = new InputMediaPhoto(InputFile.FromFileId(callbackQuery.Message.Photo.Last().FileId));
-                                media.Caption = $"#seed:{result.Seed}\nRender time: {TimeSpan.FromMilliseconds(result.RenderTime)}\n{result.Info}";
-                            }
-                            if (callbackQuery.Message.Type == MessageType.Document)
-                            {
-                                media = new InputMediaDocument(InputFile.FromFileId(callbackQuery.Message.Document.FileId));
-                                media.Caption = $"Render time: {TimeSpan.FromMilliseconds(result.RenderTime)}\n{result.Info}";
-                            }
-
-
-                            if (media.Caption.Length > 1024)
-                            {
-                                await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
-                                await _client.SendTextMessageAsync(callbackQuery.Message.Chat.Id, media.Caption, replyMarkup: keys, replyToMessageId: callbackQuery.Message.MessageId);
-                            }
-                            else
-                            {
-                                await _client.EditMessageMediaAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, media, keys);
-                            }
+                        if (media.Caption.Length > 1024)
+                        {
+                            await client.EditMessageReplyMarkupAsync(message, keys);
+                            await client.SendMessageAsync(message, media.Caption, true, keys);
+                        }
+                        else
+                        {
+                            await client.EditMessageMediaAsync(message, media, keys);
                         }
                         return;
-
                     }
                 case ImagineCommands.Original:
                     {
-                        if (callbackData.Id is null)
-                            throw new ArgumentException("id");
-
-                        var result = _databaseService.GetJobResult(callbackData.Id);
-                        var message = callbackQuery.Message;
-
-                        if (result == null)
-                        {
-                            await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Це дуже стара каринка, бобер загубив оригінал", showAlert: true);
-                            return;
-                        }
-
+                        AddWatermark(result);
+                        var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
                         using (var stream = System.IO.File.OpenRead(result.FilePath))
                         {
                             var media = InputFile.FromStream(stream, Path.GetFileName(result.FilePath));
-                            await _client.SendDocumentAsync(message.Chat.Id, media, replyToMessageId: message.MessageId);
+                            await client.SendDocumentAsync(message, media, reply: true);
                         }
 
-                        await _client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завантажую оригінал");
+                        await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завантажую оригінал");
                         return;
                     }
                 case ImagineCommands.Actions:
                     {
+                        await client.AnswerCallbackQueryAsync(callbackQuery.Id);
 
-                        if (callbackData.Id is null)
-                            throw new ArgumentException("id");
+                        var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
+                        InlineKeyboardMarkup? keys;
+                        if (message.ReplyToMessage is null)
+                        {
+                            keys = GetReplyMarkupForJob(callbackData);
+                        }
+                        else
+                        {
+                            var prompt = databaseService.GetJobByResultId(result.Id).Text;
+                            keys = GetReplyMarkupForJob(callbackData, prompt);
+                        }
 
-                        await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
-                        var prompt = callbackQuery.Message.ReplyToMessage.Text.Substring(callbackQuery.Message.ReplyToMessage.Text.IndexOf("/" + Command));
-                        var keys = GetReplyMarkupForJob(callbackData, callbackQuery.Message.ReplyMarkup, prompt: prompt) ;
-                        await _client.EditMessageReplyMarkupAsync(callbackQuery.Message.Chat.Id, callbackQuery.Message.MessageId, keys);
-
+                        await client.EditMessageReplyMarkupAsync(message, keys);
                         return;
                     }
                 case ImagineCommands.HiresFix:
                 case ImagineCommands.Upscale:
                 case ImagineCommands.Vingette:
                 case ImagineCommands.Noise:
-
                     {
+                        var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
 
-                        await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
-                        await AddJobToTheQueue(callbackQuery.Message, CreateCallbackData(callbackQuery, callbackData));
+                        await AddJobToTheQueue(message, CreateCallbackData(callbackQuery, callbackData));
+                        await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Додано в чергу");
 
                         break;
                     }
                 case ImagineCommands.Repeat:
                     {
-                        var message = callbackQuery.Message.ReplyToMessage;
+                        var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
 
-                        await AddJobToTheQueue(message, CreateMessageData(message));
-                        await _client.AnswerCallbackQueryAsync(callbackQuery.Id);
+                        var previousJob = databaseService.GetJobByResultId(callbackData.JobId);
+                        if (previousJob is null)
+                        {
+                            await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Цей во, я забув шо я там малював :(", true);
+                            await HandleDeletedMessage(callbackQuery, callbackData);
+                            break;
+                        }
+
+                        await AddJobToTheQueue(message, CreateMessageData(previousJob, callbackQuery.From.Id));
+                        await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Додано в чергу");
 
                         break;
                     }
                 default:
                     break;
             }
+        }
 
+        private async Task HandleOldJobMessage(CallbackQuery callbackQuery, ImagineCallbackData callbackData)
+        {
+            if (callbackQuery.Message is Message message)
+            {
+                await client.EditMessageReplyMarkupAsync(message, GetOldJobMarkup(callbackData.JobId, message.ReplyToMessage?.Text));
+            }
+        }
+        private async Task HandleDeletedMessage(CallbackQuery callbackQuery, ImagineCallbackData callbackData)
+        {
+            if (callbackQuery.Message is Message message && message.ReplyToMessage == null)
+            {
+                await client.EditMessageReplyMarkupAsync(message, GetDeletedMarkup(callbackData.JobId));
+            }
         }
 
         private async Task AddJobToTheQueue(Message message, IInputData data)
@@ -342,11 +491,11 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             Message botMessage;
             try
             {
-                botMessage = await _client.SendTextMessageAsync(message.Chat.Id, $"Відправляю", replyToMessageId: message.MessageId);
+                botMessage = await client.SendMessageAsync(message, "Відправляю", replyToMessage: true);
             }
             catch (Exception ex)
             {
-                _logger.LogError("AddJobToTheQueue" + ex.Message, ex);
+                logger.LogError(ex, "Error in AddJobToTheQueue: {error}", ex.Message);
                 throw;
             }
 
@@ -354,25 +503,23 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
             try
             {
-                _imageGenearatorQueue.AddJob(data);
-                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Твій шедевр в черзі. Чекай");
+                imageGenearatorQueue.AddJob(data);
+                await client.EditMessageTextAsync(botMessage, "Твій шедевр в черзі. Чекай");
             }
             catch (OldJobException ex)
             {
-                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, ex.Message);
+                await client.EditMessageTextAsync(botMessage, ex.Message);
             }
             catch (AlreadyRunningException ex)
             {
-                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, ex.Message);
+                await client.EditMessageTextAsync(botMessage, ex.Message);
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, "Adding in the queue:" + ex.Message);
-                await _client.EditMessageTextAsync(botMessage.Chat.Id, botMessage.MessageId, "Не можу додати в чергу - в мене лапки :(");
-
+                logger.LogError(ex, "Error in AddJobToTheQueue: {error}", ex.Message);
+                await client.EditMessageTextAsync(botMessage, "Не можу додати в чергу - в мене лапки :(");
             }
         }
-
 
         internal async Task JobFailed(JobInfo job, Exception exception)
         {
@@ -380,129 +527,204 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             {
                 case SdNotAvailableException:
                     {
-                        using (var stream = new MemoryStream(Properties.Resources.asleep))
-                        {
-                            var photo = InputFile.FromStream(stream, "beaver.png");
-                            await _client.SendPhotoAsync(job.ChatId, photo, messageThreadId: job.MessageThreadId, caption: exception.Message);
-                        }
-                        await _client.DeleteMessageAsync(job.ChatId, job.BotMessageId);
+                        using var stream = new MemoryStream(Properties.Resources.asleep);
+                        var photo = InputFile.FromStream(stream, "beaver.png");
+                        await client.SendPhotoAsync(job, photo, exception.Message);
+                        //await client.EditMessageMediaAsync(job.ChatId, job.BotMessageId, photo, null);
                         break;
                     }
                 case InputException:
-                    await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Помилка в запиті. " + exception.Message + ". Перевір свій запит та спробуй ще");
+                    await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Помилка в запиті. " + exception.Message + ". Перевір свій запит та спробуй ще");
                     break;
+
                 case RenderFailedException:
                     {
-                        var keys = new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Спробувати ще", new ImagineCallbackData(Command, ImagineCommands.Repeat)));
+                        var keys = new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Спробувати ще", new ImagineCallbackData(Command, ImagineCommands.Repeat, job.Id)));
 
-                        await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Рендер невдалий. Спробуйте ще", replyMarkup: keys);
+                        await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Рендер невдалий. Спробуйте ще", keys);
                         break;
                     }
                 case AlreadyRunningException:
                     {
-                        await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, exception.Message);
+                        await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, exception.Message);
+                        break;
+                    }
+                case WebSocketException:
+                    {
+                        await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Сервер розірвав з'єднання. Можливо він був виключений. Спробуй пізніше");
                         break;
                     }
                 default:
-                    await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Невідома помилка");
-                    _logger.LogError(exception, "JobFailed Exception");
+                    await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Невідома помилка");
+                    logger.LogError(exception, "JobFailed Exception");
                     //Directory.Delete(obj.TmpDir, true);
                     break;
             }
+        }
+
+        internal async Task JobInQueue(JobInfo job)
+        {
+            string clock = getClock(DateTime.Now.Second % 10);
+            string text = $"{clock} {DateTime.Now.ToString("HH:mm:ss")} Твій шедевр в черзі.\nЙого буде виконано як тільки знайдеться вільний [{job.Diffusor ?? "бобер"}]";
+            await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, text);
 
         }
 
-        internal async Task JobFinished(JobInfo inputJob)
+        private string getClock(int number)
         {
+            if (number < 0 || number > 12)
+                throw new ArgumentOutOfRangeException(nameof(number));
+            return char.ConvertFromUtf32(0x1F550 + number);
+        }
 
-            var job = inputJob;
-
+        internal async Task JobFinished(JobInfo job)
+        {
             if (!await OriginalMessageExists(job.ChatId, job.MessageId))
             {
-                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Запит було видалено");
+                await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Запит було видалено");
                 return;
             }
-
-            using (var streams = new StreamList(job.Results.Select(x => System.IO.File.OpenRead(x.FilePath))))
+            foreach (var item in job.Results)
             {
-                foreach (var stream in streams)
+                AddWatermark(item);
+            }
+
+            //foreach (var item in job.Results)
+            //{
+            //    using var stream = System.IO.File.OpenRead(item.FilePath);
+            //    var media = InputFile.FromStream(stream, Path.GetFileName(stream.Name));
+
+            //    string? info = null;
+            //    if (job.PostInfo)
+            //    {
+            //        info = item.Info;
+            //    }
+
+            //    var keys = GetReplyMarkupForJob(job.Type, item.Id.ToString(), job.UpscaleModifyer, prompt: job.Text);
+            //    switch (job.Type)
+            //    {
+            //        case JobType.Vingette:
+            //        case JobType.Noise:
+            //        case JobType.Upscale:
+            //        case JobType.HiresFix:
+            //            {
+            //                await client.SendDocumentAsync(job, media, info, true, keys);
+            //                break;
+            //            }
+
+            //        case JobType.Text2Image:
+            //            {
+            //                await client.SendPhotoAsync(job, media, info, true, keys);
+            //                break;
+            //            }
+            //        default:
+            //            break;
+            //    }
+            //}
+
+            using (var streamList = new StreamList(job.Results.Select(x => new StreamResultInfo(System.IO.File.OpenRead(x.FilePath), x.Id))))
+            {
+
+                //TODO: return job.PostInfo
+                switch (job.Type)
                 {
-                    var media = InputFile.FromStream(stream, Path.GetFileName(stream.Name));
-                    var item = job.Results.Single(x => stream.Name.Contains(x.FilePath));
+                    case JobType.Vingette:
+                    case JobType.Noise:
+                    case JobType.Upscale:
+                    case JobType.HiresFix:
+                        {
+                            var file = streamList.Single();
+                            var keys = GetReplyMarkupForJob(job.Type, file.jobResultId, job.UpscaleModifyer, prompt: job.Text);
+                            var media = InputFileStream.FromStream(file.Stream, Path.GetFileName(file.Stream.Name));
+                            var result = await client.SendDocumentAsync(job, media, reply: true, markup: keys);
+                            databaseService.AddFile(file.jobResultId, result.Document.FileId);
 
-                    string? info = null;
-                    if (job.PostInfo)
-                    {
-                        info = item.Info;
-                    }
-
-                    var keys = GetReplyMarkupForJob(job.Type, item.Id.ToString(), job.UpscaleModifyer, prompt: job.Text);
-
-                    switch (job.Type)
-                    {
-                        case JobType.Vingette:
-                        case JobType.Noise:
-                        case JobType.Upscale:
-                        case JobType.HiresFix:
-                            {
-                                await _client.SendDocumentAsync(job.ChatId, media, caption: info, replyToMessageId: job.MessageId, replyMarkup: keys);
-                                break;
-                            }
-
-                        case JobType.Text2Image:
-                            {
-                                await _client.SendPhotoAsync(job.ChatId, media, caption: info, replyToMessageId: job.MessageId, replyMarkup: keys);
-                                break;
-                            }
-                        default:
                             break;
-                    }
+                        }
+
+                    case JobType.Text2Image:
+                        {
+                            var media = streamList.Select(x => new InputMediaPhoto() { Media = InputFile.FromStream(x.Stream, Path.GetFileName(x.Stream.Name)) });
+                            var result = await client.SendMediaAlbumAsync(job, media);
+                            databaseService.AddFiles(streamList.Select(x=>x.jobResultId), result.Select(x => x.Photo.Last().FileId));
+                            //await client.SendPhotoAsync(job, media, reply: true);
+                            break;
+                        }
+                    default:
+                        break;
                 }
             }
 
-            await _client.DeleteMessageAsync(job.ChatId, job.BotMessageId);
+            foreach (var item in job.Results)
+            {
+                System.IO.File.Delete(item.FilePath);
+            }
+
+            await client.DeleteMessageAsync(job.ChatId, job.BotMessageId);
+
+        }
+
+        private void AddWatermark(JobResultInfoView item)
+        {
+            var addWatermark = configuration.GetRequiredSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>()?.Watermark ?? false;
+            if (addWatermark)
+            {
+
+                using var image = new MagickImage(item.FilePath);
+                var watermark = new MagickImage(Properties.Resources.watermark);
+                watermark.Evaluate(Channels.Alpha, EvaluateOperator.Divide, 4);
+
+                image.Composite(watermark, Gravity.Southeast, CompositeOperator.Over);
+                var fileInfo = new FileInfo(item.FilePath);
+                var directory = fileInfo.Directory?.FullName ?? string.Empty;
+                var filename = Path.Combine(directory, $"{Path.GetFileNameWithoutExtension(fileInfo.Name)}_w{fileInfo.Extension}");
+                image.Write(filename);
+                item.FilePath = filename;
+            }
         }
 
         private async Task<bool> OriginalMessageExists(long chatId, int messageId)
         {
-            var testChatId = _configuration.GetValue<long>("testChatId");
+            var testChatId = configuration.GetValue<long>("testChatId");
             try
             {
-                var copied = await _client.CopyMessageAsync(testChatId, chatId, messageId);
-                await _client.DeleteMessageAsync(testChatId, copied.Id);
+                var copied = await client.CopyMessageAsync(testChatId, chatId, messageId);
+                await client.DeleteMessageAsync(testChatId, copied.Id);
                 return true;
             }
             catch (Exception ex)
             {
-                _logger.LogError(ex, ex.Message);
+                logger.LogError(ex, "Error in OriginalMessageExists: {error}", ex.Message);
                 return false;
             }
         }
 
         public async Task HandleInlineQuery(InlineQuery inlineQuery)
         {
-            await _client.AnswerInlineQueryAsync(inlineQuery.Id, new List<InlineQueryResult>());
+            await client.AnswerInlineQueryAsync(inlineQuery.Id, [
+                new InlineQueryResultArticle() {
+                    Id = "1",
+                    InputMessageContent = new InputTextMessageContent() {
+                        MessageText = inlineQuery.Query },
+                    Title = inlineQuery.Query }]
+            );
         }
 
-        class StreamList : IDisposable, IEnumerable<FileStream>
+        record StreamResultInfo(FileStream Stream, string jobResultId);
+        private class StreamList(IEnumerable<StreamResultInfo> streams) : IDisposable, IEnumerable<StreamResultInfo>
         {
-            List<FileStream> _streams;
-
-            public StreamList(IEnumerable<FileStream> streams)
-            {
-                _streams = new List<FileStream>(streams);
-            }
+            private readonly List<StreamResultInfo> _streams = new(streams);
 
             public void Dispose()
             {
                 foreach (var item in _streams)
                 {
-                    item.Close();
-                    item.Dispose();
+                    item.Stream.Close();
+                    item.Stream.Dispose();
                 }
             }
 
-            public IEnumerator<FileStream> GetEnumerator()
+            public IEnumerator<StreamResultInfo> GetEnumerator()
             {
                 return _streams.GetEnumerator();
             }
@@ -512,6 +734,5 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                 return _streams.GetEnumerator();
             }
         }
-
     }
 }

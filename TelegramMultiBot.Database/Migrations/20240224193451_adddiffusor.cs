@@ -5,12 +5,12 @@
 namespace TelegramMultiBot.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class adddiffusor : Migration
+    public partial class AddDiffusor : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AddColumn<string>(
+            _ = migrationBuilder.AddColumn<string>(
                 name: "Diffusor",
                 table: "Jobs",
                 type: "longtext",
@@ -21,7 +21,7 @@ namespace TelegramMultiBot.Database.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
+            _ = migrationBuilder.DropColumn(
                 name: "Diffusor",
                 table: "Jobs");
         }

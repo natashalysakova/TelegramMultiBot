@@ -1,76 +1,66 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
-using System.Web;
+using Newtonsoft.Json.Linq;
+using System;
+using System.Diagnostics;
+using System.Net.WebSockets;
+using System.Text;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
-using Microsoft.Extensions.Configuration;
+using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
-using Newtonsoft.Json.Linq;
-using System.IO;
 using TelegramMultiBot.ImageGeneration;
-using System.Net.WebSockets;
-using System.Net.Http.Json;
-using System;
-using System.Text;
-using Telegram.Bot;
-using System.Diagnostics;
-using System.Collections.Specialized;
 using TelegramMultiBot.ImageGeneration.Exceptions;
-using System.Runtime.Intrinsics.Arm;
-using System.Runtime.Intrinsics.X86;
 
 namespace TelegramMultiBot.ImageGenerators.ComfyUI
 {
-    class ComfyUI : Diffusor
+    internal class ComfyUI : Diffusor
     {
+        private readonly ComfyUISettings _settings;
+        private readonly ImageGeneationSettings _generalSettings;
+
+        protected override string PingPath => "/system_stats";
+
+        private readonly string _clientId;
         private readonly ILogger<ComfyUI> _logger;
-        private readonly IConfiguration _configuration;
-        private readonly IDatabaseService _databaseService;
-        private readonly TelegramBotClient _client;
-        protected override string pingPath => "/system_stats";
+        private readonly IImageDatabaseService _databaseService;
+        private readonly TelegramClientWrapper _client;
 
-        private string promptPath = "/prompt";
-        private string clientId = Guid.NewGuid().ToString();
-
-        public ComfyUI(ILogger<ComfyUI> logger, IConfiguration configuration, IDatabaseService databaseService, TelegramBotClient client) : base(logger, configuration)
+        public ComfyUI(ILogger<ComfyUI> logger, IConfiguration configuration, IImageDatabaseService databaseService, TelegramClientWrapper client) : base(logger, configuration)
         {
             _logger = logger;
-            _configuration = configuration;
             _databaseService = databaseService;
             _client = client;
+            _clientId = "bober_" + configuration["env"];
+            _settings = configuration.GetSection(ComfyUISettings.Name).Get<ComfyUISettings>() ?? throw new InvalidOperationException(nameof(_settings));
+            _generalSettings = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new InvalidOperationException(nameof(_settings));
         }
 
         public override string UI { get => nameof(ComfyUI); }
 
-        public override bool CanHnadle(JobType type)
+        public override bool CanHandle(JobType type)
         {
-            switch (type)
+            return type switch
             {
-                case JobType.Upscale:
-                    return false;
-                case JobType.HiresFix:
-                case JobType.Text2Image:
-                case JobType.Vingette:
-                case JobType.Noise:
-                    return true;
-                default: return false;
-            }
-
+                JobType.HiresFix or JobType.Text2Image or JobType.Vingette or JobType.Noise => true,
+                _ => false,
+            };
         }
+
         public override async Task<JobInfo> Run(JobInfo job)
         {
-            _logger.LogTrace(ActiveHost.Uri.ToString());
+            _logger.LogTrace("{uri}", ActiveHost!.Uri);
 
-            _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Завдання розпочато");
+            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Завдання розпочато");
 
-            var baseDir = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>().BaseOutputDirectory;
-            var comfySettings = _configuration.GetSection(ComfyUISettings.Name).Get<ComfyUISettings>();
-            var outputDir = comfySettings.OutputDirectory;
+            var baseDir = _generalSettings.BaseOutputDirectory;
+            var outputDir = _settings.OutputDirectory;
             var directory = Path.Combine(baseDir, outputDir, DateTime.Today.ToString("yyyyMMdd"));
 
             if (!Directory.Exists(directory))
             {
-                Directory.CreateDirectory(directory);
+                _ = Directory.CreateDirectory(directory);
             }
 
             try
@@ -81,18 +71,20 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                     case JobType.Noise:
                         await RunNoiseVingetteWorkflow(job, directory);
                         break;
+
                     case JobType.Text2Image:
                         await RunTextToImage(job, directory);
                         break;
+
                     case JobType.HiresFix:
                         await RunHiresFix(job, directory);
                         break;
+
                     default:
                         break;
                 }
                 _databaseService.PostProgress(job.Id, 100, "ok");
                 await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Готово. Прогрес 100%. Збираю та відправляю зображення");
-
             }
             catch (Exception ex)
             {
@@ -105,11 +97,8 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         private async Task RunHiresFix(JobInfo job, string directory)
         {
-            var settings = _configuration.GetSection(ComfyUISettings.Name).Get<ComfyUISettings>();
-            var generalSettings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
-
-            var payload = File.ReadAllText(Path.Combine(settings.PayloadPath, "hiresFix.json"));
-            var previousJob = _databaseService.GetJobResult(job.PreviousJobResultId);
+            var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "hiresFix.json"));
+            var previousJob = _databaseService.GetJobResult(job.PreviousJobResultId!)!;
             var upscaleParams = new UpscaleParams(previousJob);
 
             var json = JObject.Parse(payload);
@@ -126,55 +115,50 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             ModelSettings model;
             try
             {
-                model = generalSettings.Models.Single(x => x.Path.Contains(upscaleParams.Model));
+                model = _generalSettings.Models.Single(x => x.Path.Contains(upscaleParams.Model));
             }
             catch (Exception)
             {
                 throw new InputException("Невідома модель: " + upscaleParams.Model);
             }
 
-            json[modelLoaderNodeName]["inputs"]["ckpt_name"] = model.Path;
+            json[modelLoaderNodeName]!["inputs"]!["ckpt_name"] = model.Path;
 
-            var genNode = json[upscalerModelNodeName]["inputs"];
+            var genNode = json[upscalerModelNodeName]!["inputs"]!;
             genNode["seed"] = upscaleParams.Seed;
             genNode["steps"] = model.Steps;
             genNode["cfg"] = model.CGF;
             genNode["sampler_name"] = model.Sampler;
             genNode["scheduler"] = model.Scheduler;
-            genNode["denoise"] = generalSettings.HiresFixDenoise;
-            genNode["upscale_by"] = generalSettings.UpscaleMultiplier;
+            genNode["denoise"] = _generalSettings.HiresFixDenoise;
+            genNode["upscale_by"] = _generalSettings.UpscaleMultiplier;
 
-            json[imageLoadNodeName]["inputs"]["image"] = Path.GetFileName(previousJob.FilePath);
+            json[imageLoadNodeName]!["inputs"]!["image"] = Path.GetFileName(previousJob.FilePath);
 
-            var dest = Path.Combine(settings.InputDirectory, Path.GetFileName(previousJob.FilePath));
+            var dest = Path.Combine(_settings.InputDirectory, Path.GetFileName(previousJob.FilePath));
 
             if (!File.Exists(dest))
             {
                 File.Copy(previousJob.FilePath, dest, true);
             }
 
-            json[upscaleModelNodeName]["inputs"]["model_name"] = generalSettings.UpscaleModel;
+            json[upscaleModelNodeName]!["inputs"]!["model_name"] = _generalSettings.UpscaleModel;
 
-            json[clipSkipNodeName]["inputs"]["stop_at_clip_layer"] = -model.CLIPskip;
+            json[clipSkipNodeName]!["inputs"]!["stop_at_clip_layer"] = -model.CLIPskip;
 
-            json[positivePromptNode]["inputs"]["text"] = upscaleParams.Prompt;
-            json[negativePromptNode]["inputs"]["text"] = upscaleParams.NegativePrompt;
+            json[positivePromptNode]!["inputs"]!["text"] = upscaleParams.Prompt;
+            json[negativePromptNode]!["inputs"]!["text"] = upscaleParams.NegativePrompt;
 
-
-            var info = GetInfos(job, settings);
-            int tiles = (int)(Math.Ceiling(upscaleParams.Width*generalSettings.UpscaleMultiplier / 512.0) * Math.Ceiling(upscaleParams.Height * generalSettings.UpscaleMultiplier / 512.0)) + 1;
+            var info = GetInfos(job, _settings);
+            int tiles = (int)(Math.Ceiling(upscaleParams.Width * _generalSettings.UpscaleMultiplier / 512.0) * Math.Ceiling(upscaleParams.Height * _generalSettings.UpscaleMultiplier / 512.0)) + 1;
             await StartAndMonitorJob(job, directory, [json], [info], outputNode, tiles);
 
             File.Delete(dest);
-
         }
 
         private async Task RunTextToImage(JobInfo job, string directory)
         {
-            var settings = _configuration.GetSection(ComfyUISettings.Name).Get<ComfyUISettings>();
-            var generalSettings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
-
-            var payload = File.ReadAllText(Path.Combine(settings.PayloadPath, "text2image.json"));
+            var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2image.json"));
 
             var genParams = new GenerationParams(job);
             if (genParams.Seed == -1)
@@ -183,24 +167,24 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             }
             if (genParams.BatchCount == 0)
             {
-                genParams.BatchCount = generalSettings.BatchCount;
+                genParams.BatchCount = _generalSettings.BatchCount;
             }
             if (string.IsNullOrEmpty(genParams.Model))
             {
-                genParams.Model = generalSettings.DefaultModel;
+                genParams.Model = _generalSettings.DefaultModel;
             }
 
             ModelSettings model;
             try
             {
-                model = generalSettings.Models.Single(x => x.Name == genParams.Model);
+                model = _generalSettings.Models.Single(x => x.Name == genParams.Model);
             }
             catch (Exception)
             {
                 throw new InputException("Невідома модель: " + genParams.Model);
             }
 
-            List<JObject> jsons = new List<JObject>();
+            List<JObject> jsons = [];
 
             var json = JObject.Parse(payload);
 
@@ -210,31 +194,30 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             var positivePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "positive");
             var negativePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "negative");
             var clipSkipNodeName = FindNodeNameByClassType(json, "CLIPSetLastLayer");
-            string outputNode = FindNodeNameByClassType(json, "SaveImage");
+            string outputNode = FindNodeNameByClassType(json, "PreviewImage");
 
             for (int i = 0; i < genParams.BatchCount; i++)
             {
-
                 json = JObject.Parse(payload);
 
-                json[modelLoaderNodeName]["inputs"]["ckpt_name"] = model.Path;
+                json[modelLoaderNodeName]!["inputs"]!["ckpt_name"] = model.Path;
 
-                var genNode = json[genNodeName]["inputs"];
+                var genNode = json[genNodeName]!["inputs"]!;
                 genNode["seed"] = genParams.Seed + i;
                 genNode["steps"] = model.Steps;
                 genNode["cfg"] = model.CGF;
                 genNode["sampler_name"] = model.Sampler;
                 genNode["scheduler"] = model.Scheduler;
 
-                var latentNode = json[latentNodeName]["inputs"];
+                var latentNode = json[latentNodeName]!["inputs"]!;
                 latentNode["width"] = genParams.Width;
                 latentNode["height"] = genParams.Height;
                 latentNode["batch_size"] = 1;
 
-                json[clipSkipNodeName]["inputs"]["stop_at_clip_layer"] = -model.CLIPskip;
+                json[clipSkipNodeName]!["inputs"]!["stop_at_clip_layer"] = -model.CLIPskip;
 
-                json[positivePromptNode]["inputs"]["text"] = genParams.Prompt;
-                json[negativePromptNode]["inputs"]["text"] = genParams.NegativePrompt;
+                json[positivePromptNode]!["inputs"]!["text"] = genParams.Prompt;
+                json[negativePromptNode]!["inputs"]!["text"] = genParams.NegativePrompt;
 
                 jsons.Add(json);
             }
@@ -242,20 +225,19 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, model, json.Count), outputNode, model.Steps);
         }
 
-        private IEnumerable<string> GetInfos(GenerationParams genParams, ModelSettings model, int count)
+        private static IEnumerable<string> GetInfos(GenerationParams genParams, ModelSettings model, int count)
         {
             for (int i = 0; i < count; i++)
             {
-                StringBuilder builder = new StringBuilder();
+                StringBuilder builder = new();
 
-                //big pink kids cake with five candles and flowers 
+                //big pink kids cake with five candles and flowers
                 //Steps: 5, Sampler: DPM++ SDE Karras, CFG scale: 2.5, Seed: 552689683, Size: 1024x1024, Model hash: 4726d3bab1, Model: dreamshaperXL_v2TurboDpmppSDE, Version: v1.7.0
 
-
-                builder.AppendLine(genParams.Prompt);
+                _ = builder.AppendLine(genParams.Prompt);
                 if (!string.IsNullOrEmpty(genParams.NegativePrompt))
                 {
-                    builder.Append("Negative: " + genParams.NegativePrompt + ", ");
+                    _ = builder.Append("Negative: " + genParams.NegativePrompt + ", ");
                 }
 
                 var samplerAlias = "k_" + model.Sampler;
@@ -268,18 +250,18 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                     samplerAlias += "_exp";
                 }
 
-                builder.Append("Steps: " + model.Steps + ", ");
-                builder.Append("Sampler: " + samplerAlias + ", ");
-                builder.Append("CFG scale: " + model.CGF.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + ", ");
-                builder.Append("Seed: " + (genParams.Seed + i) + ", ");
-                builder.Append("Size: " + genParams.Width + "x" + genParams.Height + ", ");
-                builder.Append("Model: " + Path.GetFileNameWithoutExtension(model.Path));
+                _ = builder.Append("Steps: " + model.Steps + ", ");
+                _ = builder.Append("Sampler: " + samplerAlias + ", ");
+                _ = builder.Append("CFG scale: " + model.CGF.ToString("0.00", System.Globalization.CultureInfo.InvariantCulture) + ", ");
+                _ = builder.Append("Seed: " + (genParams.Seed + i) + ", ");
+                _ = builder.Append("Size: " + genParams.Width + "x" + genParams.Height + ", ");
+                _ = builder.Append("Model: " + Path.GetFileNameWithoutExtension(model.Path));
 
                 yield return builder.ToString();
             }
         }
 
-        private string GetInfos(JobInfo job, ComfyUISettings settings)
+        private static string GetInfos(JobInfo job, ComfyUISettings settings)
         {
             if (job.Type == JobType.Vingette)
             {
@@ -300,11 +282,11 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
             foreach (var item in tokens)
             {
-                var value = item["class_type"].Value<string>();
+                var value = item["class_type"]!.Value<string>();
 
                 if (value == classType)
                 {
-                    return ((JProperty)item.Parent).Name;
+                    return ((JProperty)item.Parent!).Name;
                 }
             }
 
@@ -317,12 +299,12 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
             foreach (var item in tokens)
             {
-                var type = item["class_type"].Value<string>();
-                var title = item["_meta"]["title"].Value<string>();
+                var type = item["class_type"]!.Value<string>();
+                var title = item["_meta"]!["title"]!.Value<string>();
 
                 if (type == classType && title == metaTitle)
                 {
-                    return ((JProperty)item.Parent).Name;
+                    return ((JProperty)item.Parent!).Name;
                 }
             }
 
@@ -331,18 +313,19 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         private async Task RunNoiseVingetteWorkflow(JobInfo job, string directory)
         {
-            var jobResultInfo = _databaseService.GetJobResult(job.PreviousJobResultId);
+            if (job.PreviousJobResultId is null)
+                throw new NullReferenceException(nameof(job.PreviousJobResultId));
 
-            var settings = _configuration.GetSection(ComfyUISettings.Name).Get<ComfyUISettings>();
-            string payload = string.Empty;
+            var jobResultInfo = _databaseService.GetJobResult(job.PreviousJobResultId) ?? throw new NullReferenceException("jobResultInfo");
 
+            string payload;
             if (job.Type == JobType.Noise)
             {
-                payload = File.ReadAllText(Path.Combine(settings.PayloadPath, "noise.json"));
+                payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "noise.json"));
             }
             else if (job.Type == JobType.Vingette)
             {
-                payload = File.ReadAllText(Path.Combine(settings.PayloadPath, "vignette.json"));
+                payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "vignette.json"));
             }
             else
             {
@@ -354,29 +337,27 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             if (job.Type == JobType.Noise)
             {
                 var nosieNode = FindNodeNameByClassType(json, "ProPostFilmGrain");
-                json[nosieNode]["inputs"]["grain_power"] = settings.NoiseStrength;
+                json[nosieNode]!["inputs"]!["grain_power"] = _settings.NoiseStrength;
             }
             else
             {
                 var vingetteNode = FindNodeNameByClassType(json, "ProPostVignette");
-                json[vingetteNode]["inputs"]["intensity"] = settings.VegnietteIntensity;
+                json[vingetteNode]!["inputs"]!["intensity"] = _settings.VegnietteIntensity;
             }
 
-
             var inputImageNode = FindNodeNameByClassType(json, "LoadImage");
-            json[inputImageNode]["inputs"]["image"] = Path.GetFileName(jobResultInfo.FilePath);
+            json[inputImageNode]!["inputs"]!["image"] = Path.GetFileName(jobResultInfo.FilePath);
 
-            string outputNode = FindNodeNameByClassType(json, "SaveImage");
+            string outputNode = FindNodeNameByClassType(json, "PreviewImage");
 
-
-            var dest = Path.Combine(settings.InputDirectory, Path.GetFileName(jobResultInfo.FilePath));
+            var dest = Path.Combine(_settings.InputDirectory, Path.GetFileName(jobResultInfo.FilePath));
 
             if (!File.Exists(dest))
             {
                 File.Copy(jobResultInfo.FilePath, dest, true);
             }
 
-            var info = GetInfos(job, settings);
+            var info = GetInfos(job, _settings);
             await StartAndMonitorJob(job, directory, [json], [info], outputNode, 1);
 
             File.Delete(dest);
@@ -384,108 +365,96 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         private async Task StartAndMonitorJob(JobInfo job, string directory, IEnumerable<JObject> jsons, IEnumerable<string> infos, string outputNode, int maxTiles)
         {
-            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... 1/{jsons.Count()} Прогресс: 0%");
-
-            using (var client = new ComfyUiClient(ActiveHost))
+            using var comfyClient = new ComfyUiClient(ActiveHost);
+            for (int i = 0; i < jsons.Count(); i++)
             {
+                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost!.UI}] {job.Type} - Працюю... {i+1}/{jsons.Count()} Прогресс: {100.0 / jsons.Count() * i }%");
 
-                for (int i = 0; i < jsons.Count(); i++)
+                var webcocketClient = new ClientWebSocket();
+                var uri = new Uri($"ws://{ActiveHost.Host}:{ActiveHost.Port}/ws?clientId={_clientId}");
+                await webcocketClient.ConnectAsync(uri, CancellationToken.None);
+                _logger.LogDebug("{client} - {state}", webcocketClient, webcocketClient.State);
+
+                var json = jsons.ElementAt(i);
+                var info = infos.ElementAt(i);
+
+                var req = JsonConvert.SerializeObject(new { prompt = json, client_id = _clientId });
+                _logger.LogTrace("requestJson: {json}", req);
+
+                Stopwatch s = new();
+                s.Start();
+                var response = await comfyClient.StartJob(req) ?? throw new HttpRequestException("Invalid request to comfyUI");
+                var jobId = response.prompt_id;
+                var buffer = new byte[1024];
+                var tile = 0;
+                var fraction = 100.0 / jsons.Count() / maxTiles;
+                while (true)
                 {
-                    var webcocketClient = new ClientWebSocket();
-                    var uri = new Uri($"ws://{ActiveHost.Host}:{ActiveHost.Port}/ws?clientId={clientId}");
-                    await webcocketClient.ConnectAsync(uri, CancellationToken.None);
-                    _logger.LogDebug($"{webcocketClient} - {webcocketClient.State}");
+                    var res = await webcocketClient.ReceiveAsync(buffer, CancellationToken.None);
 
-
-                    var json = jsons.ElementAt(i);
-                    var info = infos.ElementAt(i);
-
-                    var req = JsonConvert.SerializeObject(new { prompt = json, client_id = clientId });
-
-
-                    Stopwatch s = new Stopwatch();
-                    s.Start();
-                    _logger.LogTrace("requestJson: " + req.ToString());
-                    var response = await client.StartJob(req);
-
-                    if (response is null)
+                    if (res.MessageType == WebSocketMessageType.Close)
                     {
-                        throw new HttpRequestException("Invalid request to comfyUI");
+                        _logger.LogDebug("{client} - {state}", webcocketClient, webcocketClient.State);
+                        break;
                     }
 
-                    var jobId = response.prompt_id;
-                    double oldProgress = 0;
-                    var buffer = new byte[1024];
-                    var tile = 0;
-                    var fraction = 100.0 / jsons.Count() / maxTiles;
-                    while (true)
+                    var data = Encoding.UTF8.GetString(buffer, 0, res.Count);
+                    _logger.LogDebug("{data}", data);
+                    var obj = JsonConvert.DeserializeObject<WebsocketResponce>(data) ?? throw new InvalidOperationException("Cannot deserialize progress");
+
+                    if (obj.type == "progress")
                     {
-                        var res = await webcocketClient.ReceiveAsync(buffer, CancellationToken.None);
-
-                        if (res.MessageType == WebSocketMessageType.Close)
+                        if (obj.data.value == obj.data.max)
                         {
-                            _logger.LogDebug($"{webcocketClient} - {webcocketClient.State}");
-                            break;
+                            tile += 1;
+                            var progress = (i * fraction * maxTiles) + tile * fraction;
+
+                            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
+                            _databaseService.PostProgress(job.Id, progress, "working");
                         }
-
-                        var data = Encoding.UTF8.GetString(buffer, 0, res.Count);
-                        _logger.LogDebug(data);
-                        var obj = JsonConvert.DeserializeObject<WebsocketResponce>(data);
-
-                        if (obj.type == "progress")
-                        {
-                            if(obj.data.value == obj.data.max)
-                            {
-                                tile += 1;
-                                var progress = (i * fraction * maxTiles) + tile * fraction;
-
-                                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
-                                _databaseService.PostProgress(job.Id, progress, "working");
-                            }
-                        }
-
-
-                        if (obj.type == "executing" && obj.data.node == null && obj.data.prompt_id == jobId)
-                        {
-                            _logger.LogDebug($"{jobId} - finished");
-                            break;
-                        }
-                        await Task.Delay(500);
                     }
-                    s.Stop();
 
-                    await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Завантажую результат {i + 1}/{jsons.Count()}");
-
-                    var str = await client.GetHistory(jobId);
-
-                    var history = JObject.Parse(str);
-
-                    var imageArray = history[jobId]["outputs"][outputNode]["images"];
-
-                    foreach (var item in imageArray)
+                    if (obj.type == "executing" && obj.data.node == null && obj.data.prompt_id == jobId)
                     {
-
-                        var filename = item["filename"].ToString();
-                        var subfolder = item["subfolder"].ToString();
-                        var type = item["type"].ToString();
-
-                        var img = await client.GetImage(filename, subfolder, type);
-
-                        var fileName = $"{DateTime.Now.ToString("yyyyMMddhhmmssfff")}_{job.Type}.png";
-                        var filePath = Path.Combine(directory, fileName);
-
-                        File.WriteAllBytes(filePath, img);
-                        //File.WriteAllText(filePath + ".txt", info.infotexts[j]);
-
-                        //inputMedia.Add(filePath);
-
-                        _databaseService.AddResult(job.Id, new JobResultInfo()
-                        {
-                            FilePath = filePath,
-                            Info = info,
-                            RenderTime = s.Elapsed.TotalMilliseconds
-                        });
+                        _logger.LogDebug("{jobId} - finished", jobId);
+                        break;
                     }
+                    await Task.Delay(500);
+                }
+                s.Stop();
+                await webcocketClient.CloseAsync(WebSocketCloseStatus.NormalClosure, "done", CancellationToken.None);
+
+                //await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"Завантажую результат {i + 1}/{jsons.Count()}");
+
+                var str = await comfyClient.GetHistory(jobId);
+                _logger.LogTrace("jobid: {id}, history: {json}", jobId, str);
+
+                var history = JObject.Parse(str);
+
+                var imageArray = history[jobId]!["outputs"]![outputNode]!["images"]!;
+
+                foreach (var item in imageArray)
+                {
+                    var filename = item["filename"]!.ToString();
+                    var subfolder = item["subfolder"]!.ToString();
+                    var type = item["type"]!.ToString();
+
+                    var img = await comfyClient.GetImage(filename, subfolder, type);
+
+                    var fileName = $"{DateTime.Now:yyyyMMddhhmmssfff}_{job.Type}.png";
+                    var filePath = Path.Combine(directory, fileName);
+
+                    File.WriteAllBytes(filePath, img);
+                    //File.WriteAllText(filePath + ".txt", info.infotexts[j]);
+
+                    //inputMedia.Add(filePath);
+
+                    _databaseService.AddResult(job.Id, new JobResultInfoCreate()
+                    {
+                        FilePath = filePath,
+                        Info = info,
+                        RenderTime = s.Elapsed.TotalMilliseconds
+                    });
                 }
             }
         }
@@ -496,52 +465,53 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         }
     }
 
-    class ComfyUiClient : IDisposable
+    internal class ComfyUiClient : IDisposable
     {
-        HttpClient _httpClient;
-        private string propmt = "/prompt";
-        private string view = "/view";
-        private string history = "/history";
+        private readonly HttpClient _httpClient;
+        private readonly string _propmt = "/prompt";
+        private readonly string _view = "/view";
+        private readonly string _history = "/history";
         private readonly HostSettings _host;
-        private readonly ILogger<ComfyUiClient> _logger;
 
         public ComfyUiClient(HostSettings host)
         {
             _host = host;
 
-
-            _httpClient = new HttpClient();
-            _httpClient.BaseAddress = _host.Uri;
+            _httpClient = new HttpClient
+            {
+                BaseAddress = _host.Uri
+            };
         }
 
         public async Task<GetStatusResponce> GetStatus()
         {
-
             using (_httpClient)
             {
-                var response = await _httpClient.GetAsync(propmt);
+                var response = await _httpClient.GetAsync(_propmt);
                 var content = await response.Content.ReadAsStringAsync();
-                return JsonConvert.DeserializeObject<GetStatusResponce>(content);
+                return JsonConvert.DeserializeObject<GetStatusResponce>(content) ?? throw new InvalidOperationException("Cannot deserialize content");
             }
         }
 
         public async Task<byte[]> GetImage(string filename, string subfolder, string type)
         {
-            HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, $"{view}?filename={filename}&type={type}&subfolder={subfolder}");
+            HttpRequestMessage message = new(HttpMethod.Get, $"{_view}?filename={filename}&type={type}&subfolder={subfolder}");
             var response = await _httpClient.SendAsync(message);
             return await response.Content.ReadAsByteArrayAsync();
         }
 
         public async Task<StartJobResponse> StartJob(string workflow)
         {
-            HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Post, propmt);
-            message.Content = new StringContent(workflow);
+            HttpRequestMessage message = new(HttpMethod.Post, _propmt)
+            {
+                Content = new StringContent(workflow)
+            };
 
             var response = await _httpClient.SendAsync(message);
             if (response.IsSuccessStatusCode)
             {
                 var content = await response.Content.ReadAsStringAsync();
-                return JsonConvert.DeserializeObject<StartJobResponse>(content);
+                return JsonConvert.DeserializeObject<StartJobResponse>(content) ?? throw new InvalidOperationException("Cannot deserialize content");
             }
             throw new Exception(response.ReasonPhrase);
         }
@@ -553,26 +523,17 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         public async Task<string> GetHistory(string jobId)
         {
-            var paht = $"{history}/{jobId}";
+            var paht = $"{_history}/{jobId}";
 
-            HttpRequestMessage message = new HttpRequestMessage(HttpMethod.Get, paht);
+            HttpRequestMessage message = new(HttpMethod.Get, paht);
             var response = await _httpClient.SendAsync(message);
             var str = await response.Content.ReadAsStringAsync();
             return str;
         }
     }
 
-
-
-
-
-
-
-
-
-
-
-
+#pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
+#pragma warning disable IDE1006 // Naming Styles
 
     public class Output
     {
@@ -598,7 +559,6 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         public object[][] messages { get; set; }
     }
 
-
     public class StartJobResponse
     {
         public string prompt_id { get; set; }
@@ -610,7 +570,6 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
     {
     }
 
-
     public class GetStatusResponce
     {
         public Exec_Info exec_info { get; set; }
@@ -620,16 +579,6 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
     {
         public int queue_remaining { get; set; }
     }
-
-
-
-
-
-
-
-
-
-
 
     public class WebsocketResponce
     {
@@ -650,5 +599,4 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         public string sid { get; set; }
         public Output output { get; set; }
     }
-
 }

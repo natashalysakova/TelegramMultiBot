@@ -1,40 +1,23 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.EntityFrameworkCore.Storage;
+﻿using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using Telegram.Bot;
 using TelegramMultiBot.Configuration;
-using TelegramMultiBot.ImageGeneration;
-using Microsoft.Extensions.Configuration;
 using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    internal class CleanupService
+    internal class CleanupService(IImageDatabaseService databaseService, TelegramClientWrapper client, IConfiguration configuration, ILogger<CleanupService> logger)
     {
-        private readonly IDatabaseService _databaseService;
-        private readonly TelegramBotClient _client;
-        private readonly IConfiguration _configuration;
-        private readonly ILogger<CleanupService> _logger;
-
-        public CleanupService(IDatabaseService databaseService, TelegramBotClient client, IConfiguration configuration, ILogger<CleanupService> logger)
-        {
-            _databaseService = databaseService;
-            _client = client;
-            _configuration = configuration;
-            _logger = logger;
-        }
-
         internal async Task Run()
         {
-            _logger.LogDebug("Cleanup Started");
+            logger.LogDebug("Cleanup Started");
 
-            var settings = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+            var settings = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new InvalidOperationException($"Cannot bind {ImageGeneationSettings.Name}");
             var jobAge = settings.JobAge;
             var removeFiles = settings.RemoveFiles;
 
             var date = DateTime.Now.Subtract(TimeSpan.FromSeconds(jobAge));
-            var jobsToDelete = _databaseService.GetJobsOlderThan(date); 
-            _logger.LogDebug("Jobs to cleanup:" + jobsToDelete.Count());
+            var jobsToDelete = databaseService.GetJobsOlderThan(date);
+            logger.LogDebug("Jobs to cleanup: {count}", jobsToDelete.Count());
             if (removeFiles)
             {
                 foreach (var item in jobsToDelete)
@@ -43,27 +26,31 @@ namespace TelegramMultiBot.ImageGenerators
                     {
                         try
                         {
-                            _logger.LogDebug("Removing file:" + res.FilePath);
-                            System.IO.File.Delete(res.FilePath);
+                            logger.LogDebug("Removing file: {path}", res.FilePath);
+                            File.Delete(res.FilePath);
 
                             var directory = Path.GetDirectoryName(res.FilePath);
 
-                            if (!Directory.GetFiles(directory).Any())
+                            if (string.IsNullOrEmpty(directory))
+                            {
+                                throw new InvalidOperationException($"No path info found {res.FilePath}");
+                            }
+
+                            if (Directory.GetFiles(directory).Length == 0)
                             {
                                 Directory.Delete(directory);
                             }
                         }
                         catch (Exception)
                         {
-                            _logger.LogError("Failed to remove:" + res.FilePath);
+                            logger.LogError("Failed to remove: {path}", res.FilePath);
                         }
-
                     }
 
                     try
                     {
-                        await _client.EditMessageReplyMarkupAsync(item.ChatId, item.MessageId, null);
-                        _logger.LogDebug($"Message edited {item.ChatId} {item.MessageId}");
+                        await client.EditMessageReplyMarkupAsync(item.ChatId, item.MessageId, null);
+                        logger.LogDebug("Message edited {chatId} {messageId}", item.ChatId, item.MessageId);
                     }
                     catch
                     {
@@ -71,14 +58,8 @@ namespace TelegramMultiBot.ImageGenerators
                 }
             }
 
-            _databaseService.RemoveJobs(jobsToDelete.Select(x=>x.Id));
-            _logger.LogDebug("Cleanup Ended");
-
+            databaseService.RemoveJobs(jobsToDelete.Select(x => x.Id));
+            logger.LogDebug("Cleanup Ended");
         }
-
-        internal void CleanupOldJobs(int jobAge, bool removeFiles)
-        {
-        }
-
     }
 }

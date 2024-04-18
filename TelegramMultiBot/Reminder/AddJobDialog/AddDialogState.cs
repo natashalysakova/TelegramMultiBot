@@ -1,5 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
-enum AddDialogState
+internal enum AddDialogState
 {
     Start,
     CheckName,

@@ -11,8 +11,8 @@ using TelegramMultiBot.Database;
 namespace TelegramMultiBot.Database.Migrations
 {
     [DbContext(typeof(BoberDbContext))]
-    [Migration("20240222160349_fixMilliseconds")]
-    partial class fixMilliseconds
+    [Migration("20240222160349_FixMilliseconds")]
+    partial class FixMilliseconds
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

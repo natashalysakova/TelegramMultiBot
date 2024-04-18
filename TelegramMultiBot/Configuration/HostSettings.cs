@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-
-namespace TelegramMultiBot.Configuration
+﻿namespace TelegramMultiBot.Configuration
 {
     public class HostSettings
     {
@@ -12,6 +10,6 @@ namespace TelegramMultiBot.Configuration
         public string Protocol { get; set; }
         public int Priority { get; set; }
 
-        public Uri Uri { get => new Uri($"{Protocol}://{Host}:{Port}"); }
+        public Uri Uri { get => new($"{Protocol}://{Host}:{Port}"); }
     }
 }

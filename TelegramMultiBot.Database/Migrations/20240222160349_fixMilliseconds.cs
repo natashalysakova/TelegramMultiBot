@@ -1,17 +1,16 @@
-﻿using System;
-using Microsoft.EntityFrameworkCore.Migrations;
+﻿using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace TelegramMultiBot.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class fixMilliseconds : Migration
+    public partial class FixMilliseconds : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<double>(
+            _ = migrationBuilder.AlterColumn<double>(
                 name: "RenderTime",
                 table: "JobResult",
                 type: "double",
@@ -23,7 +22,7 @@ namespace TelegramMultiBot.Database.Migrations
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.AlterColumn<TimeSpan>(
+            _ = migrationBuilder.AlterColumn<TimeSpan>(
                 name: "RenderTime",
                 table: "JobResult",
                 type: "time(6)",

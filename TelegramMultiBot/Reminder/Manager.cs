@@ -3,30 +3,24 @@ using Newtonsoft.Json;
 
 namespace TelegramMultiBot.Reminder
 {
-    internal abstract class Manager<T>
+    internal abstract class Manager<T>(ILogger<Manager<T>> logger)
     {
-        protected readonly ILogger _logger;
-        protected List<T> list;
+        protected readonly ILogger _logger = logger;
+        protected List<T> list = [];
         protected CancellationToken token;
-        abstract protected string fileName { get; }
+        protected abstract string FileName { get; }
 
-        public Manager(ILogger<Manager<T>> logger)
+        protected List<T> Load()
         {
-            _logger = logger;
-            list = new List<T>();
-        }
-
-        protected List<T>? Load()
-        {
-            var tmp = File.ReadAllText(fileName);
-            return JsonConvert.DeserializeObject<List<T>>(tmp);
+            var tmp = File.ReadAllText(FileName);
+            return JsonConvert.DeserializeObject<List<T>>(tmp) ?? throw new InvalidOperationException("Cannot deserialize joblist");
         }
 
         protected void Save()
         {
             var tmp = JsonConvert.SerializeObject(list);
-            File.WriteAllText(fileName, tmp);
-            _logger.LogDebug(fileName + " saved");
+            File.WriteAllText(FileName, tmp);
+            _logger.LogDebug("{file} saved", FileName);
         }
     }
 }
