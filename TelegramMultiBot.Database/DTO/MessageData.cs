@@ -12,5 +12,6 @@ namespace TelegramMultiBot.Database.DTO
         public int BotMessageId { get; set; }
         public int MessageId { get; set; }
         public JobType JobType { get; set; }
+        public string? InputImage { get; set; }
     }
 }

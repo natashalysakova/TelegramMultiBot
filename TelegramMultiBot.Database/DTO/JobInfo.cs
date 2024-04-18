@@ -21,6 +21,7 @@ public class JobInfo
     public string TextStatus { get; set; }
     public ImageJobStatus Status { get; set; }
     public string? Diffusor { get; set; }
+    public string? InputImage { get; set; }
 }
 
 public record ExceptionInfo(string Type, string ErrorMessage);

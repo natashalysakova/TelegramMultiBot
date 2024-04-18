@@ -53,7 +53,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
             Automatic1111Cache.InitCache(ActiveHost!.Uri);
 
-            var baseDir = _settings.BaseOutputDirectory;
+            var baseDir = _settings.BaseImageDirectory;
             var outputDir = _automaticSettings.OutputDirectory;
 
             var directory = Path.Combine(baseDir, outputDir, DateTime.Today.ToString("yyyyMMdd"));
@@ -156,13 +156,10 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         private async Task TextToImage(JobInfo job, string directory)
         {
-            var genParams = new GenerationParams(job);
+            var genParams = new GenerationParams(job, _settings);
 
             var batchCount = _settings.BatchCount;
-            if (string.IsNullOrEmpty(genParams.Model))
-            {
-                genParams.Model = _settings.DefaultModel;
-            }
+
             if (genParams.BatchCount != 0)
             {
                 batchCount = genParams.BatchCount;
@@ -176,29 +173,20 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["negative_prompt"] = genParams.NegativePrompt;
             json["seed"] = genParams.Seed;
 
-            ModelSettings model;
-            try
-            {
-                model = _settings.Models.Single(x => x.Name == genParams.Model);
-            }
-            catch (Exception)
-            {
-                throw new InputException("Невідома модель: " + genParams.Model);
-            }
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
 
-            json["override_settings"]["sd_model_checkpoint"] = model.Path;
-            json["override_settings"]["CLIP_stop_at_last_layers"] = model.CLIPskip;
+            json["override_settings"]["sd_model_checkpoint"] = genParams.Model.Path;
+            json["override_settings"]["CLIP_stop_at_last_layers"] = genParams.Model.CLIPskip;
 #pragma warning restore CS8602 // Dereference of a possibly null reference.
 
-            json["steps"] = model.Steps;
-            json["cfg_scale"] = model.CGF;
-            var samplerAlias = "k_" + model.Sampler;
-            if (model.Scheduler == "karras")
+            json["steps"] = genParams.Model.Steps;
+            json["cfg_scale"] = genParams.Model.CGF;
+            var samplerAlias = "k_" + genParams.Model.Sampler;
+            if (genParams.Model.Scheduler == "karras")
             {
                 samplerAlias += "_ka";
             }
-            if (model.Scheduler == "exponential")
+            if (genParams.Model.Scheduler == "exponential")
             {
                 samplerAlias += "_exp";
             }
@@ -336,7 +324,6 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             return type switch
             {
                 JobType.Text2Image or JobType.HiresFix or JobType.Upscale => true,
-                JobType.Vingette or JobType.Noise => false,
                 _ => false,
             };
         }

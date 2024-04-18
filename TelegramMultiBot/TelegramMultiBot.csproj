@@ -101,6 +101,9 @@
     <None Update="ImageGeneration\ComfyUI\Payload\text2image.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="ImageGeneration\ComfyUI\Payload\text2imageface.json">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
     <None Update="ImageGeneration\ComfyUI\Payload\vignette.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>

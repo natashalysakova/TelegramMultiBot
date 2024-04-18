@@ -1,10 +1,9 @@
 ﻿using ImageMagick;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
-using System;
 using System.Collections;
-using System.IO;
 using System.Net.WebSockets;
+using System.Threading;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using Telegram.Bot.Types.InlineQueryResults;
@@ -17,9 +16,6 @@ using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 using TelegramMultiBot.ImageGenerators;
-using TelegramMultiBot.Reminder;
-using static System.Runtime.InteropServices.JavaScript.JSType;
-using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 
 namespace TelegramMultiBot.Commands
 {
@@ -49,7 +45,7 @@ namespace TelegramMultiBot.Commands
             }
             else
             {
-                await AddJobToTheQueue(message, CreateMessageData(message));
+                await AddJobToTheQueue(message, await CreateMessageData(message));
             }
         }
 
@@ -59,7 +55,7 @@ namespace TelegramMultiBot.Commands
             return new MessageData()
             {
                 ChatId = job.ChatId,
-                JobType = JobType.Text2Image,
+                JobType = job.Type,
                 MessageId = job.MessageId,
                 MessageThreadId = job.MessageThreadId,
                 Text = job.Text,
@@ -67,20 +63,48 @@ namespace TelegramMultiBot.Commands
             };
         }
 
-        private MessageData CreateMessageData(Message message)
+        private async Task<MessageData> CreateMessageData(Message message)
         {
             ArgumentNullException.ThrowIfNull(message.Text);
             ArgumentNullException.ThrowIfNull(message.From);
 
+            var jobType = JobType.Text2Image;
+            string? inputImage = default;
+            if (message.ReplyToMessage != null && message.ReplyToMessage.Type == MessageType.Photo && message.Text.Contains("#face"))
+            {
+                jobType = JobType.Text2ImageFaceId;
+                inputImage = await DownloadImage(message.ReplyToMessage.Photo.Last().FileId);
+            }
+
             return new MessageData()
             {
                 ChatId = message.Chat.Id,
-                JobType = JobType.Text2Image,
+                JobType = jobType,
                 MessageId = message.MessageId,
                 MessageThreadId = message.MessageThreadId,
                 Text = message.Text[message.Text.IndexOf("/" + Command)..],
-                UserId = message.From.Id
+                UserId = message.From.Id,
+                InputImage = inputImage
             };
+        }
+
+        private async Task<string> DownloadImage(string fileId)
+        {
+            var url = await client.GetFileUrl(fileId);
+            var config = configuration.GetRequiredSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+            var basedir = config.BaseImageDirectory;
+            var downloadDir = config.DownloadDirectory;
+            var dir = Path.Combine(basedir, downloadDir);
+            var filename = $"{Guid.NewGuid()}{Path.GetExtension(url)}";
+            var dest = Path.Combine(dir, filename);
+
+            if(!Directory.Exists(dir))
+            {
+                Directory.CreateDirectory(dir);
+            }
+
+            await client.DownloadFile(url, dest);
+            return dest;
         }
 
         private static CallbackData CreateCallbackData(CallbackQuery query, ImagineCallbackData data)
@@ -366,7 +390,7 @@ namespace TelegramMultiBot.Commands
                         //}
                         //else
                         //{
-                            var keys = GetReplyMarkupForJob(callbackData);
+                        var keys = GetReplyMarkupForJob(callbackData);
                         //}
 
 
@@ -642,7 +666,7 @@ namespace TelegramMultiBot.Commands
                             break;
                         }
 
-                    case JobType.Text2Image:
+                    case JobType.Text2Image or JobType.Text2ImageFaceId:
                         {
                             var media = streamList.Select(x => new InputMediaPhoto() { Media = InputFile.FromStream(x.Stream, Path.GetFileName(x.Stream.Name)) });
                             var result = await client.SendMediaAlbumAsync(job, media);

@@ -1,11 +1,13 @@
 ﻿using System.Text.Json;
+using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.ImageGeneration.Exceptions;
 
 namespace TelegramMultiBot.ImageGenerators
 {
     public class GenerationParams
     {
-        public GenerationParams(JobInfo job)
+        public GenerationParams(JobInfo job, ImageGeneationSettings settings)
         {
             if (job.Text == null)
                 throw new InvalidOperationException("Job has no text");
@@ -37,19 +39,32 @@ namespace TelegramMultiBot.ImageGenerators
                     break;
                 }
             }
-
+            string modelName;
             if (text.Contains("#model"))
             {
                 int indexOfModel = text.IndexOf("#model") + 6;
                 int nextSpace = text.IndexOf(' ', indexOfModel);
                 if (nextSpace != -1)
                 {
-                    Model = text.Substring(indexOfModel + 1, nextSpace - indexOfModel).Trim();
+                    modelName = text.Substring(indexOfModel + 1, nextSpace - indexOfModel).Trim();
                 }
                 else
                 {
-                    Model = text[(indexOfModel + 1)..].Trim();
+                    modelName = text[(indexOfModel + 1)..].Trim();
                 }
+            }
+            else
+            {
+                modelName = settings.DefaultModel;
+            }
+            try
+            {
+                Model = settings.Models.Single(x => x.Name == modelName);
+            }
+
+            catch (Exception)
+            {
+                throw new InputException("Невідома модель: " + modelName);
             }
 
             Seed = -1;
@@ -68,11 +83,12 @@ namespace TelegramMultiBot.ImageGenerators
                 }
             }
 
-            var resolution = supportedResolutions.Where(x => text.Contains(x.Hashtag)).FirstOrDefault();
+
+            var resolution = supportedResolutions[Model.Version].Where(x => text.Contains(x.Hashtag)).FirstOrDefault();
             if (resolution == default)
             {
-                Width = defaultResolution.Width;
-                Height = defaultResolution.Height;
+                Width = defaultResolution[Model.Version].Width;
+                Height = defaultResolution[Model.Version].Height;
             }
             else
             {
@@ -82,7 +98,7 @@ namespace TelegramMultiBot.ImageGenerators
         }
 
         public int BatchCount { get; internal set; }
-        public string? Model { get; internal set; }
+        public ModelSettings Model { get; internal set; }
         public string Prompt { get; set; }
         public string NegativePrompt { get; set; }
         public int Width { get; set; }
@@ -105,17 +121,31 @@ namespace TelegramMultiBot.ImageGenerators
             return JsonEncodedText.Encode(prompt).Value.Trim();
         }
 
-        public static readonly Resolution defaultResolution = new("#square", 1024, 1024, "1\\:1");
+        public static readonly Dictionary<ModelVersion, Resolution> defaultResolution = new()
+        {
+            { ModelVersion.SDXL,  new("#square", 1024, 1024, "1\\:1")},
+            { ModelVersion.OneFive,  new("#square", 512, 512, "1\\:1")}
+        };
 
-        public static readonly Resolution[] supportedResolutions =
-        [
-            new("#vertical", 768, 1344, "9\\:16"),
-            new("#widescreen", 1365 , 768, "16\\:9"),
-            new("#portrait", 915 , 1144, "4\\:5"),
-            new("#photo", 1182 , 886, "4\\:3"),
-            new("#landscape", 1254 , 836, "3\\:2"),
-            new("#cinematic", 1564 , 670, "21\\:9"),
-        ];
+        public static readonly Dictionary<ModelVersion, Resolution[]> supportedResolutions = new()
+        {
+            { ModelVersion.SDXL, [
+                new("#vertical", 768, 1344, "9\\:16"),
+                new("#widescreen", 1365 , 768, "16\\:9"),
+                new("#portrait", 915 , 1144, "4\\:5"),
+                new("#photo", 1182 , 886, "4\\:3"),
+                new("#landscape", 1254 , 836, "3\\:2"),
+                new("#cinematic", 1564 , 670, "21\\:9") ]
+            },
+            { ModelVersion.OneFive, [
+                new("#vertical", 432, 768, "9\\:16"),
+                new("#widescreen", 768 , 432, "16\\:9"),
+                new("#portrait", 512 , 640, "4\\:5"),
+                new("#photo", 576 , 432, "4\\:3"),
+                new("#landscape", 768 , 512, "3\\:2"),
+                new("#cinematic", 728 , 312, "21\\:9")]
+            }
+        };
 
         /*
          768 x 1344: Vertical (9:16)

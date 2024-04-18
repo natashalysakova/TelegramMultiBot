@@ -1,4 +1,5 @@
-﻿using Telegram.Bot;
+﻿using System.Runtime.InteropServices.Marshalling;
+using Telegram.Bot;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -206,6 +207,19 @@ namespace TelegramMultiBot
         {
             var request = new GetChatMemberRequest() { ChatId = chatId, UserId = userId };
             return await client.GetChatMemberAsync(request);
+        }
+
+        internal async Task<string> GetFileUrl(string fileId)
+        {
+            var request = new GetFileRequest() { FileId = fileId };
+            var file = await client.GetFileAsync(request); 
+            return file.FilePath;
+        }
+
+        internal async Task DownloadFile(string filePath, string destination)
+        {
+            await using Stream fileStream = System.IO.File.Create(destination);
+            await client.DownloadFileAsync(filePath, fileStream);
         }
     }
 }

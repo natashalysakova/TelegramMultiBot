@@ -88,6 +88,8 @@ namespace TelegramMultiBot.Database.Services
                 job.Diffusor = "ComfyUI";
             }
 
+            job.InputImage = message.InputImage;
+
             _ = _context.Jobs.Add(job);
             _ = _context.SaveChanges();
             _logger.LogDebug("{jobId} added to the queue", job.Id);

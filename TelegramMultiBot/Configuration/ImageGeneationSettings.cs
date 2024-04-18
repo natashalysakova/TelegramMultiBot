@@ -1,13 +1,14 @@
 ﻿namespace TelegramMultiBot.Configuration
 {
-    internal class ImageGeneationSettings
+    public class ImageGeneationSettings
     {
         public const string Name = "ImageGeneation";
 
         public int DatabaseCleanupInterval { get; set; }
         public int JobAge { get; set; }
         public bool RemoveFiles { get; set; } = true;
-        public string BaseOutputDirectory { get; set; }
+        public string BaseImageDirectory { get; set; }
+        public string DownloadDirectory { get; set; }
         public int JobLimitPerUser { get; set; }
         public int ActiveJobs { get; set; }
         public ModelSettings[] Models { get; set; } = [];
@@ -50,5 +51,13 @@
         public string Sampler { get; set; }
         public string Scheduler { get; set; }
         public int CLIPskip { get; set; } = 1;
+        public ModelVersion Version { get; set; }
+    }
+
+    public enum ModelVersion
+    {
+        Unknown = 0,
+        OneFive = 1,
+        SDXL = 2,
     }
 }

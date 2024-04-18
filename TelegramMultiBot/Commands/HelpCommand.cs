@@ -29,12 +29,22 @@ https\:\/\/crontab\.guru
 
 >Використовуй `\#1`, `\#2`, `\#3` або `\#4` щоб вказати кількість зображень, які ти хочеш отримати
 
+>SDXL
 >Стандартний формат зображення "
-+ $"{GenerationParams.defaultResolution.Width}x{GenerationParams.defaultResolution.Height}: \\({GenerationParams.defaultResolution.Ar}\\)"
++ $"{GenerationParams.defaultResolution[ModelVersion.SDXL].Width}x{GenerationParams.defaultResolution[ModelVersion.SDXL].Height}: \\({GenerationParams.defaultResolution[ModelVersion.SDXL].Ar}\\)"
 + @"
 >Використовуй хештеги формату, щоб керувати форматом зображення
 " +
-string.Join("\n", GenerationParams.supportedResolutions.Select(x => $">{x.Width}x{x.Height}: `\\{x.Hashtag}` \\({x.Ar}\\)"))
+string.Join("\n", GenerationParams.supportedResolutions[ModelVersion.SDXL].Select(x => $">{x.Width}x{x.Height}: `\\{x.Hashtag}` \\({x.Ar}\\)"))
++ @"
+
+>1\.5
+>Стандартний формат зображення "
++ $"{GenerationParams.defaultResolution[ModelVersion.OneFive].Width}x{GenerationParams.defaultResolution[ModelVersion.OneFive].Height}: \\({GenerationParams.defaultResolution[ModelVersion.OneFive].Ar}\\)"
++ @"
+>Використовуй хештеги формату, щоб керувати форматом зображення
+" +
+string.Join("\n", GenerationParams.supportedResolutions[ModelVersion.OneFive].Select(x => $">{x.Width}x{x.Height}: `\\{x.Hashtag}` \\({x.Ar}\\)"))
 + @"
 
 >Якщо бажаєш попрацювати над деталями зображення \- використуй повторно його seed

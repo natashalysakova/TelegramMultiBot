@@ -36,4 +36,5 @@ public class ImageJob
     public string TextStatus { get; internal set; }
     public string? Diffusor { get; set; }
     public DateTime NextTry { get; internal set; }
+    public string? InputImage { get; set; }
 }

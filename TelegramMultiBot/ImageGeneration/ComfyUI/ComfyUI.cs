@@ -43,7 +43,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         {
             return type switch
             {
-                JobType.HiresFix or JobType.Text2Image or JobType.Vingette or JobType.Noise => true,
+                JobType.HiresFix or JobType.Text2Image or JobType.Vingette or JobType.Noise or JobType.Text2ImageFaceId => true,
                 _ => false,
             };
         }
@@ -54,7 +54,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
             await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Завдання розпочато");
 
-            var baseDir = _generalSettings.BaseOutputDirectory;
+            var baseDir = _generalSettings.BaseImageDirectory;
             var outputDir = _settings.OutputDirectory;
             var directory = Path.Combine(baseDir, outputDir, DateTime.Today.ToString("yyyyMMdd"));
 
@@ -79,7 +79,9 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                     case JobType.HiresFix:
                         await RunHiresFix(job, directory);
                         break;
-
+                    case JobType.Text2ImageFaceId:
+                        await RunTextToImageWithFace(job, directory);
+                        break;
                     default:
                         break;
                 }
@@ -160,7 +162,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         {
             var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2image.json"));
 
-            var genParams = new GenerationParams(job);
+            var genParams = new GenerationParams(job, _generalSettings);
             if (genParams.Seed == -1)
             {
                 genParams.Seed = new Random().NextInt64();
@@ -168,20 +170,6 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             if (genParams.BatchCount == 0)
             {
                 genParams.BatchCount = _generalSettings.BatchCount;
-            }
-            if (string.IsNullOrEmpty(genParams.Model))
-            {
-                genParams.Model = _generalSettings.DefaultModel;
-            }
-
-            ModelSettings model;
-            try
-            {
-                model = _generalSettings.Models.Single(x => x.Name == genParams.Model);
-            }
-            catch (Exception)
-            {
-                throw new InputException("Невідома модель: " + genParams.Model);
             }
 
             List<JObject> jsons = [];
@@ -200,21 +188,21 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             {
                 json = JObject.Parse(payload);
 
-                json[modelLoaderNodeName]!["inputs"]!["ckpt_name"] = model.Path;
+                json[modelLoaderNodeName]!["inputs"]!["ckpt_name"] = genParams.Model.Path;
 
                 var genNode = json[genNodeName]!["inputs"]!;
                 genNode["seed"] = genParams.Seed + i;
-                genNode["steps"] = model.Steps;
-                genNode["cfg"] = model.CGF;
-                genNode["sampler_name"] = model.Sampler;
-                genNode["scheduler"] = model.Scheduler;
+                genNode["steps"] = genParams.Model.Steps;
+                genNode["cfg"] = genParams.Model.CGF;
+                genNode["sampler_name"] = genParams.Model.Sampler;
+                genNode["scheduler"] = genParams.Model.Scheduler;
 
                 var latentNode = json[latentNodeName]!["inputs"]!;
                 latentNode["width"] = genParams.Width;
                 latentNode["height"] = genParams.Height;
                 latentNode["batch_size"] = 1;
 
-                json[clipSkipNodeName]!["inputs"]!["stop_at_clip_layer"] = -model.CLIPskip;
+                json[clipSkipNodeName]!["inputs"]!["stop_at_clip_layer"] = -genParams.Model.CLIPskip;
 
                 json[positivePromptNode]!["inputs"]!["text"] = genParams.Prompt;
                 json[negativePromptNode]!["inputs"]!["text"] = genParams.NegativePrompt;
@@ -222,9 +210,76 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 jsons.Add(json);
             }
 
-            await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, model, json.Count), outputNode, model.Steps);
+            await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, json.Count), outputNode, genParams.Model.Steps);
         }
+        private async Task RunTextToImageWithFace(JobInfo job, string directory)
+        {
+            var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2imageface.json"));
 
+            var genParams = new GenerationParams(job, _generalSettings);
+            if (genParams.Seed == -1)
+            {
+                genParams.Seed = new Random().NextInt64();
+            }
+            if (genParams.BatchCount == 0)
+            {
+                genParams.BatchCount = _generalSettings.BatchCount;
+            }
+           
+
+            List<JObject> jsons = [];
+
+            var json = JObject.Parse(payload);
+
+            var inputImageNode = FindNodeNameByClassType(json, "LoadImage");
+
+            var modelLoaderNodeName = FindNodeNameByClassType(json, "CheckpointLoaderSimple");
+            var genNodeName = FindNodeNameByClassType(json, "KSampler");
+            var latentNodeName = FindNodeNameByClassType(json, "EmptyLatentImage");
+            var positivePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "positive");
+            var negativePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "negative");
+            var clipSkipNodeName = FindNodeNameByClassType(json, "CLIPSetLastLayer");
+            string outputNode = FindNodeNameByClassType(json, "PreviewImage");
+
+            var fileName = $"{job.Id}{Path.GetExtension(job.InputImage)}";
+
+
+            for (int i = 0; i < genParams.BatchCount; i++)
+            {
+                json = JObject.Parse(payload);
+
+                json[modelLoaderNodeName]!["inputs"]!["ckpt_name"] = genParams.Model.Path;
+
+                var genNode = json[genNodeName]!["inputs"]!;
+                genNode["seed"] = genParams.Seed + i;
+                genNode["steps"] = genParams.Model.Steps;
+                genNode["cfg"] = genParams.Model.CGF;
+                genNode["sampler_name"] = genParams.Model.Sampler;
+                genNode["scheduler"] = genParams.Model.Scheduler;
+
+                var latentNode = json[latentNodeName]!["inputs"]!;
+                latentNode["width"] = genParams.Width;
+                latentNode["height"] = genParams.Height;
+                latentNode["batch_size"] = 1;
+
+                json[clipSkipNodeName]!["inputs"]!["stop_at_clip_layer"] = -genParams.Model.CLIPskip;
+
+                json[positivePromptNode]!["inputs"]!["text"] = genParams.Prompt;
+                json[negativePromptNode]!["inputs"]!["text"] = genParams.NegativePrompt;
+
+                json[inputImageNode]!["inputs"]!["image"] = fileName;
+
+                jsons.Add(json);
+            }
+
+            var dest = Path.Combine(_settings.InputDirectory, fileName);
+            if (!File.Exists(dest))
+            {
+                File.Copy(job.InputImage, dest, true);
+            }
+
+            await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, json.Count), outputNode, genParams.Model.Steps);
+        }
         private static IEnumerable<string> GetInfos(GenerationParams genParams, ModelSettings model, int count)
         {
             for (int i = 0; i < count; i++)
@@ -399,8 +454,14 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                     }
 
                     var data = Encoding.UTF8.GetString(buffer, 0, res.Count);
-                    _logger.LogDebug("{data}", data);
                     var obj = JsonConvert.DeserializeObject<WebsocketResponce>(data) ?? throw new InvalidOperationException("Cannot deserialize progress");
+
+                    if(obj.type != "crystools.monitor")
+                        _logger.LogDebug("{data}", data);
+                    else
+                        _logger.LogTrace("{data}", data);
+
+
 
                     if (obj.type == "progress")
                     {
