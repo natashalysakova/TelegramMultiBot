@@ -1,13 +1,15 @@
 ﻿using System.Text.Json;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Enums;
+using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 
 namespace TelegramMultiBot.ImageGenerators
 {
     public class GenerationParams
     {
-        public GenerationParams(JobInfo job, ImageGeneationSettings settings)
+        public GenerationParams(JobInfo job, ISqlConfiguationService configuration )
         {
             if (job.Text == null)
                 throw new InvalidOperationException("Job has no text");
@@ -52,19 +54,11 @@ namespace TelegramMultiBot.ImageGenerators
                 {
                     modelName = text[(indexOfModel + 1)..].Trim();
                 }
+                Model = configuration.Models.Single(x => x.Name == modelName);
             }
             else
             {
-                modelName = settings.DefaultModel;
-            }
-            try
-            {
-                Model = settings.Models.Single(x => x.Name == modelName);
-            }
-
-            catch (Exception)
-            {
-                throw new InputException("Невідома модель: " + modelName);
+                Model = configuration.DefaultModel;
             }
 
             Seed = -1;
@@ -98,7 +92,7 @@ namespace TelegramMultiBot.ImageGenerators
         }
 
         public int BatchCount { get; internal set; }
-        public ModelSettings Model { get; internal set; }
+        public ModelInfo Model { get; internal set; }
         public string Prompt { get; set; }
         public string NegativePrompt { get; set; }
         public int Width { get; set; }

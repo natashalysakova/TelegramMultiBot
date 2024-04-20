@@ -15,10 +15,10 @@ namespace TelegramMultiBot.ImageGenerators
         private readonly ILogger<ImageGenearatorQueue> _logger;
 
         private readonly ImageGenerator _imageGenerator;
-        private readonly IConfiguration _configuration;
+        private readonly ISqlConfiguationService _configuration;
         private readonly IServiceProvider _serviceProvider;
 
-        public ImageGenearatorQueue(ILogger<ImageGenearatorQueue> logger, ImageGenerator imageGenerator, IConfiguration configuration, IServiceProvider serviceProvider)
+        public ImageGenearatorQueue(ILogger<ImageGenearatorQueue> logger, ImageGenerator imageGenerator, ISqlConfiguationService configuration, IServiceProvider serviceProvider)
         {
             _logger = logger;
             _imageGenerator = imageGenerator;
@@ -97,9 +97,7 @@ namespace TelegramMultiBot.ImageGenerators
             using var scope = _serviceProvider.CreateScope();
             var databaseService = scope.ServiceProvider.GetRequiredService<IImageDatabaseService>();
 
-            var config = _configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
-            if (config is null)
-                throw new NullReferenceException(nameof(config));
+            var config = _configuration.IGSettings;
 
             var jobLimit = config.JobLimitPerUser;
             if (databaseService.ActiveJobsCount(message.UserId) >= jobLimit)

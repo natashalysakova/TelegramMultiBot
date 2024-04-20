@@ -5,13 +5,13 @@ using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    internal class CleanupService(IImageDatabaseService databaseService, TelegramClientWrapper client, IConfiguration configuration, ILogger<CleanupService> logger)
+    internal class CleanupService(IImageDatabaseService databaseService, TelegramClientWrapper client, ISqlConfiguationService configuration, ILogger<CleanupService> logger)
     {
         internal async Task Run()
         {
             logger.LogDebug("Cleanup Started");
 
-            var settings = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new InvalidOperationException($"Cannot bind {ImageGeneationSettings.Name}");
+            var settings = configuration.IGSettings;
             var jobAge = settings.JobAge;
             var removeFiles = settings.RemoveFiles;
 

@@ -20,7 +20,7 @@ using TelegramMultiBot.ImageGenerators;
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("imagine")]
-    internal class ImagineCommand(TelegramClientWrapper client, IConfiguration configuration, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IImageDatabaseService databaseService) : BaseCommand, ICallbackHandler, IInlineQueryHandler
+    internal class ImagineCommand(TelegramClientWrapper client, ISqlConfiguationService configuration, IConfiguration appSettings, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IImageDatabaseService databaseService) : BaseCommand, ICallbackHandler, IInlineQueryHandler
     {
         private static string imagineCommand = "imagine";
 
@@ -91,9 +91,8 @@ namespace TelegramMultiBot.Commands
         private async Task<string> DownloadImage(string fileId)
         {
             var url = await client.GetFileUrl(fileId);
-            var config = configuration.GetRequiredSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
-            var basedir = config.BaseImageDirectory;
-            var downloadDir = config.DownloadDirectory;
+            var basedir = configuration.IGSettings.BaseImageDirectory;
+            var downloadDir = configuration.IGSettings.DownloadDirectory;
             var dir = Path.Combine(basedir, downloadDir);
             var filename = $"{Guid.NewGuid()}{Path.GetExtension(url)}";
             var dest = Path.Combine(dir, filename);
@@ -690,8 +689,7 @@ namespace TelegramMultiBot.Commands
 
         private void AddWatermark(JobResultInfoView item)
         {
-            var addWatermark = configuration.GetRequiredSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>()?.Watermark ?? false;
-            if (addWatermark)
+            if (configuration.IGSettings.Watermark)
             {
 
                 using var image = new MagickImage(item.FilePath);
@@ -709,7 +707,7 @@ namespace TelegramMultiBot.Commands
 
         private async Task<bool> OriginalMessageExists(long chatId, int messageId)
         {
-            var testChatId = configuration.GetValue<long>("testChatId");
+            var testChatId = appSettings.GetValue<long>("testChatId");
             try
             {
                 var copied = await client.CopyMessageAsync(testChatId, chatId, messageId);

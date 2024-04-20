@@ -2,19 +2,17 @@
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramMultiBot.Configuration;
+using TelegramMultiBot.Database.Enums;
+using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGenerators;
 
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("help")]
-    internal class HelpCommand(TelegramClientWrapper client, IConfiguration configuration) : BaseCommand
+    internal class HelpCommand(TelegramClientWrapper client, ISqlConfiguationService configuration) : BaseCommand
     {
         public override async Task Handle(Message message)
         {
-            var config = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
-            if (config is null)
-                throw new NullReferenceException(nameof(config));
-
             var html =
 @"
 ⏰ *Бобер\-нагадувач*
@@ -54,7 +52,7 @@ string.Join("\n", GenerationParams.supportedResolutions[ModelVersion.OneFive].Se
 >Використовуй хештег `#model_` щоб обрати модель для рендеру\.
 >Наразі доступні моделі\:
 " +
-string.Join("\n", config.Models.Select(x => $">`#model_{x.Name}`"))
+string.Join("\n", configuration.Models.Select(x => $">`#model_{x.Name}`"))
 + @"
 
 >Використовуй хештеги `#auto` або `#comfy` щоб обрати API генерації Automatic1111 або ComfyUI відповідно

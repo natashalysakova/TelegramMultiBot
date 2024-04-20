@@ -12,9 +12,10 @@ using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGenerators;
 
-internal class BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, IConfiguration configuration)
+internal class BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, ISqlConfiguationService configuration)
 {
     public static string? BotName;
     private System.Timers.Timer? _timer;
@@ -29,7 +30,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         imageGenearatorQueue.JobFailed += ImageGenearatorQueue_JobFailed;
         imageGenearatorQueue.JobInQueue += ImageGenearatorQueue_JobInQueue;
 
-        var config = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>();
+        var config = configuration.IGSettings;
         if (config is null)
             throw new NullReferenceException(nameof(config));
 

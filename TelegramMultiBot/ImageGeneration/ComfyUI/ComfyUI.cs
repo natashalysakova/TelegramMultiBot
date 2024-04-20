@@ -18,8 +18,8 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
     internal class ComfyUI : Diffusor
     {
         private readonly ComfyUISettings _settings;
-        private readonly ImageGeneationSettings _generalSettings;
-
+        private readonly ImageGenerationSettings _generalSettings;
+        ISqlConfiguationService _configuationService;
         protected override string PingPath => "/system_stats";
 
         private readonly string _clientId;
@@ -27,14 +27,16 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         private readonly IImageDatabaseService _databaseService;
         private readonly TelegramClientWrapper _client;
 
-        public ComfyUI(ILogger<ComfyUI> logger, IConfiguration configuration, IImageDatabaseService databaseService, TelegramClientWrapper client) : base(logger, configuration)
+        public ComfyUI(ILogger<ComfyUI> logger, ISqlConfiguationService configuration, IConfiguration appSettings, IImageDatabaseService databaseService, TelegramClientWrapper client) : base(logger, configuration)
         {
             _logger = logger;
             _databaseService = databaseService;
             _client = client;
-            _clientId = "bober_" + configuration["env"];
-            _settings = configuration.GetSection(ComfyUISettings.Name).Get<ComfyUISettings>() ?? throw new InvalidOperationException(nameof(_settings));
-            _generalSettings = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new InvalidOperationException(nameof(_settings));
+            _clientId = "bober_" + appSettings["env"];
+
+            _configuationService = configuration;
+            _settings = configuration.ComfySettings;
+            _generalSettings = configuration.IGSettings;
         }
 
         public override string UI { get => nameof(ComfyUI); }
@@ -114,10 +116,10 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             var upscaleModelNodeName = FindNodeNameByClassType(json, "UpscaleModelLoader");
             string outputNode = FindNodeNameByClassType(json, "PreviewImage");
 
-            ModelSettings model;
+            ModelInfo model;
             try
             {
-                model = _generalSettings.Models.Single(x => x.Path.Contains(upscaleParams.Model));
+                model = _configuationService.Models.Single(x => x.Path.Contains(upscaleParams.Model));
             }
             catch (Exception)
             {
@@ -162,7 +164,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         {
             var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2image.json"));
 
-            var genParams = new GenerationParams(job, _generalSettings);
+            var genParams = new GenerationParams(job, _configuationService);
             if (genParams.Seed == -1)
             {
                 genParams.Seed = new Random().NextInt64();
@@ -216,7 +218,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         {
             var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2imageface.json"));
 
-            var genParams = new GenerationParams(job, _generalSettings);
+            var genParams = new GenerationParams(job, _configuationService);
             if (genParams.Seed == -1)
             {
                 genParams.Seed = new Random().NextInt64();
@@ -280,7 +282,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
             await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, json.Count), outputNode, genParams.Model.Steps);
         }
-        private static IEnumerable<string> GetInfos(GenerationParams genParams, ModelSettings model, int count)
+        private static IEnumerable<string> GetInfos(GenerationParams genParams, ModelInfo model, int count)
         {
             for (int i = 0; i < count; i++)
             {
@@ -426,7 +428,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost!.UI}] {job.Type} - Працюю... {i+1}/{jsons.Count()} Прогресс: {100.0 / jsons.Count() * i }%");
 
                 var webcocketClient = new ClientWebSocket();
-                var uri = new Uri($"ws://{ActiveHost.Host}:{ActiveHost.Port}/ws?clientId={_clientId}");
+                var uri = new Uri($"ws://{ActiveHost.Address}:{ActiveHost.Port}/ws?clientId={_clientId}");
                 await webcocketClient.ConnectAsync(uri, CancellationToken.None);
                 _logger.LogDebug("{client} - {state}", webcocketClient, webcocketClient.State);
 
@@ -494,15 +496,16 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
                 var imageArray = history[jobId]!["outputs"]![outputNode]!["images"]!;
 
-                foreach (var item in imageArray)
+                for (int j = 0; j < imageArray.Count(); j++)
                 {
+                    var item = imageArray[j];
                     var filename = item["filename"]!.ToString();
                     var subfolder = item["subfolder"]!.ToString();
                     var type = item["type"]!.ToString();
 
                     var img = await comfyClient.GetImage(filename, subfolder, type);
 
-                    var fileName = $"{DateTime.Now:yyyyMMddhhmmssfff}_{job.Type}.png";
+                    var fileName = $"{job.Id}_{i}_{j}_{job.Type}.png";
                     var filePath = Path.Combine(directory, fileName);
 
                     File.WriteAllBytes(filePath, img);
@@ -532,9 +535,9 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         private readonly string _propmt = "/prompt";
         private readonly string _view = "/view";
         private readonly string _history = "/history";
-        private readonly HostSettings _host;
+        private readonly HostInfo _host;
 
-        public ComfyUiClient(HostSettings host)
+        public ComfyUiClient(HostInfo host)
         {
             _host = host;
 

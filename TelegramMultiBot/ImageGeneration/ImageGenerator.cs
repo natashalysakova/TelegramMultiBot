@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 
 namespace TelegramMultiBot.ImageGenerators.Automatic1111
@@ -11,9 +12,9 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private readonly IEnumerable<IDiffusor> _diffusors;
         private readonly IServiceProvider _serviceProvider;
 
-        public ImageGenerator(IConfiguration configuration, IServiceProvider serviceProvider)
+        public ImageGenerator(ISqlConfiguationService configuration, IServiceProvider serviceProvider)
         {
-            var directory = (configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new InvalidOperationException("Cannot get ImageGeneationSettings")).BaseImageDirectory;
+            var directory = configuration.IGSettings.BaseImageDirectory;
             if (!Directory.Exists(directory))
             {
                 _ = Directory.CreateDirectory(directory);

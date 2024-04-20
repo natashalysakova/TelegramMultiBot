@@ -17,9 +17,10 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
     internal partial class Automatic1111 : Diffusor
     {
         private readonly TelegramClientWrapper _client;
+        private readonly ISqlConfiguationService _configuration;
         private readonly ILogger<Automatic1111> _logger;
         private readonly IImageDatabaseService _databaseService;
-        private readonly ImageGeneationSettings _settings;
+        private readonly ImageGenerationSettings _settings;
         private readonly Automatic1111Settings _automaticSettings;
 
         // private readonly IServiceProvider _serviceProvider;
@@ -29,13 +30,14 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
         private const string _extrasPath = "/sdapi/v1/extra-single-image";
         private const string _progressPath = "/sdapi/v1/progress?skip_current_image=true";
 
-        public Automatic1111(TelegramClientWrapper client, IConfiguration configuration, ILogger<Automatic1111> logger, IImageDatabaseService databaseService) : base(logger, configuration)
+        public Automatic1111(TelegramClientWrapper client, ISqlConfiguationService configuration, ILogger<Automatic1111> logger, IImageDatabaseService databaseService) : base(logger, configuration)
         {
             _client = client;
+            _configuration = configuration;
             _logger = logger;
             _databaseService = databaseService;
-            _settings = configuration.GetSection(ImageGeneationSettings.Name).Get<ImageGeneationSettings>() ?? throw new NullReferenceException(nameof(_settings));
-            _automaticSettings = configuration.GetSection(Automatic1111Settings.Name).Get<Automatic1111Settings>() ?? throw new NullReferenceException(nameof(_automaticSettings));
+            _settings = configuration.IGSettings;
+            _automaticSettings = configuration.AutomaticSettings;
         }
 
         protected override string PingPath => "/internal/sysinfo";
@@ -138,7 +140,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["steps"] = upscaleparams.Steps;
             json["cfg_scale"] = upscaleparams.CFGScale;
             json["denoising_strength"] = _settings.HiresFixDenoise;
-            var model = _settings.Models.Single(x => Path.GetFileNameWithoutExtension(x.Path) == upscaleparams.Model);
+            var model = _configuration.Models.Single(x => Path.GetFileNameWithoutExtension(x.Path) == upscaleparams.Model);
 #pragma warning disable CS8602 // Dereference of a possibly null reference.
             json["override_settings"]["sd_model_checkpoint"] = upscaleparams.Model;
             json["override_settings"]["CLIP_stop_at_last_layers"] = model.CLIPskip;
@@ -156,7 +158,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         private async Task TextToImage(JobInfo job, string directory)
         {
-            var genParams = new GenerationParams(job, _settings);
+            var genParams = new GenerationParams(job, _configuration);
 
             var batchCount = _settings.BatchCount;
 
@@ -231,7 +233,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                     {
                         var response = JsonConvert.DeserializeObject<UpscaleResponce>(str.Result) ?? throw new InvalidOperationException("Cannot deserialize response");
                         byte[] imageBytes = Convert.FromBase64String(response.image);
-                        var fileName = $"{DateTime.Now:yyyyMMddhhmmssfff}_{job.Type}.png";
+                        var fileName = $"{job.Id}_{i}_{job.Type}.png";
                         var filePath = Path.Combine(directory, fileName);
 
                         File.WriteAllBytes(filePath, imageBytes);
@@ -251,7 +253,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
                         {
                             string? item = response.images[j];
                             byte[] imageBytes = Convert.FromBase64String(item);
-                            var fileName = $"{DateTime.Now:yyyyMMddhhmmssfff}_{info?.seed}_{job.Type}.png";
+                            var fileName = $"{job.Id}_{i}_{j}_{job.Type}.png";
                             var filePath = Path.Combine(directory, fileName);
 
                             File.WriteAllBytes(filePath, imageBytes);

@@ -4,6 +4,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Primitives;
 using MySqlConnector;
 using Telegram.Bot;
 using TelegramMultiBot;
@@ -64,6 +65,7 @@ internal class Program
         });
         _ = serviceCollection.AddTransient<IImageDatabaseService, ImageService>();
         _ = serviceCollection.AddTransient<IBotMessageDatabaseService, BotMessageService>();
+        _ = serviceCollection.AddTransient<ISqlConfiguationService, ConfigurationService>();
         _ = serviceCollection.AddTransient<CleanupService>();
 
         var botKey = configuration["token"];
