@@ -1,0 +1,59 @@
+﻿@page
+@model ConfigUI.Pages.Hosts.CreateModel
+
+@{
+    ViewData["Title"] = "Create";
+}
+
+<h1>Create</h1>
+
+<h4>Host</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group form-check">
+                <label class="form-check-label">
+                    <input class="form-check-input" asp-for="Host.Enabled" /> @Html.DisplayNameFor(model => model.Host.Enabled)
+                </label>
+            </div>
+            <div class="form-group">
+                <label asp-for="Host.Port" class="control-label"></label>
+                <input asp-for="Host.Port" class="form-control" />
+                <span asp-validation-for="Host.Port" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Host.UI" class="control-label"></label>
+                <input asp-for="Host.UI" class="form-control" />
+                <span asp-validation-for="Host.UI" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Host.Address" class="control-label"></label>
+                <input asp-for="Host.Address" class="form-control" />
+                <span asp-validation-for="Host.Address" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Host.Protocol" class="control-label"></label>
+                <input asp-for="Host.Protocol" class="form-control" />
+                <span asp-validation-for="Host.Protocol" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Host.Priority" class="control-label"></label>
+                <input asp-for="Host.Priority" class="form-control" />
+                <span asp-validation-for="Host.Priority" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-page="../Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

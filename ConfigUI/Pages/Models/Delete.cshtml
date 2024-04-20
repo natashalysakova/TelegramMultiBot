@@ -1,0 +1,64 @@
+﻿@page
+@model ConfigUI.Pages.Models.DeleteModel
+
+@{
+    ViewData["Title"] = "Delete";
+}
+
+<h1>Delete</h1>
+
+<h3>Are you sure you want to delete this?</h3>
+<div>
+    <h4>Model</h4>
+    <hr />
+    <dl class="row">
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Model.Path)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Model.Path)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Model.CGF)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Model.CGF)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Model.Steps)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Model.Steps)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Model.Sampler)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Model.Sampler)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Model.Scheduler)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Model.Scheduler)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Model.CLIPskip)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Model.CLIPskip)
+        </dd>
+        <dt class="col-sm-2">
+            @Html.DisplayNameFor(model => model.Model.Version)
+        </dt>
+        <dd class="col-sm-10">
+            @Html.DisplayFor(model => model.Model.Version)
+        </dd>
+    </dl>
+    
+    <form method="post">
+        <input type="hidden" asp-for="Model.Name" />
+        <input type="submit" value="Delete" class="btn btn-danger" /> |
+        <a asp-page="../Index">Back to List</a>
+    </form>
+</div>

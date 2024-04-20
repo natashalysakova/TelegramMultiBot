@@ -1,0 +1,69 @@
+﻿@page
+@model ConfigUI.Pages.Models.CreateModel
+
+@{
+    ViewData["Title"] = "Create";
+}
+
+<h1>Create</h1>
+
+<h4>Model</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="Model.Name" class="control-label"></label>
+                <input asp-for="Model.Name" class="form-control" />
+                <span asp-validation-for="Model.Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Model.Path" class="control-label"></label>
+                <input asp-for="Model.Path" class="form-control" />
+                <span asp-validation-for="Model.Path" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Model.CGF" class="control-label"></label>
+                <input asp-for="Model.CGF" class="form-control" />
+                <span asp-validation-for="Model.CGF" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Model.Steps" class="control-label"></label>
+                <input asp-for="Model.Steps" class="form-control" />
+                <span asp-validation-for="Model.Steps" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Model.Sampler" class="control-label"></label>
+                <input asp-for="Model.Sampler" class="form-control" />
+                <span asp-validation-for="Model.Sampler" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Model.Scheduler" class="control-label"></label>
+                <input asp-for="Model.Scheduler" class="form-control" />
+                <span asp-validation-for="Model.Scheduler" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Model.CLIPskip" class="control-label"></label>
+                <input asp-for="Model.CLIPskip" class="form-control" />
+                <span asp-validation-for="Model.CLIPskip" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Model.Version" class="control-label"></label>
+                <select asp-for="Model.Version" class="form-control" asp-items="@Model.Versions"></select>
+                <span asp-validation-for="Model.Version" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-page="../Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

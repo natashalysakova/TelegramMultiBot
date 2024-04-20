@@ -1,0 +1,151 @@
+﻿@page
+@model IndexModel
+@{
+    ViewData["Title"] = "Home page";
+}
+
+<div class="row">
+    <h1>Hosts</h1>
+    <a class="btn btn-primary" asp-page="Hosts/Create">Add Host</a>
+
+
+    <table class="table table-hover table-responsive w-auto">
+        <thead>
+            <tr>
+
+                <th>Priority</th>
+                <th>Enabled</th>
+                <th>UI</th>
+                <th>Path</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+
+            @foreach (var item in Model.Hosts)
+            {
+                <tr>
+                    <td>@item.Priority</td>
+
+
+                    <td>
+                        <form id="form2" method="post" data-ajax-method="post" data-ajax="true" asp-page-handler="UpdateHostState">
+                            <input hidden asp-for="@item.Address" name="address" />
+                            <input hidden asp-for="@item.Port" name="port" />
+                            <input class="form-check-input mt-0" onchange="document.getElementById('button_@item.Address@item.Port').click()" asp-for="@item.Enabled" name="enabled">
+                            <button hidden class="btn btn-primary" id="button_@item.Address@item.Port" type="submit"></button>
+                        </form>
+
+                    </td>
+
+                    <td>@item.UI</td>
+                    @{
+                        var url = $"{item.Protocol}://{item.Address}:{item.Port}";
+                    }
+                    <td><a href="@url">@url</a></td>
+                    <td>
+                        @{
+                            var data = new Dictionary<string, string>()
+                    {
+                    {"address", item.Address},
+                    {"port", item.Port.ToString() }
+                    };
+                        }
+                        <a class="btn btn-secondary" asp-page="Hosts/Edit" asp-all-route-data="@data">Edit</a>
+                        <a class="btn btn-danger" asp-page="Hosts/Delete" asp-all-route-data="@data">Delete</a>
+                    </td>
+                </tr>
+
+            }
+        </tbody>
+    </table>
+    
+        <input hidden  name="address" value="test" />
+        <input hidden  name="port" value="43432"/>
+        
+
+
+    <h1>Models</h1>
+    <a class="btn btn-primary" asp-page="Models/Create">Add Model</a>
+
+    <table class="table table-hover w-auto">
+        <thead>
+            <tr>
+                <th>Name</th>
+                <th>Version</th>
+                <th>Path</th>
+                <th>CGF</th>
+                <th>CLIPskip</th>
+                <th>Steps</th>
+                <th>Sampler</th>
+                <th>Scheduler</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+
+            @foreach (var item in Model.Models)
+            {
+                <tr>
+                    <td>@item.Name</td>
+                    <td>@item.Version</td>
+                    <td>@item.Path</td>
+                    <td>@item.CGF</td>
+                    <td>@item.CLIPskip</td>
+                    <td>@item.Steps</td>
+                    <td>@item.Sampler</td>
+                    <td>@item.Scheduler</td>
+                    <td>
+                        <a class="btn btn-secondary" asp-page="Models/Edit" asp-route-id="@item.Name">Edit</a>
+                        <a class="btn btn-danger" asp-page="Models/Delete" asp-route-id="@item.Name">Delete</a>
+                    </td>
+                </tr>
+
+            }
+        </tbody>
+    </table>
+
+
+
+    <h1>Settings</h1>
+    <a class="btn btn-primary" asp-page="Settings/Create">Add Setting</a>
+    <form method="post" data-ajax-method="post" data-ajax="true" data-ajax-loading="#spinner" asp-page-handler="UpdateSettings">
+        <table class="table table-sm table-hover w-auto">
+            <thead>
+                <tr>
+                    <th>Section</th>
+                    <th>Key</th>
+                    <th>Value</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Settings.Count; i++)
+                {
+                    <tr>
+                        <td><input class="input-group-text" asp-for="@Model.Settings[i].SettingSection" readonly /></td>
+                        <td><input class="input-group-text" asp-for="@Model.Settings[i].SettingsKey" readonly /></td>
+                        <td><input class="form-control" asp-for="@Model.Settings[i].SettingsValue" placeholder="value"></td>
+                        @{
+                            var data = new Dictionary<string, string>()
+                    {
+                    {"section", Model.Settings[i].SettingSection},
+                    {"key", Model.Settings[i].SettingsKey}
+                    };
+                        }
+                        <td>
+                            <a class="btn btn-danger" asp-page="Settings/Delete" asp-all-route-data="@data">Delete</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+
+        <button class="btn btn-primary" type="submit">
+            <div class="spinner-border spinner-border-sm" style="display: none;" role="status" id="spinner">
+                
+            </div>
+            <span role="status">Update settings</span>
+        </button>
+    </form>
+</div>

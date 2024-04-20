@@ -1,0 +1,44 @@
+﻿@page
+@model ConfigUI.Pages.Settings.CreateModel
+
+@{
+    ViewData["Title"] = "Create";
+}
+
+<h1>Create</h1>
+
+<h4>Settings</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form method="post">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="Settings.SettingSection" class="control-label"></label>
+                <input asp-for="Settings.SettingSection" class="form-control" />
+                <span asp-validation-for="Settings.SettingSection" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Settings.SettingsKey" class="control-label"></label>
+                <input asp-for="Settings.SettingsKey" class="form-control" />
+                <span asp-validation-for="Settings.SettingsKey" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Settings.SettingsValue" class="control-label"></label>
+                <input asp-for="Settings.SettingsValue" class="form-control" />
+                <span asp-validation-for="Settings.SettingsValue" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-page="../Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}

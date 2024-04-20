@@ -367,3 +367,5 @@ FodyWeavers.xsd
 /Bober.Database/devsettings.json
 /TelegramMultiBot/images/automatic/20240218
 .DS_Store
+/ConfigUI/tokens.json
+/ConfigUI/devsettings.json
