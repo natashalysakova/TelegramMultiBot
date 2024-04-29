@@ -184,14 +184,14 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["steps"] = genParams.Model.Steps;
             json["cfg_scale"] = genParams.Model.CGF;
             var samplerAlias = "k_" + genParams.Model.Sampler;
-            if (genParams.Model.Scheduler == "karras")
-            {
-                samplerAlias += "_ka";
-            }
-            if (genParams.Model.Scheduler == "exponential")
-            {
-                samplerAlias += "_exp";
-            }
+            //if (genParams.Model.Scheduler == "karras")
+            //{
+            //    samplerAlias += "_ka";
+            //}
+            //if (genParams.Model.Scheduler == "exponential")
+            //{
+            //    samplerAlias += "_exp";
+            //}
 
             var samplers = Automatic1111Cache.GetSampler(ActiveHost!.Uri);
             var samplerName = samplers.Where(x => x.aliases.Contains(samplerAlias)).First().name;
