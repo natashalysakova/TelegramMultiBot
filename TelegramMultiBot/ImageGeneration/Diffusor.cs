@@ -73,6 +73,9 @@ namespace TelegramMultiBot.ImageGenerators
 
         private bool CheckIfBusy(HostInfo host)
         {
+            //temp till service is back 
+            return false;
+
             var maxGPUUtil = configuration.IGSettings.MaxGpuUtil;
 
             try
