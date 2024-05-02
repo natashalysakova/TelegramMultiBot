@@ -74,6 +74,7 @@ namespace TelegramMultiBot.ImageGenerators
                             databaseService.ReturnToQueue(job);
                             _logger.LogDebug("SD not available, job returned to the queue {id}", job.Id);
                             JobInQueue?.Invoke(job);
+                            await Task.Delay(10000);
                         }
                         catch (Exception ex)
                         {

@@ -291,7 +291,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
             (message.Chat.Type == ChatType.Group || message.Chat.Type == ChatType.Supergroup) ? message.Chat.Title : string.Empty,
             message.Text);
 
-        var activeDialog = dialogManager[message.Chat.Id];
+        var activeDialog = dialogManager[message.Chat.Id, message.From.Id];
         if (activeDialog != null)
         {
             var cancelCommand = serviceProvider.GetRequiredKeyedService<ICommand>("cancel");

@@ -12,9 +12,10 @@ internal abstract class BaseDialog<T> : IDialog where T : struct
         }
     }
 
-    public long ChatId { get; set; }
+    required public long ChatId { get; set; }
     public bool IsFinished { get; set; }
     public T State { get; set; }
+    required public long UserId { get; set; }
 
     protected abstract IEnumerable<StateTransition> GetStates();
 

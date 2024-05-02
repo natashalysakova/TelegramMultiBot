@@ -7,7 +7,7 @@ namespace TelegramMultiBot.Commands
     {
         public override async Task Handle(Message message)
         {
-            var activeDialog = dialogManager[message.Chat.Id];
+            var activeDialog = dialogManager[message.Chat.Id, message.From.Id];
             if (activeDialog != null)
             {
                 dialogManager.Remove(activeDialog);

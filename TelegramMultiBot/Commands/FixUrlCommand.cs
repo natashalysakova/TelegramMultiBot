@@ -44,7 +44,7 @@ namespace TelegramMultiBot.Commands
                     throw new NullReferenceException(nameof(client.BotId));
 
                 var bot = await client.GetChatMemberAsync(message.Chat, client.BotId.Value);
-                var canDeleteMessages = bot.Status == ChatMemberStatus.Administrator;
+                var canDeleteMessages = bot.Status == ChatMemberStatus.Administrator || message.Chat.Type == ChatType.Private;
 
                 string newMessage = string.Empty;
                 if (canDeleteMessages)

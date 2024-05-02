@@ -5,27 +5,11 @@ internal class DialogManager(DialogHandlerFactory factory)
 {
     private readonly List<IDialog> _dialogList = [];
 
-    public IDialog? this[long chatId]
+    public IDialog? this[long chatId, long userId]
     {
         get
         {
-            return _dialogList.FirstOrDefault(x => x.ChatId == chatId);
-        }
-
-        set
-        {
-            if (value is null)
-                return;
-
-            var existing = _dialogList.FirstOrDefault(x => x.ChatId == chatId && x.GetType() == value.GetType());
-            if (existing != null)
-            {
-                existing = value;
-            }
-            else
-            {
-                _dialogList.Add(value);
-            }
+            return _dialogList.FirstOrDefault(x => x.ChatId == chatId && x.UserId == userId);
         }
     }
 
@@ -45,5 +29,22 @@ internal class DialogManager(DialogHandlerFactory factory)
         }
 
         return Task.CompletedTask;
+    }
+
+    internal void Add(IDialog dialog)
+    {
+        if (dialog is null)
+            return;
+
+        var existing = _dialogList.FirstOrDefault(x => x.ChatId == dialog.ChatId && x.UserId == dialog.UserId && x.GetType() == dialog.GetType());
+        if (existing != null)
+        {
+            existing = dialog;
+        }
+        else
+        {
+            _dialogList.Add(dialog);
+        }
+
     }
 }
