@@ -19,13 +19,16 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 {
     public static string? BotName;
     private System.Timers.Timer? _timer;
+    CancellationTokenSource cancellationTokenSource;
+    CancellationTokenSource managerCancellationTokenSource;
 
-    public void Run(CancellationTokenSource cancellationToken)
+    public async Task Run()
     {
-        jobManager.Run(cancellationToken.Token);
+        managerCancellationTokenSource = new CancellationTokenSource();
+        jobManager.Run(managerCancellationTokenSource.Token);
         jobManager.ReadyToSend += JobManager_ReadyToSend;
 
-        imageGenearatorQueue.Run(cancellationToken.Token);
+        imageGenearatorQueue.Run(managerCancellationTokenSource.Token);
         imageGenearatorQueue.JobFinished += ImageGenearatorQueue_JobFinished;
         imageGenearatorQueue.JobFailed += ImageGenearatorQueue_JobFailed;
         imageGenearatorQueue.JobInQueue += ImageGenearatorQueue_JobInQueue;
@@ -55,28 +58,44 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 UpdateType.MessageReaction,
                 UpdateType.MessageReactionCount
             ],
-            ThrowPendingUpdates = true
+            DropPendingUpdates = false
         };
 
-        client.StartReceiving(
-                HandleUpdateAsync,
-                HandleErrorAsync,
-                receiverOptions,
-                cancellationToken.Token
-            );
 
-        var response = client.GetMeAsync(new GetMeRequest()).Result;
-        BotName = response.Username;
-
-        while (!cancellationToken.IsCancellationRequested)
+        do
         {
-            Thread.Sleep(1000);
-        }
+            cancellationTokenSource = new CancellationTokenSource();
+
+            try
+            {
+                client.StartReceiving(HandleUpdateAsync, HandleErrorAsync, receiverOptions, cancellationTokenSource.Token);
+
+                var response = client.GetMeAsync(new GetMeRequest()).Result;
+                BotName = response.Username;
+
+                logger.LogInformation("client connected");
+                while (!cancellationTokenSource.IsCancellationRequested)
+                {
+                    Thread.Sleep(1000);
+                }
+            }
+            catch (Exception ex) 
+            {
+                logger.LogError(ex.Message);
+            }
+            finally
+            {
+                logger.LogWarning("error reaching telegram servers. Retry in 30 seconds");
+                Thread.Sleep(30000);
+            }
+
+        } while (!managerCancellationTokenSource.IsCancellationRequested);
 
         jobManager.Dispose();
         _timer.Stop();
         _timer.Elapsed -= RunCleanup;
         _timer.Dispose();
+
     }
 
     private async void ImageGenearatorQueue_JobInQueue(JobInfo info)
@@ -152,6 +171,12 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
     {
         logger.LogDebug("{trace}", e.ToString());
         logger.LogError("{message}", e.Message);
+
+        if (e.Message.Contains("Bad Gateway") || e.Message.Contains("Exception during making request"))
+        {
+            cancellationTokenSource.Cancel();
+        }
+
         return Task.CompletedTask;
     }
 
@@ -180,7 +205,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
                 case UpdateType.MessageReaction:
                     ///TODO: add update
-                    if(update.MessageReaction == null)
+                    if (update.MessageReaction == null)
                         throw new NullReferenceException(nameof(update.InlineQuery));
                     return BotOnMessageReactionRecived(update.MessageReaction);
                     break;

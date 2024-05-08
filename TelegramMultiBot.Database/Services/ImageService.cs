@@ -20,8 +20,6 @@ namespace TelegramMultiBot.Database.Services
             _context = context;
             _logger = logger;
             _mapper = mapper;
-
-            _context.Database.Migrate();
         }
 
         public IEnumerable<ImageJob> ActiveJobs
@@ -293,9 +291,11 @@ namespace TelegramMultiBot.Database.Services
             return null;
         }
 
-        public JobInfo GetJobByResultId(string id)
+        public JobInfo? GetJobByResultId(string id)
         {
-            var result = _context.Jobs.Include(x => x.Results).AsNoTracking().Single(x => x.Results.Any(x=>x.Id == Guid.Parse(id)));
+            var result = _context.Jobs.Include(x => x.Results).AsNoTracking().SingleOrDefault(x => x.Results.Any(x=>x.Id == Guid.Parse(id)));
+            if(result == default)
+                return default;
             return _mapper.Map<JobInfo?>(result);
 
         }

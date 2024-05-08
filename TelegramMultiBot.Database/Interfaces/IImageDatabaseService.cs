@@ -17,7 +17,7 @@ namespace TelegramMultiBot.Database.Interfaces
 
         JobInfo GetJob(string jobId);
         JobInfo? GetJobByFileId(string fileId);
-        JobInfo GetJobByResultId(string id);
+        JobInfo? GetJobByResultId(string id);
         JobResultInfoView? GetJobResult(string jobResultId);
 
         IEnumerable<JobInfo> GetJobsOlderThan(DateTime date);

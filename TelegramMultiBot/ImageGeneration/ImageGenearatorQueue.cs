@@ -37,14 +37,15 @@ namespace TelegramMultiBot.ImageGenerators
         {
             _ = Task.Run(async () =>
             {
+                using var scope = _serviceProvider.CreateScope();
+                var databaseService = scope.ServiceProvider.GetRequiredService<IImageDatabaseService>();
+
                 while (!cancellationToken.IsCancellationRequested)
                 {
                     //var activeJobsNumber = _configuration.GetSection("ImageGeneation:BotSettings").Get<BotSettings>().ActiveJobs;
                     //if (_databaseService.RunningJobs < activeJobsNumber)
                     //{
                     JobInfo? job = default;
-                    using var scope = _serviceProvider.CreateScope();
-                    var databaseService = scope.ServiceProvider.GetRequiredService<IImageDatabaseService>();
 
                     try
                     {

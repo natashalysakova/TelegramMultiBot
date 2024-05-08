@@ -34,12 +34,13 @@ internal class Program
         ServiceProvider serviceProvider = RegisterServices(args);
 
         var context = serviceProvider.GetRequiredService<BoberDbContext>();
-        context.Database.Migrate();
+        if (context.Database.GetPendingMigrations().Any())
+        {
+            context.Database.Migrate();
+        }
 
         var bot = serviceProvider.GetRequiredService<BotService>();
-
-        CancellationTokenSource cancellationToken = new();
-        bot.Run(cancellationToken);
+        bot.Run();
     }
 
     private static ServiceProvider RegisterServices(string[] args)
@@ -60,8 +61,9 @@ internal class Program
 
         _ = serviceCollection.AddDbContext<BoberDbContext>(options =>
         {
-            _ = options.UseMySql(connectionString, serverVersion);
+            _ = options.UseMySql(connectionString, serverVersion, op2 => { op2.EnableRetryOnFailure(100, TimeSpan.FromSeconds(30), null); });
             _ = options.LogTo(Console.WriteLine, LogLevel.Warning);
+            _ = options.EnableDetailedErrors();
         });
         _ = serviceCollection.AddTransient<IImageDatabaseService, ImageService>();
         _ = serviceCollection.AddTransient<IBotMessageDatabaseService, BotMessageService>();

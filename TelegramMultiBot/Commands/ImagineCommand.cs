@@ -476,17 +476,24 @@ namespace TelegramMultiBot.Commands
                     {
                         var message = callbackQuery.Message as Message ?? throw new NullReferenceException(nameof(callbackQuery.Message));
 
+
+
                         var previousJob = databaseService.GetJobByResultId(callbackData.JobId);
-                        if (previousJob is null)
+                        if (previousJob is null && message.ReplyToMessage == null)
                         {
                             await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Цей во, я забув шо я там малював :(", true);
                             await HandleDeletedMessage(callbackQuery, callbackData);
                             break;
                         }
-
-                        await AddJobToTheQueue(message, CreateMessageData(previousJob, callbackQuery.From.Id));
+                        else if (message.ReplyToMessage != null)
+                        {
+                            await AddJobToTheQueue(message, await CreateMessageData(message.ReplyToMessage));
+                        }
+                        else
+                        {
+                            await AddJobToTheQueue(message, CreateMessageData(previousJob, callbackQuery.From.Id));
+                        }
                         await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Додано в чергу");
-
                         break;
                     }
                 default:
@@ -563,8 +570,8 @@ namespace TelegramMultiBot.Commands
                 case RenderFailedException:
                     {
                         var keys = new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Спробувати ще", new ImagineCallbackData(Command, ImagineCommands.Repeat, job.Id)));
-
-                        await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Рендер невдалий. Спробуйте ще", keys);
+                        await client.DeleteMessageAsync(job.ChatId, job.BotMessageId);
+                        await client.SendMessageAsync(job.ChatId, "Рендер невдалий. Спробуйте ще", keys, job.MessageThreadId, job.MessageId);
                         break;
                     }
                 case AlreadyRunningException:
