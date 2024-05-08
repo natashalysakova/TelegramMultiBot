@@ -51,7 +51,7 @@ namespace TelegramMultiBot.ImageGenerators
                 {
                     if (ValidateConnection(await resp.Content.ReadAsStringAsync()))
                     {
-                        logger.LogTrace("{uri} available", host.Uri);
+                        logger.LogTrace("{uri} online", host.Uri);
                         return true;
                     }
                     else
@@ -66,7 +66,7 @@ namespace TelegramMultiBot.ImageGenerators
             }
             catch (Exception)
             {
-                logger.LogTrace("{uri} not available", host.Uri);
+                logger.LogTrace("{uri} offline", host.Uri);
             }
             return false;
         }
@@ -74,13 +74,13 @@ namespace TelegramMultiBot.ImageGenerators
         private bool CheckIfBusy(HostInfo host)
         {
             //temp till service is back 
-            return false;
 
             var maxGPUUtil = configuration.IGSettings.MaxGpuUtil;
 
             try
             {
                 HttpClient client = new();
+                //client.Timeout = TimeSpan.FromSeconds(10);
                 var responce = client.GetAsync($"http://{host.Address}:5001/gpu").Result;
                 if (responce.IsSuccessStatusCode)
                 {
@@ -91,14 +91,14 @@ namespace TelegramMultiBot.ImageGenerators
                 }
                 else
                 {
-                    return false;
+                    return true;
                 }
 
             }
             catch (Exception ex)
             {
-                logger.LogWarning("Error getting host performance {host}: {error}", host.Address, ex.Message);
-                return false;
+                logger.LogWarning("Error getting host performance {host}: {error}", host.Address, string.Join("\n", ex.GetInnerExceptions().Select(x=>x.Message)));
+                return true;
             }
         }
 

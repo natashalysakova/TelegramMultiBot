@@ -62,13 +62,13 @@ namespace TelegramMultiBot.ImageGenerators
                     {
                         //var task =  Task.Run(async () =>
                         //{
-                        _logger.LogDebug("Starting {id}", job.Id);
+                        _logger.LogInformation("Starting {id}", job.Id);
 
                         try
                         {
                             var result = await _imageGenerator.Run(job);
                             JobFinished?.Invoke(result);
-                            _logger.LogDebug("Finished {id}", job.Id);
+                            _logger.LogInformation("Finished {id}", job.Id);
                         }
                         catch (SdNotAvailableException)
                         {

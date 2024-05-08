@@ -11,7 +11,7 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TelegramMultiBot.Database",
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "ConfigUI", "ConfigUI\ConfigUI.csproj", "{E58CB27A-F16D-4C6D-AE21-D20ABFE93C25}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "SdHostApi", "SdHostApi\SdHostApi.csproj", "{0C0B3725-2154-4AB8-BBC0-DF35066DDCA3}"
+Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "SdHostApi", "SdHostApi\SdHostApi.csproj", "{0C0B3725-2154-4AB8-BBC0-DF35066DDCA3}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution

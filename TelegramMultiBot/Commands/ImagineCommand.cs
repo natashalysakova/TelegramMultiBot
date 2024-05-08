@@ -586,10 +586,10 @@ namespace TelegramMultiBot.Commands
                     }
                 default:
                     await client.EditMessageTextAsync(job.ChatId, job.BotMessageId, "Невідома помилка");
-                    logger.LogError(exception, "JobFailed Exception");
                     //Directory.Delete(obj.TmpDir, true);
                     break;
             }
+            logger.LogError(exception, "JobFailed Exception");
         }
 
         internal async Task JobInQueue(JobInfo job)

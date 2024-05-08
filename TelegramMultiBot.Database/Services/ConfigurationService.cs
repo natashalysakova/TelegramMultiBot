@@ -19,38 +19,38 @@ namespace TelegramMultiBot.Database.Services
     public class ConfigurationService : ISqlConfiguationService
     {
         private readonly BoberDbContext _context;
-        private readonly ILogger<ImageService> _logger;
+        private readonly ILogger<ConfigurationService> _logger;
         private readonly IMapper _mapper;
         private readonly IConfiguration _appSettings;
 
-        public ConfigurationService(BoberDbContext context, ILogger<ImageService> logger, IMapper mapper, IConfiguration appSettings) 
-        {        
+        public ConfigurationService(BoberDbContext context, ILogger<ConfigurationService> logger, IMapper mapper, IConfiguration appSettings)
+        {
             _context = context;
             _logger = logger;
             _mapper = mapper;
             _appSettings = appSettings;
 
-            if (!context.Settings.Any())
-            {
-                try
-                {
-                    PopulateData();
+            //if (!context.Settings.Any())
+            //{
+            //    try
+            //    {
+            //        PopulateData();
 
-                }
-                catch (Exception ex)
-                {
-                    _context.Models.RemoveRange(_context.Models);
-                    _context.Settings.RemoveRange(_context.Settings);
-                    _context.Hosts.RemoveRange(_context.Hosts);
-                    _context.SaveChanges();
-                    throw;
-                }
-            }
+            //    }
+            //    catch (Exception ex)
+            //    {
+            //        _context.Models.RemoveRange(_context.Models);
+            //        _context.Settings.RemoveRange(_context.Settings);
+            //        _context.Hosts.RemoveRange(_context.Hosts);
+            //        _context.SaveChanges();
+            //        throw;
+            //    }
+            //}
         }
 
         private void PopulateData()
         {
-            
+
             FillSection(_appSettings.GetSection(ImageGenerationSettings.Name));
             FillSection(_appSettings.GetSection(Automatic1111Settings.Name));
             FillSection(_appSettings.GetSection(ComfyUISettings.Name));
@@ -95,7 +95,7 @@ namespace TelegramMultiBot.Database.Services
                 var model = BindSettings<Model>(settings);
                 _context.Settings.RemoveRange(settings);
                 _context.Models.Add(model);
-                _context.SaveChanges(); 
+                _context.SaveChanges();
 
                 i++;
             } while (true);
@@ -105,9 +105,9 @@ namespace TelegramMultiBot.Database.Services
         {
             foreach (ConfigurationSection item in section.GetChildren())
             {
-                if(item.Value != null)
+                if (item.Value != null)
                 {
-                    _context.Settings.Add(new() { SettingSection = item.Path.Replace(":"+item.Key, string.Empty), SettingsKey = item.Key, SettingsValue = item.Value });
+                    _context.Settings.Add(new() { SettingSection = item.Path.Replace(":" + item.Key, string.Empty), SettingsKey = item.Key, SettingsValue = item.Value });
                 }
             }
             _context.SaveChanges();
@@ -117,7 +117,7 @@ namespace TelegramMultiBot.Database.Services
         {
             get
             {
-                return _mapper.Map<IEnumerable<HostInfo>>(_context.Hosts.OrderBy(x=>x.Priority).AsNoTracking());
+                return _mapper.Map<IEnumerable<HostInfo>>(_context.Hosts.OrderBy(x => x.Priority).AsNoTracking());
             }
         }
 
@@ -134,10 +134,20 @@ namespace TelegramMultiBot.Database.Services
             get
             {
                 var defaultModelName = IGSettings.DefaultModel;
-                return _mapper.Map<ModelInfo>(_context.Models.Single(x=>x.Name == defaultModelName));
+                return _mapper.Map<ModelInfo>(_context.Models.Single(x => x.Name == defaultModelName));
             }
         }
 
+        //public LogLevel LogLevel
+        //{
+        //    get
+        //    {
+        //        return Enum.Parse<LogLevel>(_appSettings.GetRequiredSection("Logging/LogLevel/Default").Value);
+        //    }
+        //    set {
+        //        _appSettings.GetRequiredSection("Logging/LogLevel/Default").Value = value.ToString();
+        //    }
+        //}
 
 
         public ImageGenerationSettings IGSettings
@@ -160,7 +170,7 @@ namespace TelegramMultiBot.Database.Services
         {
             get
             {
-                return BindSettings<ComfyUISettings>(_context.Settings.Where(x=>x.SettingSection == ComfyUISettings.Name));
+                return BindSettings<ComfyUISettings>(_context.Settings.Where(x => x.SettingSection == ComfyUISettings.Name));
             }
         }
 
@@ -171,9 +181,9 @@ namespace TelegramMultiBot.Database.Services
 
             foreach (var property in type.GetProperties())
             {
-                if(settings.Any(x=>x.SettingsKey == property.Name))
+                if (settings.Any(x => x.SettingsKey == property.Name))
                 {
-                    var config = settings.Single(x=>x.SettingsKey == property.Name);
+                    var config = settings.Single(x => x.SettingsKey == property.Name);
 
                     if (property.PropertyType.IsEnum)
                     {
@@ -188,6 +198,6 @@ namespace TelegramMultiBot.Database.Services
 
             return (T)obj;
         }
-        
+
     }
 }

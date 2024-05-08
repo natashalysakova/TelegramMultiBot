@@ -1,6 +1,7 @@
 
 using System.Collections.Generic;
 using System.Diagnostics;
+using Microsoft.Extensions.Logging;
 
 namespace SdHostApi
 {
@@ -8,8 +9,9 @@ namespace SdHostApi
     {
         public static void Main(string[] args)
         {
-            var builder = WebApplication.CreateBuilder(args);
 
+            var builder = WebApplication.CreateBuilder(args);
+            builder.Services.AddWindowsService();
             // Add services to the container.
             builder.Services.AddAuthorization();
 
@@ -20,7 +22,7 @@ namespace SdHostApi
             var app = builder.Build();
 
             // Configure the HTTP request pipeline.
-            if (app.Environment.IsDevelopment())
+            //if (app.Environment.IsDevelopment())
             {
                 app.UseSwagger();
                 app.UseSwaggerUI();
@@ -28,7 +30,7 @@ namespace SdHostApi
 
             app.UseHttpsRedirection();
 
-            app.UseAuthorization();
+            //app.UseAuthorization();
 
             _ = app.MapGet("/gpu", async (HttpContext context) =>
             {
@@ -44,7 +46,7 @@ namespace SdHostApi
                     .ToList();
 
                 var res = await GetGPUUsage(gpuCounters);
-                return res.Sum(x=>x.value);
+                return res.Sum(x => x.value);
             })
                 .WithOpenApi();
 
