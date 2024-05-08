@@ -1,0 +1,7 @@
+@SdHostApi_HostAddress = http://localhost:5282
+
+GET {{SdHostApi_HostAddress}}/weatherforecast/
+Accept: application/json
+###
+GET {{SdHostApi_HostAddress}}/gpu/
+Accept: application/json
