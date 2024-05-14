@@ -58,7 +58,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 UpdateType.MessageReaction,
                 UpdateType.MessageReactionCount
             ],
-            DropPendingUpdates = false
+            DropPendingUpdates = true,
         };
 
 
@@ -91,7 +91,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
         } while (!managerCancellationTokenSource.IsCancellationRequested);
 
-        jobManager.Dispose();
+        //jobManager.Dispose();
         _timer.Stop();
         _timer.Elapsed -= RunCleanup;
         _timer.Dispose();

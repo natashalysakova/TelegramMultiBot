@@ -5,7 +5,7 @@ using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    internal class CleanupService(IImageDatabaseService databaseService, TelegramClientWrapper client, ISqlConfiguationService configuration, ILogger<CleanupService> logger)
+    internal class CleanupService(IImageDatabaseService databaseService, TelegramClientWrapper client, ISqlConfiguationService configuration, IBotMessageDatabaseService botMessageService, ILogger<CleanupService> logger)
     {
         internal async Task Run()
         {
@@ -59,6 +59,8 @@ namespace TelegramMultiBot.ImageGenerators
             }
 
             databaseService.RemoveJobs(jobsToDelete.Select(x => x.Id));
+            var botMessagesCleaned = botMessageService.RunCleanup();
+            logger.LogDebug("BotMessages cleaned: {0}", botMessagesCleaned);
             logger.LogDebug("Cleanup Ended");
         }
     }

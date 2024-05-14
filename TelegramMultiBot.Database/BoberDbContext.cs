@@ -15,6 +15,8 @@ namespace TelegramMultiBot.Database
         public virtual DbSet<Host> Hosts { get; set; }
         public virtual DbSet<Model> Models { get; set; }
         public virtual DbSet<Settings> Settings { get; set; }
+
+        public virtual DbSet<ReminderJob> Reminders { get; set; }
     }
 
     public class BoberDbContextFactory : IDesignTimeDbContextFactory<BoberDbContext>

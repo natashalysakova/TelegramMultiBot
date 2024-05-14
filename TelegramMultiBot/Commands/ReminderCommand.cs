@@ -71,7 +71,7 @@ namespace TelegramMultiBot.Commands
                     var text = $"{job.Name} ({job.Config})";
                     buttons.Add(
                     [
-                        InlineKeyboardButton.WithCallbackData(text, new ReminderCallbackData(Command, ReminderCommands.DeleteJob,job.Id))
+                        InlineKeyboardButton.WithCallbackData(text, new ReminderCallbackData(Command, ReminderCommands.DeleteJob, job.Id))
                     ]);
                 }
                 InlineKeyboardMarkup inlineKeyboard = new(buttons);
@@ -99,13 +99,13 @@ namespace TelegramMultiBot.Commands
             }
 
             await client.AnswerCallbackQueryAsync(callbackQuery.Id);
-            await client.SendMessageAsync(message, response);
+            await client.SendMessageAsync(message, response, linkPreviewOptions: new LinkPreviewOptions() { IsDisabled = true });
         }
 
         private async Task DeleteJob(CallbackQuery callbackQuery, string jobId)
         {
             logger.LogDebug("Deleting job: {jobId}", jobId);
-            jobManager.DeleteJob(long.Parse(jobId));
+            jobManager.DeleteJob(Guid.Parse(jobId));
             await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдання видалено", true);
         }
 
@@ -117,7 +117,7 @@ namespace TelegramMultiBot.Commands
             var dialog = new AddJobDialog()
             {
                 ChatId = chatId,
-                UserId = message.From.Id
+                UserId = callbackQuery.From.Id
             };
 
             dialogManager.Add(dialog);

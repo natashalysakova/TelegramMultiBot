@@ -38,19 +38,20 @@ namespace TelegramMultiBot.Database.Services
 
         public bool IsBotMessage(BotMessageInfo info)
         {
-            RunCleanup();
-
             return context.BotMessages.Any(x => x.ChatId == info.chatId && x.MessageId == info.messageId);
         }
 
-        private void RunCleanup()
+        public int RunCleanup()
         {
+            var h48 = DateTime.Now.AddHours(-48);
+            var h24 = DateTime.Now.AddHours(-24);
             var toDelete = context.BotMessages
                 .Where(x => 
-                       (x.SendTime < DateTime.Now.AddHours(-48) && !x.IsPrivateChat) 
-                    || (x.SendTime < DateTime.Now.AddHours(-24) && x.IsPrivateChat));
+                       (x.SendTime < h48 && !x.IsPrivateChat) 
+                    || (x.SendTime < h24 && x.IsPrivateChat));
             context.BotMessages.RemoveRange(toDelete);
             context.SaveChanges();
+            return toDelete.Count();
         }
     }
 }

@@ -12,7 +12,6 @@ namespace TelegramMultiBot.Database.Interfaces
         void AddResult(string id, JobResultInfoCreate jobResultInfo);
 
         void CancelUnfinishedJobs();
-
         Guid Enqueue(IInputData message);
 
         JobInfo GetJob(string jobId);

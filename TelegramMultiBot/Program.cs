@@ -64,10 +64,12 @@ internal class Program
             _ = options.UseMySql(connectionString, serverVersion, op2 => { op2.EnableRetryOnFailure(100, TimeSpan.FromSeconds(30), null); });
             _ = options.LogTo(Console.WriteLine, LogLevel.Warning);
             _ = options.EnableDetailedErrors();
-        });
+        }, ServiceLifetime.Transient);
         _ = serviceCollection.AddTransient<IImageDatabaseService, ImageService>();
         _ = serviceCollection.AddTransient<IBotMessageDatabaseService, BotMessageService>();
         _ = serviceCollection.AddTransient<ISqlConfiguationService, ConfigurationService>();
+        _ = serviceCollection.AddTransient<IReminderDataService, ReminderService>();
+
         _ = serviceCollection.AddTransient<CleanupService>();
 
         var botKey = configuration["token"];

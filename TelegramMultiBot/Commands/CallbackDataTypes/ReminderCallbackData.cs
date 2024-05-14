@@ -5,7 +5,9 @@
         public ReminderCallbackData(string command, ReminderCommands type, int id) : base(command, type, id.ToString())
         {
         }
-
+        public ReminderCallbackData(string command, ReminderCommands type, Guid id) : base(command, type, id.ToString())
+        {
+        }
         public ReminderCallbackData(string command, ReminderCommands type) : base(command, type, string.Empty)
         {
         }

@@ -77,7 +77,7 @@ namespace TelegramMultiBot.Commands
                     //await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
                 }
 
-                await client.SendMessageAsync(message, newMessage, true, disableNotification: false);
+                await client.SendMessageAsync(message, newMessage, true, disableNotification: true);
             }
         }
 

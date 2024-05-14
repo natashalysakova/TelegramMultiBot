@@ -8,6 +8,7 @@ namespace TelegramMultiBot.Database.Interfaces
         void DeleteMessage(BotMessageInfo info);
         bool IsBotMessage(BotMessageInfo info);
         bool IsActiveJob(BotMessageInfo info);
+        int RunCleanup();
     }
 
     public record BotMessageAddInfo(long chatId, int messageId, bool isPrivate);

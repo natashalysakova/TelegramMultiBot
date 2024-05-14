@@ -2,14 +2,17 @@
 
 namespace TelegramMultiBot.Database.Models
 {
-    public class Reminder
+    public class ReminderJob
     {
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
-        public Guid Id { get; }
+        public Guid Id { get; set; }
 
         public string Name { get; set; }
         public string Message { get; set; }
         public string Config { get; set; }
-        public long ChatId { get; }
+        public long ChatId { get; set; }
+        public DateTime NextExecution { get; set; }
+
+
     }
 }
