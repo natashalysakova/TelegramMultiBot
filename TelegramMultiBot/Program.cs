@@ -116,15 +116,17 @@ internal class Program
             }
             catch (MySqlException ex)
             {
+                Console.WriteLine(ex.Message);
+                Console.WriteLine("Trying in 15 seconds");
+
+
                 if (ex.Message.Contains("Unable to connect to any of the specified MySQL hosts"))
                 {
-                    Console.WriteLine(ex.Message);
-                    Console.WriteLine("Trying in 5 seconds");
-                    Thread.Sleep(5000);
+                    Thread.Sleep(15000);
                 }
                 else
                 {
-                    throw;
+                    Thread.Sleep(60000);
                 }
             }
         }
