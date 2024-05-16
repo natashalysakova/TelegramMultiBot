@@ -49,15 +49,21 @@ internal class Program
         var serviceCollection = new ServiceCollection();
         _ = serviceCollection.AddSingleton(configuration);
 
-        _ = serviceCollection.AddLogging(loggerBuilder =>
+        
+
+
+        Action<ILoggingBuilder> builder = (builder) =>
         {
-            _ = loggerBuilder.AddConfiguration(configuration.GetSection("Logging"));
-            _ = loggerBuilder.ClearProviders();
-            _ = loggerBuilder.AddConsole();
-        });
+            _ = builder.AddConfiguration(configuration.GetSection("Logging"));
+            _ = builder.ClearProviders();
+            _ = builder.AddConsole();
+        };
+        _ = serviceCollection.AddLogging(builder);
+        var logger = LoggerFactory.Create(builder).CreateLogger<Program>();
+
 
         string? connectionString = configuration.GetConnectionString("db");
-        var serverVersion = GetServerVersion(connectionString);
+        var serverVersion = GetServerVersion(connectionString, logger);
 
         _ = serviceCollection.AddDbContext<BoberDbContext>(options =>
         {
@@ -102,22 +108,21 @@ internal class Program
         return serviceCollection.BuildServiceProvider();
     }
 
-    private static ServerVersion GetServerVersion(string? connectionString)
+    private static ServerVersion GetServerVersion(string? connectionString, ILogger logger)
     {
         ServerVersion? version = default;
-
+        logger.LogInformation("connecting to " + connectionString);
         do
         {
             try
             {
-                Console.WriteLine("connecting to " + connectionString);
                 version = ServerVersion.AutoDetect(connectionString);
-                Console.WriteLine("Success");
+                logger.LogInformation("Success");
             }
             catch (MySqlException ex)
             {
-                Console.WriteLine(ex.Message);
-                Console.WriteLine("Trying in 15 seconds");
+                logger.LogInformation(ex.Message);
+                logger.LogInformation("Trying in 15 seconds");
 
 
                 if (ex.Message.Contains("Unable to connect to any of the specified MySQL hosts"))
