@@ -119,18 +119,18 @@ internal class Program
                 version = ServerVersion.AutoDetect(connectionString);
                 logger.LogInformation("Success");
             }
-            catch (MySqlException ex)
+            catch (Exception ex)
             {
                 logger.LogInformation(ex.Message);
-                logger.LogInformation("Trying in 15 seconds");
-
 
                 if (ex.Message.Contains("Unable to connect to any of the specified MySQL hosts"))
                 {
+                    logger.LogInformation("Trying in 15 seconds");
                     Thread.Sleep(15000);
                 }
                 else
                 {
+                    logger.LogInformation("Trying in 60 seconds");
                     Thread.Sleep(60000);
                 }
             }
