@@ -12,14 +12,15 @@ namespace TelegramMultiBot.Database.Services
 {
     public class BotMessageService(BoberDbContext context) : IBotMessageDatabaseService
     {
-        public void AddMessage(BotMessageAddInfo info, DateTime date)
+        public void AddMessage(BotMessageAddInfo info)
         {
             context.BotMessages.Add(new BotMessage
             {
                 ChatId = info.chatId,
                 MessageId = info.messageId,
-                SendTime = date,
-                IsPrivateChat = info.isPrivate
+                SendTime = info.time,
+                IsPrivateChat = info.isPrivate,
+                UserId = info.userId,
             });
             context.SaveChanges();
         }
@@ -29,6 +30,19 @@ namespace TelegramMultiBot.Database.Services
             var toDelete = context.BotMessages.Where(x => x.ChatId == info.chatId && x.MessageId == info.messageId);
             context.BotMessages.RemoveRange(toDelete);
             context.SaveChanges();
+        }
+
+        public long GetUserId(BotMessageInfo info)
+        {
+            var botMessage = context.BotMessages.SingleOrDefault(x => x.ChatId == info.chatId && x.MessageId == info.messageId);
+            if (botMessage != default && botMessage.UserId != null)
+            {
+                return botMessage.UserId.Value;
+            }
+            else
+            {
+                return 0;
+            }
         }
 
         public bool IsActiveJob(BotMessageInfo info)
@@ -46,8 +60,8 @@ namespace TelegramMultiBot.Database.Services
             var h48 = DateTime.Now.AddHours(-48);
             var h24 = DateTime.Now.AddHours(-24);
             var toDelete = context.BotMessages
-                .Where(x => 
-                       (x.SendTime < h48 && !x.IsPrivateChat) 
+                .Where(x =>
+                       (x.SendTime < h48 && !x.IsPrivateChat)
                     || (x.SendTime < h24 && x.IsPrivateChat));
             context.BotMessages.RemoveRange(toDelete);
             context.SaveChanges();

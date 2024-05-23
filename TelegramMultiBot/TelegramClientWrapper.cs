@@ -62,7 +62,7 @@ namespace TelegramMultiBot
                 ProtectContent = protectContent
             };
             var botMessage = await client.SendMessageAsync(request);
-            databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private), botMessage.Date);
+            databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private, botMessage.Date));
             return botMessage;
         }
         public async Task<Message> SendMessageAsync(Message message, string text, bool replyToMessage = false, IReplyMarkup? replyMarkup = null, bool? disableNotification = null, ParseMode? parseMode = null, bool? protectContent = null, LinkPreviewOptions? linkPreviewOptions = null)
@@ -87,7 +87,7 @@ namespace TelegramMultiBot
                 ReplyParameters = reply && messageId.HasValue ? new ReplyParameters() { MessageId = messageId.Value, ChatId = chatId } : null
             };
             var botMessage = await client.SendPhotoAsync(request);
-            databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private), botMessage.Date);
+            databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private, botMessage.Date));
             return botMessage;
         }
 
@@ -125,7 +125,7 @@ namespace TelegramMultiBot
             };
 
             var botMessage = await client.SendDocumentAsync(request);
-            databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private), botMessage.Date);
+            databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private, botMessage.Date));
             return botMessage;
         }
         internal async Task<Message[]> SendMediaAlbumAsync(JobInfo job, IEnumerable<IAlbumInputMedia> media)
@@ -145,7 +145,7 @@ namespace TelegramMultiBot
             var botMessages = await client.SendMediaGroupAsync(request);
             foreach (var item in botMessages)
             {
-                databaseService.AddMessage(new(item.Chat.Id, item.MessageId, item.Chat.Type == ChatType.Private), item.Date);
+                databaseService.AddMessage(new(item.Chat.Id, item.MessageId, item.Chat.Type == ChatType.Private, item.Date));
             }
             return botMessages;
         }

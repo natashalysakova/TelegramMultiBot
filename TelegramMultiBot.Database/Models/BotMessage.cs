@@ -15,5 +15,6 @@ namespace TelegramMultiBot.Database.Models
         public int MessageId { get; set; }
         public DateTime SendTime { get; set; }
         public bool IsPrivateChat { get; set; }
+        public long? UserId { get; set; }
     }
 }
