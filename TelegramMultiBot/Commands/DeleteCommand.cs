@@ -45,7 +45,12 @@ namespace TelegramMultiBot.Commands
         public async Task HandleMessageReactionUpdate(MessageReactionUpdated messageReaction)
         {
             var info = new BotMessageInfo(messageReaction.Chat.Id, messageReaction.MessageId);
-            if (messageDatabaseService.IsBotMessage(info) && !messageDatabaseService.IsActiveJob(info))
+
+            var userId = messageDatabaseService.GetUserId(info);
+            if (userId == 0)
+                return;
+
+            if (messageDatabaseService.IsBotMessage(info) && !messageDatabaseService.IsActiveJob(info) && messageReaction.User.Id == userId )
             {
                 var emojis = messageReaction.NewReaction.Where(x => x.Type == ReactionTypeKind.Emoji).Select(x => (ReactionTypeEmoji)x);
 

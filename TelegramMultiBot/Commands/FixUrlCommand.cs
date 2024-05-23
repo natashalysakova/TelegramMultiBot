@@ -1,9 +1,10 @@
 ﻿using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.Commands
 {
-    internal class FixUrlCommand(TelegramClientWrapper client) : BaseCommand
+    internal class FixUrlCommand(TelegramClientWrapper client, IBotMessageDatabaseService messageDatabaseService) : BaseCommand
     {
         public override bool CanHandle(Message message)
         {
@@ -77,7 +78,8 @@ namespace TelegramMultiBot.Commands
                     //await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
                 }
 
-                await client.SendMessageAsync(message, newMessage, true, disableNotification: true);
+                var botMessage = await client.SendMessageAsync(message, newMessage, true, disableNotification: true);
+                messageDatabaseService.AddMessage(new BotMessageAddInfo(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private, botMessage.Date, message.From.Id));
             }
         }
 
