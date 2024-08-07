@@ -3,6 +3,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Commands.CallbackDataTypes;
 using TelegramMultiBot.Commands.Interfaces;
+using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Properties;
 
 namespace TelegramMultiBot.Commands
@@ -85,12 +86,17 @@ namespace TelegramMultiBot.Commands
             }
         }
 
+        private string HasPhoto(ReminderJob job)
+        {
+            return string.IsNullOrEmpty(job.FileId) ? "ні" : "так";
+        }
+
         private async Task GetList(CallbackQuery callbackQuery)
         {
             var message = callbackQuery.Message as Message ?? throw new NullReferenceException("Query message is null");
 
             var jobs = jobManager.GetJobsByChatId(message.Chat.Id);
-            var response = string.Join('\n', jobs.Select(x => $"{x.Name} ({x.Config}) Наступний запуск: {x.NextExecution} Текст: {x.Message}"));
+            var response = string.Join('\n', jobs.Select(x => $"{x.Name} ({x.Config}) Наступний запуск: {x.NextExecution} Текст: {x.Message} Фото: {HasPhoto(x)}"));
             if (string.IsNullOrEmpty(response))
             {
                 await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Завдань не знайдено", true);

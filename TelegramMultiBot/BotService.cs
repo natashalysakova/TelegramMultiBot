@@ -147,13 +147,26 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         }
     }
 
-    private async void JobManager_ReadyToSend(long chatId, string message)
+    private async void JobManager_ReadyToSend(long chatId, string message, string photo)
     {
         try
         {
             logger.LogDebug("sending by schedule: {message}", message);
-            var request = new SendMessageRequest() { ChatId = chatId, Text = message, LinkPreviewOptions = new LinkPreviewOptions() { IsDisabled = true } };
-            await client.SendMessageAsync(request);
+
+            if (string.IsNullOrEmpty(photo)) 
+            {
+                var request = new SendMessageRequest() { ChatId = chatId, Text = message, LinkPreviewOptions = new LinkPreviewOptions() { IsDisabled = true } };
+                await client.SendMessageAsync(request);
+            }
+            else
+            {
+                //var filePath = await client.GetFileAsync(new GetFileRequest(){ FileId = photo });
+                //MemoryStream stream = new MemoryStream();
+                //await client.DownloadFileAsync(filePath.FilePath, stream);
+                var request = new SendPhotoRequest() { ChatId = chatId, Caption = message, Photo = InputFile.FromFileId(photo) };
+                await client.SendPhotoAsync(request);
+            }
+
             //await _client.SendTextMessageAsync(chatId, message, disableWebPagePreview: true);
         }
         catch (Exception ex)
@@ -307,7 +320,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
     private async Task BotOnMessageRecived(Message message)
     {
-        if (message.Type != MessageType.Text)
+        if (message.Type != MessageType.Text && message.Type != MessageType.Photo)
             return;
         ArgumentNullException.ThrowIfNull(message.From);
 

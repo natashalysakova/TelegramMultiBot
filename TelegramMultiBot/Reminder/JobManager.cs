@@ -13,7 +13,7 @@ internal class JobManager  //: Manager<ReminderJob>, IDisposable
     CancellationToken _cancellationToken;
     //private int NextId => list.Count != 0 ? list.Max(x => x.Id) + 1 : 0;
 
-    public event Action<long, string> ReadyToSend = delegate { };
+    public event Action<long, string, string> ReadyToSend = delegate { };
 
     public JobManager(ILogger<JobManager> logger, IReminderDataService dbservice) //: base(logger, dbservice, mapper)
     {
@@ -38,7 +38,7 @@ internal class JobManager  //: Manager<ReminderJob>, IDisposable
                     var jobsToSend = _dbservice.GetJobstForExecution(); 
                     foreach (var job in jobsToSend)
                     {
-                        ReadyToSend(job.ChatId, job.Message);
+                        ReadyToSend(job.ChatId, job.Message, job.FileId);
                         _dbservice.JobSended(job);
                     }
                 //}
@@ -47,9 +47,9 @@ internal class JobManager  //: Manager<ReminderJob>, IDisposable
         }, token);
     }
 
-    internal DateTime AddJob(long chatid, string name, string cron, string text)
+    internal DateTime AddJob(long chatid, string name, string cron, string? text, string? photoId)
     {
-        var job = _dbservice.Add(chatid, name, text, cron);
+        var job = _dbservice.Add(chatid, name, text, cron, photoId);
         _logger.LogDebug("Job {name} {cron} added", name, cron);
         return job.NextExecution;
     }

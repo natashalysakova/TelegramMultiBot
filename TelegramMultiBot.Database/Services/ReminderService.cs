@@ -13,7 +13,7 @@ namespace TelegramMultiBot.Database.Services
     {
         IEnumerable<ReminderJob> GetJobstForExecution();
         void JobSended(ReminderJob job);
-        ReminderJob Add(long chatid, string name, string text, string cron);
+        ReminderJob Add(long chatid, string name, string? text, string cron, string? fileId);
         List<ReminderJob> GetJobsbyChatId(long chatId);
         void DeleteJob(Guid id);
         void DeleteJobsForChat(long chatId);
@@ -33,7 +33,7 @@ namespace TelegramMultiBot.Database.Services
             return _dbContext.Reminders.Where(x => x.NextExecution < DateTime.Now).ToList();
         }
 
-        public ReminderJob Add(long chatid, string name, string text, string cron)
+        public ReminderJob Add(long chatid, string name, string? text, string cron, string? fileId)
         {
             ReminderJob job = new ReminderJob
             {
@@ -41,7 +41,8 @@ namespace TelegramMultiBot.Database.Services
                 Name = name,
                 Config = cron,
                 Message = text,
-                NextExecution = ParseNext(cron)
+                NextExecution = ParseNext(cron),
+                FileId = fileId
             };
 
             _dbContext.Reminders.Add(job);

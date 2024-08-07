@@ -20,17 +20,35 @@ internal class AddJobHandler(TelegramClientWrapper client, JobManager jobManager
 
     private async Task<bool> CheckMessage(AddJobDialog dialog, Message message)
     {
-        if (string.IsNullOrEmpty(message.Text))
+        if (string.IsNullOrEmpty(message.Text) && message.Photo.Length == 0)
         {
             await client.SendMessageAsync(message, "Повідомлення порожнє. Спробуйте знову");
             return false;
         }
 
-        dialog.Text = message.Text;
+        string photoId = string.Empty;
+
+        dialog.Attachment = message.Photo != null;       
+        if (dialog.Attachment)
+        {
+            photoId = message.Photo.Last().FileId;
+            dialog.Text = message.Caption;
+        }
+        else
+        {
+            dialog.Text = message.Text;
+        }
+
         dialog.IsFinished = true;
 
-        _ = jobManager.AddJob(dialog.ChatId, dialog.Name, dialog.CRON, dialog.Text);
-        await client.SendMessageAsync(message, $"Завдання додано: {dialog.Name} ({dialog.CRON}) з текстом: {dialog.Text}");
+        _ = jobManager.AddJob(dialog.ChatId, dialog.Name, dialog.CRON, dialog.Text, photoId);
+        var responce = $"Завдання додано: {dialog.Name} ({dialog.CRON}) з текстом: {dialog.Text}";
+        if (dialog.Attachment)
+        {
+            responce += " та зображенням";
+        }
+
+        await client.SendMessageAsync(message, responce);
 
         return true;
     }
