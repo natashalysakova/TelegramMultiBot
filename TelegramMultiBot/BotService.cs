@@ -8,6 +8,7 @@ using Telegram.Bot.Polling;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
+using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Configuration;
@@ -22,7 +23,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
     CancellationTokenSource cancellationTokenSource;
     CancellationTokenSource managerCancellationTokenSource;
 
-    public async Task Run()
+    public void Run()
     {
         managerCancellationTokenSource = new CancellationTokenSource();
         jobManager.Run(managerCancellationTokenSource.Token);
@@ -61,6 +62,8 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
             DropPendingUpdates = true,
         };
 
+        client.OnUpdate += HandleUpdateAsync;
+        client.OnError += HandleErrorAsync;
 
         do
         {
@@ -68,10 +71,8 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
             try
             {
-                client.StartReceiving(HandleUpdateAsync, HandleErrorAsync, receiverOptions, cancellationTokenSource.Token);
-
-                var response = client.GetMeAsync(new GetMeRequest()).Result;
-                BotName = response.Username;
+                var response = client.GetMeAsync(cancellationTokenSource.Token);
+                BotName = response.Result.Username;
 
                 logger.LogInformation("client connected");
                 while (!cancellationTokenSource.IsCancellationRequested)
@@ -79,7 +80,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                     Thread.Sleep(1000);
                 }
             }
-            catch (Exception ex) 
+            catch (Exception ex)
             {
                 logger.LogError(ex.Message);
             }
@@ -96,6 +97,16 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         _timer.Elapsed -= RunCleanup;
         _timer.Dispose();
 
+    }
+
+    private Task Client_OnUpdate(Update update)
+    {
+        throw new NotImplementedException();
+    }
+
+    private Task Client_OnError(Exception exception, HandleErrorSource source)
+    {
+        throw new NotImplementedException();
     }
 
     private async void ImageGenearatorQueue_JobInQueue(JobInfo info)
@@ -155,8 +166,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
             if (string.IsNullOrEmpty(photo)) 
             {
-                var request = new SendMessageRequest() { ChatId = chatId, Text = message, LinkPreviewOptions = new LinkPreviewOptions() { IsDisabled = true } };
-                await client.SendMessageAsync(request);
+                await client.SendTextMessageAsync(chatId, message, linkPreviewOptions: new LinkPreviewOptions() { IsDisabled = true });
             }
             else
             {
@@ -164,7 +174,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 //MemoryStream stream = new MemoryStream();
                 //await client.DownloadFileAsync(filePath.FilePath, stream);
                 var request = new SendPhotoRequest() { ChatId = chatId, Caption = message, Photo = InputFile.FromFileId(photo) };
-                await client.SendPhotoAsync(request);
+                await client.SendPhotoAsync(chatId, InputFile.FromFileId(photo), caption: message);
             }
 
             //await _client.SendTextMessageAsync(chatId, message, disableWebPagePreview: true);
@@ -180,12 +190,12 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         }
     }
 
-    private Task HandleErrorAsync(ITelegramBotClient cleint, Exception e, CancellationToken token)
+    private Task HandleErrorAsync(Exception exception, HandleErrorSource source)
     {
-        logger.LogDebug("{trace}", e.ToString());
-        logger.LogError("{message}", e.Message);
+        logger.LogDebug("{trace}", exception.ToString());
+        logger.LogError("{message}", exception.Message);
 
-        if (e.Message.Contains("Bad Gateway") || e.Message.Contains("Exception during making request"))
+        if (exception.Message.Contains("Bad Gateway") || exception.Message.Contains("Exception during making request"))
         {
             cancellationTokenSource.Cancel();
         }
@@ -193,7 +203,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         return Task.CompletedTask;
     }
 
-    private Task HandleUpdateAsync(ITelegramBotClient cleint, Update update, CancellationToken token)
+    private Task HandleUpdateAsync(Update update)
     {
         logger.LogTrace("{update}", update.Type);
 
@@ -264,12 +274,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
             if (commands.Count == 0)
             {
-                var request = new AnswerInlineQueryRequest()
-                {
-                    InlineQueryId = inlineQuery.Id,
-                    Results = []
-                };
-                await client.AnswerInlineQueryAsync(request);
+                await client.AnswerInlineQueryAsync(inlineQuery.Id, []);
                 return;
             }
 
@@ -281,12 +286,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         catch (Exception ex)
         {
             logger.LogError(ex, "{message}", ex.Message);
-            var request = new AnswerInlineQueryRequest()
-            {
-                InlineQueryId = inlineQuery.Id,
-                Results = []
-            };
-            await client.AnswerInlineQueryAsync(request);
+            await client.AnswerInlineQueryAsync(inlineQuery.Id, []);
         }
     }
 
@@ -308,13 +308,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         catch (Exception ex)
         {
             logger.LogError(ex, "{message}", ex.Message);
-            var request = new AnswerCallbackQueryRequest()
-            {
-                CallbackQueryId = callbackQuery.Id,
-                Text = "Error:" + ex.Message,
-                ShowAlert = true
-            };
-            await client.AnswerCallbackQueryAsync(request);
+            await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message, true );
         }
     }
 
