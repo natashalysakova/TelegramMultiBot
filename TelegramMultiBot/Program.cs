@@ -82,7 +82,7 @@ internal class Program
         if (string.IsNullOrEmpty(botKey))
             throw new KeyNotFoundException("token");
 
-        _ = serviceCollection.AddSingleton(new TelegramBotClient(botKey) { Timeout = TimeSpan.FromSeconds(600) });
+        _ = serviceCollection.AddSingleton(new TelegramBotClient(botKey, cancellationToken: new CancellationToken()) { Timeout = TimeSpan.FromSeconds(600) });
 
         _ = serviceCollection.AddScoped<BotService>();
         _ = serviceCollection.AddScoped<TelegramClientWrapper>();
