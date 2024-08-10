@@ -5,6 +5,7 @@ using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.Reminder;
 
 namespace TelegramMultiBot.ImageGenerators
 {
@@ -13,10 +14,19 @@ namespace TelegramMultiBot.ImageGenerators
         public abstract string UI { get; }
         protected abstract string PingPath { get; }
 
-        public abstract bool CanHandle(JobType type);
+        public bool CanHandle(JobInfo job)
+        {
+            return TypeSupported(job.Type) && CorrectDiffusor(job.Diffusor) && SupportedModel(job.Text);
+        }
+
+        protected abstract bool TypeSupported(JobType jobType);
+        protected bool CorrectDiffusor(string? diffusor)
+        {
+            return diffusor is null || UI == diffusor;
+        }
+        protected abstract bool SupportedModel(string? text);
 
         public abstract Task<JobInfo> Run(JobInfo job);
-
         private HostInfo? _hostSettings;
 
         public HostInfo? ActiveHost

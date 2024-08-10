@@ -12,6 +12,7 @@ using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGeneration.Exceptions;
+using TelegramMultiBot.Reminder;
 
 namespace TelegramMultiBot.ImageGenerators.ComfyUI
 {
@@ -41,9 +42,9 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         public override string UI { get => nameof(ComfyUI); }
 
-        public override bool CanHandle(JobType type)
+        protected override bool TypeSupported(JobType jobType)
         {
-            return type switch
+            return jobType switch
             {
                 JobType.HiresFix or JobType.Text2Image or JobType.Vingette or JobType.Noise or JobType.Text2ImageFaceId => true,
                 _ => false,
@@ -162,7 +163,6 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
         private async Task RunTextToImage(JobInfo job, string directory)
         {
-            var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2image.json"));
 
             var genParams = new GenerationParams(job, _configuationService);
             if (genParams.Seed == -1)
@@ -174,8 +174,83 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 genParams.BatchCount = _generalSettings.BatchCount;
             }
 
-            List<JObject> jsons = [];
+            IEnumerable<JObject> jsons = [];
 
+            string outputNode;
+            int nodeCount;
+            if (genParams.Model.Name == "flux")
+            {
+                jsons = FluxTxt2Img(genParams, out outputNode, out nodeCount);
+            }
+            else
+            {
+                jsons = GeneralTxt2Img(genParams, out outputNode, out nodeCount);
+            }
+
+
+            await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, nodeCount), outputNode, genParams.Model.Steps);
+        }
+
+        private IEnumerable<JObject> FluxTxt2Img(GenerationParams genParams, out string outputNode, out int nodeCount)
+        {
+            var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2image.flux.json"));
+
+            List<JObject> jsons = new List<JObject>();
+            var json = JObject.Parse(payload);
+
+            var modelLoaderNodeName = FindNodeNameByClassType(json, "UNETLoader");
+
+            var schedulerNode = FindNodeNameByClassType(json, "BasicScheduler");
+            var samplerNode = FindNodeNameByClassType(json, "KSamplerSelect");
+            var positivePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "positive");
+            var guidanceNode = FindNodeNameByClassType(json, "FluxGuidance");
+            var noiseNode = FindNodeNameByClassType(json, "RandomNoise");
+            var latentNodeName = FindNodeNameByClassType(json, "EmptySD3LatentImage");
+            var modelSamplingNode = FindNodeNameByClassType(json, "ModelSamplingFlux");
+
+            outputNode = FindNodeNameByClassType(json, "PreviewImage");
+            nodeCount = json.Count;
+
+            for (int i = 0; i < genParams.BatchCount; i++)
+            {
+                json = JObject.Parse(payload);
+
+                json[modelLoaderNodeName]!["inputs"]!["unet_name"] = genParams.Model.Path;
+
+                json[schedulerNode]["inputs"]["scheduler"] = genParams.Model.Scheduler;
+                json[schedulerNode]["inputs"]["steps"] = genParams.Model.Steps;
+
+                json[samplerNode]["inputs"]["sampler_name"] = genParams.Model.Sampler;
+
+                json[positivePromptNode]!["inputs"]!["text"] = genParams.Prompt;
+
+                json[guidanceNode]["inputs"]["guidance"] = genParams.Model.CGF;
+
+                json[noiseNode]["inputs"]["noise_seed"] = genParams.Seed + i;
+
+
+                var latentNode = json[latentNodeName]!["inputs"]!;
+                latentNode["width"] = genParams.Width;
+                latentNode["height"] = genParams.Height;
+                latentNode["batch_size"] = 1;
+
+                json[modelSamplingNode]["inputs"]["width"] = genParams.Width;
+                json[modelSamplingNode]["inputs"]["height"] = genParams.Height;
+
+                jsons.Add(json);
+            }
+
+            return jsons;
+
+
+        }
+
+        private IEnumerable<JObject> GeneralTxt2Img(GenerationParams genParams, out string outputNode, out int nodeCount)
+        {
+            var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2image.json"));
+
+
+            List<JObject> jsons = new List<JObject>();
             var json = JObject.Parse(payload);
 
             var modelLoaderNodeName = FindNodeNameByClassType(json, "CheckpointLoaderSimple");
@@ -184,7 +259,9 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             var positivePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "positive");
             var negativePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "negative");
             var clipSkipNodeName = FindNodeNameByClassType(json, "CLIPSetLastLayer");
-            string outputNode = FindNodeNameByClassType(json, "PreviewImage");
+            
+            outputNode = FindNodeNameByClassType(json, "PreviewImage");
+            nodeCount = json.Count;
 
             for (int i = 0; i < genParams.BatchCount; i++)
             {
@@ -212,8 +289,9 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 jsons.Add(json);
             }
 
-            await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, json.Count), outputNode, genParams.Model.Steps);
+            return jsons;
         }
+
         private async Task RunTextToImageWithFace(JobInfo job, string directory)
         {
             var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2imageface.json"));
@@ -444,7 +522,9 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 var jobId = response.prompt_id;
                 var buffer = new byte[1024];
                 var tile = 0;
-                var fraction = 100.0 / jsons.Count() / maxTiles;
+                var fraction = 100.0 / jsons.Count();
+                DateTime lastUpdate = DateTime.Now;
+                double lastProgress = 0;
                 while (true)
                 {
                     var res = await webcocketClient.ReceiveAsync(buffer, CancellationToken.None);
@@ -470,11 +550,27 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                         if (obj.data.value == obj.data.max)
                         {
                             tile += 1;
-                            var progress = (i * fraction * maxTiles) + tile * fraction;
+                            var progress = (i * fraction) + fraction;
 
                             await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
                             _databaseService.PostProgress(job.Id, progress, "working");
                         }
+                        else if ((DateTime.Now - lastUpdate) > TimeSpan.FromSeconds(1))
+                        {
+                            var progress = (1.0 / obj.data.max * obj.data.value) * fraction + (i *fraction);
+
+                            if(progress > lastProgress)
+                            {
+                                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
+                                _databaseService.PostProgress(job.Id, progress, "working");
+
+                                lastUpdate = DateTime.Now;
+                                lastProgress = progress;
+                            }
+                        }
+
+
+
                     }
 
                     if (obj.type == "executing" && obj.data.node == null && obj.data.prompt_id == jobId)
@@ -526,6 +622,11 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         public override bool ValidateConnection(string content)
         {
             return !string.IsNullOrEmpty(content);
+        }
+
+        protected override bool SupportedModel(string? text)
+        {
+            return true;
         }
     }
 

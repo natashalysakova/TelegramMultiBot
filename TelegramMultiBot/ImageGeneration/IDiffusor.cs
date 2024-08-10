@@ -9,7 +9,7 @@ namespace TelegramMultiBot.ImageGenerators
         string UI { get; }
         HostInfo? ActiveHost { get; }
 
-        bool CanHandle(JobType type);
+        bool CanHandle(JobInfo job);
 
         bool IsAvailable();
 

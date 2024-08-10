@@ -321,7 +321,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             }
         }
 
-        public override bool CanHandle(JobType type)
+        protected override bool TypeSupported(JobType type)
         {
             return type switch
             {
@@ -332,6 +332,19 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
 
         [GeneratedRegex("<.*?>")]
         private static partial Regex ParseInfoRegex();
+
+        protected override bool SupportedModel(string? text)
+        {
+            if (text is null)
+                return true;
+
+            if (text.Contains("#model_flux"))
+            {
+                return false;
+            }
+
+            return true;
+        }
     }
 
 #pragma warning disable CS8618 // Non-nullable field must contain a non-null value when exiting constructor. Consider declaring as nullable.
