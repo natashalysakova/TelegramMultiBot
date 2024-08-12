@@ -97,7 +97,7 @@ namespace TelegramMultiBot.Commands
             var filename = $"{Guid.NewGuid()}{Path.GetExtension(url)}";
             var dest = Path.Combine(dir, filename);
 
-            if(!Directory.Exists(dir))
+            if (!Directory.Exists(dir))
             {
                 Directory.CreateDirectory(dir);
             }
@@ -676,7 +676,7 @@ namespace TelegramMultiBot.Commands
                         {
                             var media = streamList.Select(x => new InputMediaPhoto() { Media = InputFile.FromStream(x.Stream, Path.GetFileName(x.Stream.Name)) });
                             var result = await client.SendMediaAlbumAsync(job, media);
-                            databaseService.AddFiles(streamList.Select(x=>x.jobResultId), result.Select(x => x.Photo.Last().FileId));
+                            databaseService.AddFiles(streamList.Select(x => x.jobResultId), result.Select(x => x.Photo.Last().FileId));
                             //await client.SendPhotoAsync(job, media, reply: true);
                             break;
                         }

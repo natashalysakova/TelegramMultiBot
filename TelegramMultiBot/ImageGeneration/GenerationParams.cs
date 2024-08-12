@@ -129,7 +129,8 @@ namespace TelegramMultiBot.ImageGenerators
                 new("#portrait", 915 , 1144, "4\\:5"),
                 new("#photo", 1182 , 886, "4\\:3"),
                 new("#landscape", 1254 , 836, "3\\:2"),
-                new("#cinematic", 1564 , 670, "21\\:9") ]
+                new("#cinematic", 1564 , 670, "21\\:9"),
+                new("#phone", 786, 1704, "19\\.5\\:9" ) ]
             },
             { ModelVersion.OneFive, [
                 new("#vertical", 432, 768, "9\\:16"),
@@ -137,7 +138,8 @@ namespace TelegramMultiBot.ImageGenerators
                 new("#portrait", 512 , 640, "4\\:5"),
                 new("#photo", 576 , 432, "4\\:3"),
                 new("#landscape", 768 , 512, "3\\:2"),
-                new("#cinematic", 728 , 312, "21\\:9")]
+                new("#cinematic", 728 , 312, "21\\:9"),
+                new("#phone", 393, 852, "19\\.5\\:9" )]
             }
         };
 
