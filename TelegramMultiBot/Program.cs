@@ -11,6 +11,7 @@ using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Database;
+using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Database.Profiles;
@@ -38,9 +39,64 @@ internal class Program
         {
             context.Database.Migrate();
         }
+        if (!context.Settings.Any())
+        {
+            SetDefaultSettings(context);
+        }
+        if (!context.Models.Any())
+        {
+            AddModels(context);
+        }
 
         var bot = serviceProvider.GetRequiredService<BotService>();
         bot.Run();
+    }
+
+    private static void AddModels(BoberDbContext context)
+    {
+        context.Models.Add(new Model()
+        {
+            Name = "dreamshaper",
+            CGF = 2,
+            CLIPskip = 1,
+            Path = "SDXL/dreamshaperXL_v21TurboDPMSDE.safetensors",
+            Sampler = "dpmpp_sde",
+            Scheduler = "karras",
+            Steps = 6,
+            Version = ModelVersion.SDXL
+        });
+
+        context.SaveChanges();
+    }
+
+    private static void SetDefaultSettings(BoberDbContext context)
+    {
+        context.AddSetting("Automatic1111", "OutputDirectory", "automatic");
+        context.AddSetting("Automatic1111", "PayloadPath", "ImageGeneration/Automatic1111/Payload");
+        context.AddSetting("Automatic1111", "UpscalePath", "ImageGeneration/Automatic1111/Upscales");
+
+        context.AddSetting("ComfyUI", "OutputDirectory", "comfy");
+        context.AddSetting("ComfyUI", "PayloadPath", "ImageGeneration/ComfyUI/Payload");
+        context.AddSetting("ComfyUI", "InputDirectory", "/volume1/share/Bots/input");
+        context.AddSetting("ComfyUI", "NoiseStrength", "0.3");
+        context.AddSetting("ComfyUI", "VegnietteIntensity", "0.3");
+        context.AddSetting("ImageGeneration", "ActiveJobs", "1");
+        context.AddSetting("ImageGeneration", "BaseImageDirectory", "images");
+        context.AddSetting("ImageGeneration", "BatchCount", "1");
+        context.AddSetting("ImageGeneration", "DatabaseCleanupInterval", "3600");
+        context.AddSetting("ImageGeneration", "DefaultModel", "dreamshaper");
+        context.AddSetting("ImageGeneration", "DownloadDirectory", "download");
+        context.AddSetting("ImageGeneration", "HiresFixDenoise", "0.35");
+        context.AddSetting("ImageGeneration", "JobAge", "172800");
+        context.AddSetting("ImageGeneration", "JobLimitPerUser", "3");
+        context.AddSetting("ImageGeneration", "MaxGpuUtil", "20");
+        context.AddSetting("ImageGeneration", "RemoveFiles", "True");
+        context.AddSetting("ImageGeneration", "UpscaleModel", "4x-UltraSharp.pth");
+        context.AddSetting("ImageGeneration", "UpscaleMultiplier", "4");
+        context.AddSetting("ImageGeneration", "Watermark", "True");
+
+
+        context.SaveChanges();
     }
 
     private static ServiceProvider RegisterServices(string[] args)
@@ -49,7 +105,7 @@ internal class Program
         var serviceCollection = new ServiceCollection();
         _ = serviceCollection.AddSingleton(configuration);
 
-        
+
 
 
         Action<ILoggingBuilder> builder = (builder) =>
