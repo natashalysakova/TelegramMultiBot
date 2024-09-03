@@ -34,7 +34,7 @@ namespace TelegramMultiBot.Database.Services
 
         public long GetUserId(BotMessageInfo info)
         {
-            var botMessage = context.BotMessages.SingleOrDefault(x => x.ChatId == info.chatId && x.MessageId == info.messageId);
+            var botMessage = context.BotMessages.SingleOrDefault(x => x.ChatId == info.chatId && x.MessageId == info.messageId && x.UserId != null);
             if (botMessage != default && botMessage.UserId != null)
             {
                 return botMessage.UserId.Value;

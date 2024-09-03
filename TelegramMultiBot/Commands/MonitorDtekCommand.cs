@@ -58,7 +58,7 @@ namespace TelegramMultiBot.Commands
 
                 long chatId;
 
-                if(command.Length == 3)
+                if (command.Length == 3)
                 {
                     if (!long.TryParse(command[2], out chatId))
                     {
@@ -69,7 +69,7 @@ namespace TelegramMultiBot.Commands
                 }
                 else
                 {
-                    if( message.IsAutomaticForward && message.SenderChat != null)
+                    if (message.IsAutomaticForward && message.SenderChat != null)
                     {
                         chatId = message.SenderChat.Id;
                     }
@@ -79,13 +79,13 @@ namespace TelegramMultiBot.Commands
                     }
                 }
 
-                
+
 
                 var region = command[1].Split('-', StringSplitOptions.RemoveEmptyEntries).Last();
 
                 bool jobAdded = jobAdded = monitorDataService.AddDtekJob(chatId, region);
 
-                if(!jobAdded)
+                if (!jobAdded)
                 {
                     await client.SendMessageAsync(message.Chat, "Failed add job exist of unsupported region. Supported regions: krem - Київська область");
                 }
@@ -94,31 +94,45 @@ namespace TelegramMultiBot.Commands
                 return;
             }
 
-            if(command[1] == "list")
+            if (command[1] == "list")
             {
-                if (command.Length != 3)
+                if (command.Length < 2 || command.Length > 3)
                 {
-                    await client.SendMessageAsync(message.Chat, "invalid list command. use /monitor list {chatId}");
+                    await client.SendMessageAsync(message.Chat, "invalid list command. use /monitor list {chatId}(optional)");
                 }
 
-                if (long.TryParse(command[2], out var chatId))
+                long chatId;
+                if (command.Length == 3)
                 {
-                    var jobs = monitorDataService.GetJobs(chatId);
-
-                    if (!jobs.Any())
+                    if (!long.TryParse(command[2], out chatId))
                     {
-                        await client.SendMessageAsync(message.Chat, "No Jobs found");
+                        await client.SendMessageAsync(message.Chat, "cannot parse chat Id");
                         return;
                     }
-
-                    var responce = string.Join("\n", jobs.Select(x=> $"{x.ChatId} {x.Url} IsActive:{x.IsActive} {x.DeactivationReason}" ));
-                    await client.SendMessageAsync(message.Chat, responce);
                 }
                 else
                 {
-                    await client.SendMessageAsync(message.Chat, "cannot parse chat Id");
-
+                    if(message.IsAutomaticForward && message.SenderChat != null)
+                    {
+                        chatId = message.SenderChat.Id;
+                    }
+                    else
+                    {
+                        chatId = message.Chat.Id;
+                    }
                 }
+
+
+                var jobs = monitorDataService.GetJobs(chatId);
+
+                if (!jobs.Any())
+                {
+                    await client.SendMessageAsync(message.Chat, "No Jobs found");
+                    return;
+                }
+
+                var responce = string.Join(", ", jobs.Select(x => $"{x.ChatId} {x.Url} Next run: {x.NextRun} IsActive:{x.IsActive} {x.DeactivationReason}"));
+                await client.SendMessageAsync(message.Chat, responce);
             }
         }
     }
