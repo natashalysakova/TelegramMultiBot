@@ -14,9 +14,10 @@ using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.ImageCompare;
 using TelegramMultiBot.ImageGenerators;
 
-internal class BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, ISqlConfiguationService configuration)
+internal class BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, ISqlConfiguationService configuration, MonitorService monitorService)
 {
     public static string? BotName;
     private System.Timers.Timer? _timer;
@@ -28,6 +29,9 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         managerCancellationTokenSource = new CancellationTokenSource();
         jobManager.Run(managerCancellationTokenSource.Token);
         jobManager.ReadyToSend += JobManager_ReadyToSend;
+
+        monitorService.Run(managerCancellationTokenSource.Token);
+        monitorService.ReadyToSend += MonitorService_ReadyToSend;
 
         imageGenearatorQueue.Run(managerCancellationTokenSource.Token);
         imageGenearatorQueue.JobFinished += ImageGenearatorQueue_JobFinished;
@@ -99,15 +103,31 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
     }
 
-    private Task Client_OnUpdate(Update update)
+    private async void MonitorService_ReadyToSend(long chatId, string localFilePath)
     {
-        throw new NotImplementedException();
+        try
+        {
+            logger.LogDebug("sending new schedule: {chatId} {message}", chatId, localFilePath);
+
+            using var stream = System.IO.File.OpenRead(localFilePath);
+            var filename = Path.GetFileName(localFilePath);
+
+            await client.SendPhotoAsync(chatId, InputFile.FromStream(stream, filename), caption: "Оновлений графік на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm"));
+
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "{message}", ex.Message);
+            if (ex.Message.Contains("chat not found") || ex.Message.Contains("PEER_ID_INVALID") || ex.Message.Contains("bot was kicked from the group chat"))
+            {
+                monitorService.DeactivateJob(chatId, ex.Message);
+                logger.LogWarning("Removing all jobs for {id}", chatId);
+            }
+        }
+
     }
 
-    private Task Client_OnError(Exception exception, HandleErrorSource source)
-    {
-        throw new NotImplementedException();
-    }
+
 
     private async void ImageGenearatorQueue_JobInQueue(JobInfo info)
     {
@@ -164,7 +184,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         {
             logger.LogDebug("sending by schedule: {message}", message);
 
-            if (string.IsNullOrEmpty(photo)) 
+            if (string.IsNullOrEmpty(photo))
             {
                 await client.SendTextMessageAsync(chatId, message, linkPreviewOptions: new LinkPreviewOptions() { IsDisabled = true });
             }
@@ -173,7 +193,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 //var filePath = await client.GetFileAsync(new GetFileRequest(){ FileId = photo });
                 //MemoryStream stream = new MemoryStream();
                 //await client.DownloadFileAsync(filePath.FilePath, stream);
-                var request = new SendPhotoRequest() { ChatId = chatId, Caption = message, Photo = InputFile.FromFileId(photo) };
+                //var request = new SendPhotoRequest() { ChatId = chatId, Caption = message, Photo = InputFile.FromFileId(photo) };
                 await client.SendPhotoAsync(chatId, InputFile.FromFileId(photo), caption: message);
             }
 
@@ -308,7 +328,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         catch (Exception ex)
         {
             logger.LogError(ex, "{message}", ex.Message);
-            await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message, true );
+            await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message, true);
         }
     }
 

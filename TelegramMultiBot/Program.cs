@@ -16,6 +16,7 @@ using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Database.Profiles;
 using TelegramMultiBot.Database.Services;
+using TelegramMultiBot.ImageCompare;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
@@ -131,6 +132,7 @@ internal class Program
         _ = serviceCollection.AddTransient<IBotMessageDatabaseService, BotMessageService>();
         _ = serviceCollection.AddTransient<ISqlConfiguationService, ConfigurationService>();
         _ = serviceCollection.AddTransient<IReminderDataService, ReminderService>();
+        _ = serviceCollection.AddTransient<IMonitorDataService, MonitorDataService>();
 
         _ = serviceCollection.AddTransient<CleanupService>();
 
@@ -147,6 +149,8 @@ internal class Program
         _ = serviceCollection.AddSingleton<JobManager>();
         _ = serviceCollection.AddSingleton<DialogManager>();
         _ = serviceCollection.AddSingleton<ImageGenearatorQueue>();
+
+        _ = serviceCollection.AddSingleton<MonitorService>();
 
         _ = RegisterMyServices<IDialogHandler>(serviceCollection);
         _ = RegisterMyServices<IDiffusor>(serviceCollection);

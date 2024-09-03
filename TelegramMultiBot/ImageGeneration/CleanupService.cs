@@ -61,6 +61,32 @@ namespace TelegramMultiBot.ImageGenerators
             databaseService.RemoveJobs(jobsToDelete.Select(x => x.Id));
             var botMessagesCleaned = botMessageService.RunCleanup();
             logger.LogDebug("BotMessages cleaned: {0}", botMessagesCleaned);
+
+
+            var monitorDirectories = Directory.GetDirectories("monitor", "*", SearchOption.TopDirectoryOnly);
+
+            foreach (var directory in monitorDirectories)
+            {
+
+                var files = Directory.EnumerateFiles(directory);
+                if (files.Count() <= 1)
+                {
+                    continue;
+                }
+
+                var dateToCheck = DateTime.Now.AddMinutes(-10);
+
+                foreach (var item in files.Order().SkipLast(2))
+                {
+                    FileInfo file = new FileInfo(item);
+                    if (file.CreationTime < dateToCheck)
+                    {
+                        logger.LogTrace("removing " + item);
+                        File.Delete(item);
+                    }
+                }
+            }
+
             logger.LogDebug("Cleanup Ended");
         }
     }

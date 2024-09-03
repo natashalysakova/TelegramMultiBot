@@ -7,7 +7,6 @@ using TelegramMultiBot.Reminder;
 
 internal class JobManager  //: Manager<ReminderJob>, IDisposable
 {
-    private readonly object _locker = new();
     private readonly ILogger<JobManager> _logger;
     private readonly IReminderDataService _dbservice;
     CancellationToken _cancellationToken;

@@ -64,7 +64,7 @@ namespace TelegramMultiBot
                 DisableNotification = disableNotification,
                 LinkPreviewOptions = linkPreviewOptions,
                 ReplyMarkup = replyMarkup,
-                ReplyParameters = replyMessageId is null ? new ReplyParameters() { MessageId = replyMessageId.Value, ChatId = chatId, AllowSendingWithoutReply = true } : null,
+                ReplyParameters = replyMessageId.HasValue ? new ReplyParameters() { MessageId = replyMessageId.Value, ChatId = chatId, AllowSendingWithoutReply = true } : null,
                 ParseMode = parseMode,
                 ProtectContent = protectContent
             };
