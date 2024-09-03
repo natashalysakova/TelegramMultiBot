@@ -93,7 +93,7 @@ namespace TelegramMultiBot.ImageCompare
                         catch (KeyNotFoundException ex)
                         {
                             _logger.LogError($"fetching {group.Key} failed:" + ex.Message);
-                            _dbservice.UpdateNextRun(group);
+                            _dbservice.UpdateNextRun(group, 10);
                             continue;
                         }
                         catch (Exception ex)
@@ -115,10 +115,9 @@ namespace TelegramMultiBot.ImageCompare
                         {
                             _logger.LogTrace(group.Key + " was not updated");
                         }
-                        _dbservice.UpdateNextRun(group);
-                        await Task.Delay(500);
+                        _dbservice.UpdateNextRun(group, 30);
                     }
-                    await Task.Delay(TimeSpan.FromSeconds(10));
+                    await Task.Delay(TimeSpan.FromSeconds(30));
                 }
             }, token);
         }

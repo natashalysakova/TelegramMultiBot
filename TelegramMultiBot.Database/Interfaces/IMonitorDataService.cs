@@ -15,8 +15,8 @@ namespace TelegramMultiBot.Database.Interfaces
         void DisableJob(long chatId, string reason);
         IEnumerable<MonitorJob> GetActiveJobs();
         IEnumerable<MonitorJob> GetJobs(long chatId);
-        void UpdateNextRun(MonitorJob activeJob);
-        void UpdateNextRun(IGrouping<string, MonitorJob> jobs);
+        void UpdateNextRun(MonitorJob activeJob, int minutes);
+        void UpdateNextRun(IGrouping<string, MonitorJob> jobs, int minutes);
     }
 
     public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -91,17 +91,17 @@ namespace TelegramMultiBot.Database.Interfaces
             return true;
         }
 
-        public void UpdateNextRun(MonitorJob activeJob)
+        public void UpdateNextRun(MonitorJob activeJob, int minutes)
         {
-            activeJob.NextRun = DateTime.Now.AddMinutes(10);
+            activeJob.NextRun = DateTime.Now.AddMinutes(minutes);
             context.SaveChanges();
         }
 
-        public void UpdateNextRun(IGrouping<string, MonitorJob> jobs)
+        public void UpdateNextRun(IGrouping<string, MonitorJob> jobs, int minutes)
         {
             foreach (var job in jobs)
             {
-                UpdateNextRun(job);
+                UpdateNextRun(job, minutes);
             }
         }
     }
