@@ -103,7 +103,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
     }
 
-    private async void MonitorService_ReadyToSend(long chatId, string localFilePath)
+    private async void MonitorService_ReadyToSend(long chatId, string localFilePath, string caption)
     {
         try
         {
@@ -112,7 +112,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
             using var stream = System.IO.File.OpenRead(localFilePath);
             var filename = Path.GetFileName(localFilePath);
 
-            await client.SendPhotoAsync(chatId, InputFile.FromStream(stream, filename), caption: "Оновлений графік на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm"));
+            await client.SendPhotoAsync(chatId, InputFile.FromStream(stream, filename), caption: caption);
 
         }
         catch (Exception ex)
@@ -120,7 +120,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
             logger.LogError(ex, "{message}", ex.Message);
             if (ex.Message.Contains("chat not found") || ex.Message.Contains("PEER_ID_INVALID") || ex.Message.Contains("bot was kicked from the group chat"))
             {
-                monitorService.DeactivateJob(chatId, ex.Message);
+                monitorService.DisableJob(chatId, ex.Message);
                 logger.LogWarning("Removing all jobs for {id}", chatId);
             }
         }

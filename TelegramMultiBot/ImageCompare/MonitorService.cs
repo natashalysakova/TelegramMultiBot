@@ -19,7 +19,7 @@ namespace TelegramMultiBot.ImageCompare
         private readonly IMonitorDataService _dbservice;
         CancellationToken _cancellationToken;
 
-        public event Action<long, string> ReadyToSend = delegate { };
+        public event Action<long, string, string> ReadyToSend = delegate { };
 
         public MonitorService(ILogger<JobManager> logger, IMonitorDataService dbservice)
         {
@@ -82,7 +82,7 @@ namespace TelegramMultiBot.ImageCompare
                 {
                     var datetime = DateTime.Now;
                     _logger.LogTrace("checking at {date}", datetime);
-                    var activeJobs = _dbservice.GetActiveJobs().GroupBy(x=>x.Url);
+                    var activeJobs = _dbservice.Jobs.Where(x=>x.IsActive).GroupBy(x=>x.Url);
 
                     foreach (var group in activeJobs)
                     {
@@ -102,7 +102,7 @@ namespace TelegramMultiBot.ImageCompare
                         catch (KeyNotFoundException ex)
                         {
                             _logger.LogError("fetching {key} failed: {message}", group.Key, ex.Message);
-                            _dbservice.UpdateNextRun(group, 10);
+                            UpdateNextRun(group, 10);
                             continue;
                         }
                         catch (Exception ex)
@@ -113,10 +113,11 @@ namespace TelegramMultiBot.ImageCompare
 
                         if (!isTheSame && localFilePath != null)
                         {
+                            string caption = "Оновлений графік на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
 
                             foreach (var job in group)
                             {
-                                ReadyToSend(job.ChatId, localFilePath);
+                                ReadyToSend?.Invoke(job.ChatId, localFilePath, caption);
                             }
 
                         }
@@ -124,7 +125,7 @@ namespace TelegramMultiBot.ImageCompare
                         {
                             _logger.LogTrace("{key} was not updated", group.Key);
                         }
-                        _dbservice.UpdateNextRun(group, 30);
+                        UpdateNextRun(group, 30);
                     }
                     await Task.Delay(TimeSpan.FromSeconds(30));
                 }
@@ -307,9 +308,132 @@ namespace TelegramMultiBot.ImageCompare
             return filePath;
         }
 
-        internal void DeactivateJob(long chatId, string reason)
+
+        internal int AddDtekJob(long chatId, string region)
         {
-            _dbservice.DisableJob(chatId, reason);
+            string url;
+
+            url = GetFromRegion(region);
+
+            if (url == null)
+            {
+                return -1;
+            }
+            
+            var existing = _dbservice.Jobs.SingleOrDefault(x => x.ChatId == chatId && x.Url == url);
+
+            if (existing != null && existing.IsActive)
+            {
+                return -1;
+            }
+            else if(existing != null && existing.IsActive == false)
+            {
+                existing.IsActive = true;
+                existing.DeactivationReason = null;
+                _dbservice.SaveChanges();
+                return existing.Id;
+            }
+
+
+            var job = new MonitorJob() { ChatId = chatId, Url = url, IsDtekJob = true, NextRun = DateTime.Now };
+            _dbservice.Jobs.Add(job);
+            _dbservice.SaveChanges();
+            return job.Id;
+        }
+
+        private string? GetFromRegion(string region)
+        {
+            switch (region)
+            {
+                case "krem":
+                    return "https://www.dtek-krem.com.ua/ua/shutdowns";
+
+                default:
+                    return null;
+
+            }
+        }
+
+        internal bool SendExisiting(int jobAdded)
+        {
+            var job = _dbservice[jobAdded];
+            if (job == null)
+                return false;
+
+
+            var baseDirectory = "monitor";
+            var folder = Path.Combine(baseDirectory, "url_" + ConvertUrlToValidFilename(job.Url));
+
+            if (Directory.Exists(folder))
+            {
+                var files = Directory.EnumerateFiles(folder);
+                if (files.Any())
+                {
+                    var fileToSend = files.Order().Last();
+                    string caption = "Задача додана. Актуальний графік на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+                    ReadyToSend?.Invoke(job.ChatId, fileToSend, caption);
+                    return true;
+                }
+            }
+
+            return false;
+        }
+
+        public void UpdateNextRun(IGrouping<string, MonitorJob> jobs, int minutes)
+        {
+            foreach (var job in jobs)
+            {
+                job.NextRun = DateTime.Now.AddMinutes(minutes);
+            }
+
+            _dbservice.SaveChanges();
+        }
+
+
+
+
+
+
+        internal bool DisableJob(long chatId, string region, string reason)
+        {
+            var url = GetFromRegion(region);
+
+            if(url == null) 
+                return false;
+
+            var jobs = _dbservice.Jobs.Where(x => x.ChatId == chatId && x.Url == url);
+            DisableJobs(jobs, reason);
+            return true;
+        }
+
+
+
+
+        public void DisableJob(long chatId, string reason)
+        {
+            var jobs = _dbservice.Jobs.Where(x => x.ChatId == chatId );
+            DisableJobs(jobs, reason);
+        }
+
+        private void DisableJobs(IEnumerable<MonitorJob> jobs, string reason)
+        {
+            foreach (var job in jobs)
+            {
+                job.IsActive = false;
+                job.DeactivationReason = reason;
+            }
+
+            _dbservice.SaveChanges();
+        }
+
+        internal IEnumerable<MonitorJob> GetJobs(long chatId)
+        {
+            return _dbservice.Jobs.Where(x=>x.ChatId == chatId);
+        }
+
+        internal IEnumerable<MonitorJob> GetActiveJobs(long chatId)
+        {
+            return _dbservice.Jobs.Where(x => x.ChatId == chatId && x.IsActive);
         }
     }
 }
