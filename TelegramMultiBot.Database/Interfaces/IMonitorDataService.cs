@@ -50,7 +50,7 @@ namespace TelegramMultiBot.Database.Interfaces
         {
             var datetime = DateTime.Now;
 
-            return context.Monitor.Where(x => x.IsActive && x.NextRun < datetime);
+            return context.Monitor.Where(x => x.IsActive);
         }
 
         public void AddJob(long chatId, string url)

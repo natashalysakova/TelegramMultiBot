@@ -80,10 +80,19 @@ namespace TelegramMultiBot.ImageCompare
             {
                 while (!_cancellationToken.IsCancellationRequested)
                 {
+                    var datetime = DateTime.Now;
+                    _logger.LogTrace("checking at {date}", datetime);
                     var activeJobs = _dbservice.GetActiveJobs().GroupBy(x=>x.Url);
 
                     foreach (var group in activeJobs)
                     {
+                        var hasToBeRun = group.Any(x=>x.NextRun < datetime);
+
+                        if (!hasToBeRun)
+                        {
+                            continue;
+                        }
+
                         bool isTheSame;
                         string? localFilePath;
                         try
@@ -92,13 +101,13 @@ namespace TelegramMultiBot.ImageCompare
                         }
                         catch (KeyNotFoundException ex)
                         {
-                            _logger.LogError($"fetching {group.Key} failed:" + ex.Message);
+                            _logger.LogError("fetching {key} failed: {message}", group.Key, ex.Message);
                             _dbservice.UpdateNextRun(group, 10);
                             continue;
                         }
                         catch (Exception ex)
                         {
-                            _logger.LogError($"{group.Key} error:" + ex.Message);
+                            _logger.LogError("{key} error: {message}", group.Key, ex.Message);
                             continue;
                         }
 
@@ -113,7 +122,7 @@ namespace TelegramMultiBot.ImageCompare
                         }
                         else
                         {
-                            _logger.LogTrace(group.Key + " was not updated");
+                            _logger.LogTrace("{key} was not updated", group.Key);
                         }
                         _dbservice.UpdateNextRun(group, 30);
                     }
