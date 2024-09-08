@@ -369,3 +369,4 @@ FodyWeavers.xsd
 .DS_Store
 /ConfigUI/tokens.json
 /ConfigUI/devsettings.json
+/.env

@@ -32,7 +32,7 @@
     <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.21.0" />
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
     <PackageReference Include="System.Diagnostics.PerformanceCounter" Version="8.0.0" />
-    <PackageReference Include="Telegram.Bot" Version="21.10.0" />
+    <PackageReference Include="Telegram.Bot" Version="21.11.0" />
     <PackageReference Include="Telegram.Bot.Extensions.Markup" Version="1.0.2" />
   </ItemGroup>
 
@@ -47,9 +47,6 @@
 	</ItemGroup>
 
 	<ItemGroup>
-		<Content Include="tokens.json">
-			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
-		</Content>
 		<Content Include="tokens.*.json">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 			<DependentUpon>tokens.json</DependentUpon>
@@ -61,6 +58,17 @@
 	  <Content Remove="images\**" />
 	  <EmbeddedResource Remove="images\**" />
 	  <None Remove="images\**" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Remove="tokens.dev.json" />
+	  <Content Remove="tokens.prod.json" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Remove="tokens.dev.json" />
+	  <None Remove="tokens.json" />
+	  <None Remove="tokens.prod.json" />
 	</ItemGroup>
 
 	<ItemGroup>

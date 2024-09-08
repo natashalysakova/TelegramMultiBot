@@ -3,23 +3,24 @@
 FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
 USER app
 WORKDIR /app
+EXPOSE 8080
 
 FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["nuget.config", "."]
-COPY ["TelegramMultiBot/TelegramMultiBot.csproj", "TelegramMultiBot/"]
+COPY ["ConfigUI/ConfigUI.csproj", "ConfigUI/"]
 COPY ["TelegramMultiBot.Database/TelegramMultiBot.Database.csproj", "TelegramMultiBot.Database/"]
-RUN dotnet restore "./TelegramMultiBot/TelegramMultiBot.csproj"
+RUN dotnet restore "./ConfigUI/ConfigUI.csproj"
 COPY . .
-WORKDIR "/src/TelegramMultiBot"
-RUN dotnet build "./TelegramMultiBot.csproj" -c $BUILD_CONFIGURATION -o /app/build
+WORKDIR "/src/ConfigUI"
+RUN dotnet build "./ConfigUI.csproj" -c $BUILD_CONFIGURATION -o /app/build
 
 FROM build AS publish
 ARG BUILD_CONFIGURATION=Release
-RUN dotnet publish "./TelegramMultiBot.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
+RUN dotnet publish "./ConfigUI.csproj" -c $BUILD_CONFIGURATION -o /app/publish /p:UseAppHost=false
 
 FROM base AS final
 WORKDIR /app
 COPY --from=publish /app/publish .
-ENTRYPOINT ["dotnet", "TelegramMultiBot.dll"]
+ENTRYPOINT ["dotnet", "ConfigUI.dll"]

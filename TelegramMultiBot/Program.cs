@@ -25,14 +25,14 @@ internal class Program
 {
     public static void Main(string[] args)
     {
-        if (args.Length == 0)
-        {
-            Console.WriteLine("provide argument for env (prod or dev)");
-            return;
-        }
+        //if (args.Length == 0)
+        //{
+        //    Console.WriteLine("provide argument for env (prod or dev)");
+        //    return;
+        //}
 
-        Console.WriteLine("Welcome to Bober " + args[0]);
-
+        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
+        Console.WriteLine("Welcome to Bober Bot " + environment);
         ServiceProvider serviceProvider = RegisterServices(args);
 
         var context = serviceProvider.GetRequiredService<BoberDbContext>();
@@ -136,9 +136,9 @@ internal class Program
 
         _ = serviceCollection.AddTransient<CleanupService>();
 
-        var botKey = configuration["token"];
+        var botKey = configuration["TG_TOKEN"];
         if (string.IsNullOrEmpty(botKey))
-            throw new KeyNotFoundException("token");
+            throw new KeyNotFoundException("TG_TOKEN");
 
         _ = serviceCollection.AddSingleton(new TelegramBotClient(botKey, cancellationToken: new CancellationToken()) { Timeout = TimeSpan.FromSeconds(600) });
 
@@ -238,20 +238,12 @@ internal class Program
 
     private static IConfiguration SetupConfiguration(string[] args)
     {
-        //var environment = Environment.GetEnvironmentVariable("ENV_NAME");
-        //if (string.IsNullOrEmpty(environment))
-        //{
-        //    Console.WriteLine("add 'export ENV_NAME=({prod or dev})' to fix this");
-        //}
-
-        var environment = args[0].Split('=').Last();
+        var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
 
         return new ConfigurationBuilder()
             .SetBasePath(Directory.GetCurrentDirectory())
-            .AddJsonFile($"tokens.json", false, true)
-            .AddJsonFile($"tokens.{environment}.json", false, true)
             .AddJsonFile($"appsettings.json", false, true)
-            .AddJsonFile($"appsettings.{environment}.json", false, true)
+            .AddJsonFile($"appsettings.{environment}.json", true, true)
             .AddEnvironmentVariables()
             .AddCommandLine(args)
             .Build();

@@ -1,0 +1,71 @@
+version: '3.4'
+
+name: bober-bot
+
+services:
+  bot:
+    container_name: bot
+    build:
+      context: .
+      dockerfile: TelegramMultiBot/Dockerfile
+    restart: always
+    depends_on:
+      database:
+        condition: service_healthy
+        restart: true
+    env_file: 
+      - .env
+    networks:
+      - bober-net
+  database:
+    image: mariadb:latest
+    container_name: database
+    env_file: 
+      - .env
+    restart: always
+    healthcheck:
+            test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+            start_period: 10s
+            interval: 10s
+            timeout: 5s
+            retries: 5
+    networks:
+      - bober-net
+    volumes:
+      - dbdata:/var/lib/mysql
+  cloud-beaver:
+    image: dbeaver/cloudbeaver:latest
+    container_name: database-ui
+    restart: unless-stopped
+    networks:
+      - bober-net
+    ports:
+      - 5269:8978
+    volumes:
+      - cloudbeaver:/opt/cloudbeaver/workspace 
+  config-ui:
+    container_name: config
+    build:
+      context: .
+      dockerfile: ConfigUI/Dockerfile
+    restart: always
+    ports:
+      - 5268:8080
+    environment:
+      - ASPNETCORE_URLS=http://+:8080
+    env_file: 
+      - .env
+    depends_on:
+      database:
+        condition: service_healthy
+        restart: true
+    networks:
+      - bober-net
+networks:
+  bober-net:
+    driver: bridge
+volumes:
+  dbdata: 
+    driver: local
+  cloudbeaver:
+    driver: local

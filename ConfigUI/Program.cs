@@ -14,7 +14,6 @@ internal class Program
 
         var configuration = new ConfigurationBuilder()
                     .SetBasePath(Directory.GetCurrentDirectory())
-                    .AddJsonFile($"tokens.json", false, true)
                     .AddJsonFile($"appsettings.json", false, true)
                     .AddEnvironmentVariables()
         .AddCommandLine(args)
@@ -23,9 +22,8 @@ internal class Program
 
 
         builder.Services.AddSingleton<IConfiguration>(configuration);
-
-        var environment = args[0].Split('=').Last();
-        string? connectionString = configuration.GetConnectionString(environment);
+        
+        string? connectionString = configuration.GetConnectionString("db");
         var serverVersion = GetServerVersion(connectionString);
 
         builder.Services.AddDbContext<BoberDbContext>(options =>

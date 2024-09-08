@@ -4,24 +4,12 @@
     <TargetFramework>net8.0</TargetFramework>
     <Nullable>enable</Nullable>
     <ImplicitUsings>enable</ImplicitUsings>
+    <DockerDefaultTargetOS>Linux</DockerDefaultTargetOS>
+    <UserSecretsId>b73ed0d7-4d2e-44b3-a40d-2eb23943dece</UserSecretsId>
   </PropertyGroup>
 
   <ItemGroup>
-    <Content Remove="devsettings.json" />
-  </ItemGroup>
-
-  <ItemGroup>
     <ProjectReference Include="..\TelegramMultiBot.Database\TelegramMultiBot.Database.csproj" />
-  </ItemGroup>
-
-  <ItemGroup>
-    <Content Update="tokens.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </Content>
-  </ItemGroup>
-
-  <ItemGroup>
-    <None Include="devsettings.json" />
   </ItemGroup>
 
   <ItemGroup>
@@ -29,6 +17,7 @@
       <PrivateAssets>all</PrivateAssets>
       <IncludeAssets>runtime; build; native; contentfiles; analyzers; buildtransitive</IncludeAssets>
     </PackageReference>
+    <PackageReference Include="Microsoft.VisualStudio.Azure.Containers.Tools.Targets" Version="1.20.1" />
     <PackageReference Include="Microsoft.VisualStudio.Web.CodeGeneration.Design" Version="8.0.3" />
   </ItemGroup>
 
