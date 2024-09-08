@@ -714,7 +714,7 @@ namespace TelegramMultiBot.Commands
 
         private async Task<bool> OriginalMessageExists(long chatId, int messageId)
         {
-            var testChatId = appSettings.GetValue<long>("testChatId");
+            var testChatId = appSettings.GetValue<long>("TEST_CHAT_ID");
             try
             {
                 var copied = await client.CopyMessageAsync(testChatId, chatId, messageId);
