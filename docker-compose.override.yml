@@ -1,1 +1,10 @@
-version: '3.4'
+
+services:
+  bot:
+    build:
+      context: .
+      dockerfile: TelegramMultiBot/Dockerfile
+  config-ui:
+    build:
+      context: .
+      dockerfile: ConfigUI/Dockerfile

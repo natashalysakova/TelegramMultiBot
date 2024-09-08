@@ -1,11 +1,9 @@
-name: bober-bot
+name: bober
 
 services:
   bot:
     container_name: bot
-    build:
-      context: .
-      dockerfile: TelegramMultiBot/Dockerfile
+    image: ghcr.io/natashalysakova/bober-bot:latest
     restart: always
     depends_on:
       database:
@@ -15,6 +13,8 @@ services:
       - .env
     networks:
       - bober-net
+    volumes:
+      - input:/home/input
   database:
     image: mariadb:latest
     container_name: database
@@ -43,9 +43,7 @@ services:
       - cloudbeaver:/opt/cloudbeaver/workspace 
   config-ui:
     container_name: config
-    build:
-      context: .
-      dockerfile: ConfigUI/Dockerfile
+    image: ghcr.io/natashalysakova/bober-config-ui:latest
     restart: always
     ports:
       - 5268:8080
@@ -67,3 +65,9 @@ volumes:
     driver: local
   cloudbeaver:
     driver: local
+  input:
+    driver: local
+    driver_opts:
+        type: cifs
+        device: //192.168.0.102/input
+        o: username=bober,password=bober,uid=1654,gid=1654

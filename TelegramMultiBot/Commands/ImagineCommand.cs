@@ -571,7 +571,7 @@ namespace TelegramMultiBot.Commands
                     {
                         var keys = new InlineKeyboardMarkup(InlineKeyboardButton.WithCallbackData("Спробувати ще", new ImagineCallbackData(Command, ImagineCommands.Repeat, job.Id)));
                         await client.DeleteMessageAsync(job.ChatId, job.BotMessageId);
-                        await client.SendMessageAsync(job.ChatId, "Рендер невдалий. Спробуйте ще", keys, job.MessageThreadId, job.MessageId);
+                        await client.SendMessageAsync(job.ChatId, "Рендер невдалий. " + job.TextStatus, keys, job.MessageThreadId, job.MessageId);
                         break;
                     }
                 case AlreadyRunningException:

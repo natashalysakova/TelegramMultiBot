@@ -4,6 +4,7 @@ using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Diagnostics;
+using System.Net.NetworkInformation;
 using System.Net.WebSockets;
 using System.Text;
 using TelegramMultiBot.Configuration;
@@ -352,9 +353,11 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 jsons.Add(json);
             }
 
+            
             var dest = Path.Combine(_settings.InputDirectory, fileName);
             if (!File.Exists(dest))
             {
+                _logger.LogTrace("Copy from {source} to {dest}", job.InputImage, dest);
                 File.Copy(job.InputImage, dest, true);
             }
 
@@ -520,14 +523,24 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 s.Start();
                 var response = await comfyClient.StartJob(req) ?? throw new HttpRequestException("Invalid request to comfyUI");
                 var jobId = response.prompt_id;
-                var buffer = new byte[1024];
+                var buffer = new byte[4096];
                 var tile = 0;
                 var fraction = 100.0 / jsons.Count();
                 DateTime lastUpdate = DateTime.Now;
                 double lastProgress = 0;
                 while (true)
                 {
-                    var res = await webcocketClient.ReceiveAsync(buffer, CancellationToken.None);
+                    
+                    StringBuilder builder = new StringBuilder();
+                    WebSocketReceiveResult res = null;
+                    do
+                    {
+                        res = await webcocketClient.ReceiveAsync(buffer, CancellationToken.None);
+                        var part = Encoding.UTF8.GetString(buffer, 0, res.Count);
+                        _logger.LogTrace("{data}", part);
+
+                        builder.Append(part);
+                    } while (!res.EndOfMessage);
 
                     if (res.MessageType == WebSocketMessageType.Close)
                     {
@@ -535,7 +548,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                         break;
                     }
 
-                    var data = Encoding.UTF8.GetString(buffer, 0, res.Count);
+                    var data = builder.ToString();
                     var obj = JsonConvert.DeserializeObject<WebsocketResponce>(data) ?? throw new InvalidOperationException("Cannot deserialize progress");
 
                     if(obj.type != "crystools.monitor")
@@ -543,7 +556,10 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                     else
                         _logger.LogTrace("{data}", data);
 
-
+                    if(obj.type == "execution_error")
+                    {
+                        throw new RenderFailedException(obj.data.exception_message);
+                    }
 
                     if (obj.type == "progress")
                     {
@@ -763,5 +779,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         public Status status { get; set; }
         public string sid { get; set; }
         public Output output { get; set; }
+        public string node_type { get; set; }
+        public string exception_message { get; set; }
     }
 }

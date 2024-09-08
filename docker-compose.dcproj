@@ -6,6 +6,7 @@
     <DockerPublishLocally>False</DockerPublishLocally>
     <ProjectGuid>226d4048-7a22-43da-a8b8-a1ce3994e5b1</ProjectGuid>
     <DockerComposeProjectName>bober-bot</DockerComposeProjectName>
+	<AdditionalComposeFilePaths>docker-compose.override.yml</AdditionalComposeFilePaths>
   </PropertyGroup>
   <ItemGroup>
     <None Include="docker-compose.override.yml">
