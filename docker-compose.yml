@@ -2,6 +2,7 @@ name: bober
 
 services:
   bot:
+    image: bober-bot:latest
     build:
       context: .
       dockerfile: TelegramMultiBot/Dockerfile
@@ -44,6 +45,7 @@ services:
     volumes:
       - cloudbeaver:/opt/cloudbeaver/workspace
   config-ui:
+    image: bober-config:latest
     container_name: config
     build:
       context: .
