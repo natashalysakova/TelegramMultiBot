@@ -2,8 +2,10 @@ name: bober
 
 services:
   bot:
+    build:
+      context: .
+      dockerfile: TelegramMultiBot/Dockerfile
     container_name: bot
-    image: ghcr.io/natashalysakova/bober-bot:latest
     restart: always
     depends_on:
       database:
@@ -43,7 +45,9 @@ services:
       - cloudbeaver:/opt/cloudbeaver/workspace
   config-ui:
     container_name: config
-    image: ghcr.io/natashalysakova/bober-config-ui:latest
+    build:
+      context: .
+      dockerfile: ConfigUI/Dockerfile
     restart: always
     ports:
       - 5268:8080
