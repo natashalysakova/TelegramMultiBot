@@ -3,7 +3,7 @@ name: bober
 services:
   bot:
     container_name: bot
-    image: ghcr.io/natashalysakova/bober-bot:latest
+    image: ghcr.io/natashalysakova/bober-bot
     restart: always
     depends_on:
       database:
@@ -43,7 +43,7 @@ services:
       - cloudbeaver:/opt/cloudbeaver/workspace
   config-ui:
     container_name: config
-    image: ghcr.io/natashalysakova/bober-config-ui:latest
+    image: ghcr.io/natashalysakova/bober-config-ui
     restart: always
     ports:
       - 5268:8080
