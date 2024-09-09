@@ -20,8 +20,6 @@ Project("{2150E333-8FDC-42A3-9474-1A3956D46DE8}") = "Solution Items", "Solution 
 		.env = .env
 	EndProjectSection
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageReciver", "ImageReciver\ImageReciver.csproj", "{37A81C08-79AF-4F55-9628-23BCEB3D45FD}"
-EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -52,10 +50,6 @@ Global
 		{226D4048-7A22-43DA-A8B8-A1CE3994E5B1}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{226D4048-7A22-43DA-A8B8-A1CE3994E5B1}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{226D4048-7A22-43DA-A8B8-A1CE3994E5B1}.Release|Any CPU.Build.0 = Release|Any CPU
-		{37A81C08-79AF-4F55-9628-23BCEB3D45FD}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
-		{37A81C08-79AF-4F55-9628-23BCEB3D45FD}.Debug|Any CPU.Build.0 = Debug|Any CPU
-		{37A81C08-79AF-4F55-9628-23BCEB3D45FD}.Release|Any CPU.ActiveCfg = Release|Any CPU
-		{37A81C08-79AF-4F55-9628-23BCEB3D45FD}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE

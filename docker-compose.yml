@@ -3,13 +3,13 @@ name: bober
 services:
   bot:
     container_name: bot
-    image: ghcr.io/natashalysakova/bober-bot:latest
+    image: ghcr.io/natashalysakova/bober-bot
     restart: always
     depends_on:
       database:
         condition: service_healthy
         restart: true
-    env_file: 
+    env_file:
       - .env
     networks:
       - bober-net
@@ -40,16 +40,16 @@ services:
     ports:
       - 5269:8978
     volumes:
-      - cloudbeaver:/opt/cloudbeaver/workspace 
+      - cloudbeaver:/opt/cloudbeaver/workspace
   config-ui:
     container_name: config
-    image: ghcr.io/natashalysakova/bober-config-ui:latest
+    image: ghcr.io/natashalysakova/bober-config-ui
     restart: always
     ports:
       - 5268:8080
     environment:
       - ASPNETCORE_URLS=http://+:8080
-    env_file: 
+    env_file:
       - .env
     depends_on:
       database:
@@ -61,7 +61,7 @@ networks:
   bober-net:
     driver: bridge
 volumes:
-  dbdata: 
+  dbdata:
     driver: local
   cloudbeaver:
     driver: local

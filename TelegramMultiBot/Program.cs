@@ -78,7 +78,7 @@ internal class Program
 
         context.AddSetting("ComfyUI", "OutputDirectory", "comfy");
         context.AddSetting("ComfyUI", "PayloadPath", "ImageGeneration/ComfyUI/Payload");
-        context.AddSetting("ComfyUI", "InputDirectory", "/volume1/share/Bots/input");
+        context.AddSetting("ComfyUI", "InputDirectory", "/home/input");
         context.AddSetting("ComfyUI", "NoiseStrength", "0.3");
         context.AddSetting("ComfyUI", "VegnietteIntensity", "0.3");
         context.AddSetting("ImageGeneration", "ActiveJobs", "1");
@@ -95,6 +95,7 @@ internal class Program
         context.AddSetting("ImageGeneration", "UpscaleModel", "4x-UltraSharp.pth");
         context.AddSetting("ImageGeneration", "UpscaleMultiplier", "4");
         context.AddSetting("ImageGeneration", "Watermark", "True");
+        context.AddSetting("ImageGeneration", "ReciverPort", "5267");
 
 
         context.SaveChanges();

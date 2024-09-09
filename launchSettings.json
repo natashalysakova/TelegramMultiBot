@@ -4,7 +4,10 @@
       "commandName": "DockerCompose",
       "commandVersion": "1.0",
       "serviceActions": {
-        "telegrammultibot": "StartDebugging"
+        "bot": "StartDebugging",
+        "cloud-beaver": "StartWithoutDebugging",
+        "config-ui": "StartDebugging",
+        "database": "StartWithoutDebugging"
       }
     }
   }
