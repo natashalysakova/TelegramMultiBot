@@ -18,7 +18,7 @@
         public double HiresFixDenoise { get; set; }
         public bool Watermark { get; set; }
         public int MaxGpuUtil { get; set; }
-
+        public ushort ReciverPort { get; set; }
     }
 
     public class Automatic1111Settings

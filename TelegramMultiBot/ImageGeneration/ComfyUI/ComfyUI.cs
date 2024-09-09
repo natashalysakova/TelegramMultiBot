@@ -362,14 +362,20 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             // }
 
             HttpClient httpClient = new HttpClient();
-            httpClient.BaseAddress = new Uri($"http://{ActiveHost.Address}:5267");
+            httpClient.BaseAddress = new Uri($"http://{ActiveHost.Address}:{_generalSettings.ReciverPort}");
             var multipartContent = new MultipartFormDataContent
             {
-                { new ByteArrayContent(File.ReadAllBytes(job.InputImage)), "imgFile", Path.GetFileName(job.InputImage) }
+                { new ByteArrayContent(File.ReadAllBytes(job.InputImage)), "file", fileName }
             };
             var postResponse = await httpClient.PostAsync("sendImage", multipartContent);
-
-            await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, json.Count), outputNode, genParams.Model.Steps);
+            if(postResponse.StatusCode == System.Net.HttpStatusCode.OK)
+            {
+                await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, json.Count), outputNode, genParams.Model.Steps);
+            }
+            else
+            {
+                throw new RenderFailedException("Cannot copy file");
+            }
         }
         private static IEnumerable<string> GetInfos(GenerationParams genParams, ModelInfo model, int count)
         {
