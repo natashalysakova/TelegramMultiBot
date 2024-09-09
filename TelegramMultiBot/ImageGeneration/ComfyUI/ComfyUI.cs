@@ -363,6 +363,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
             HttpClient httpClient = new HttpClient();
             httpClient.BaseAddress = new Uri($"http://{ActiveHost.Address}:{_generalSettings.ReciverPort}");
+            _logger.LogDebug(httpClient.BaseAddress.ToString());
             var multipartContent = new MultipartFormDataContent
             {
                 { new ByteArrayContent(File.ReadAllBytes(job.InputImage)), "file", fileName }
