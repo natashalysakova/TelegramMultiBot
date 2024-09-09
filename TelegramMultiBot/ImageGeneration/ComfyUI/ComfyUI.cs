@@ -354,12 +354,20 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             }
 
             
-            var dest = Path.Combine(_settings.InputDirectory, fileName);
-            if (!File.Exists(dest))
+            // var dest = Path.Combine(_settings.InputDirectory, fileName);
+            // if (!File.Exists(dest))
+            // {
+            //     _logger.LogTrace("Copy from {source} to {dest}", job.InputImage, dest);
+            //     File.Copy(job.InputImage, dest, true);
+            // }
+
+            HttpClient httpClient = new HttpClient();
+            httpClient.BaseAddress = new Uri($"http://{ActiveHost.Address}:5267");
+            var multipartContent = new MultipartFormDataContent
             {
-                _logger.LogTrace("Copy from {source} to {dest}", job.InputImage, dest);
-                File.Copy(job.InputImage, dest, true);
-            }
+                { new ByteArrayContent(File.ReadAllBytes(job.InputImage)), "imgFile", Path.GetFileName(job.InputImage) }
+            };
+            var postResponse = await httpClient.PostAsync("sendImage", multipartContent);
 
             await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, json.Count), outputNode, genParams.Model.Steps);
         }

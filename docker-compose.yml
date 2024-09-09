@@ -13,14 +13,14 @@ services:
       - .env
     networks:
       - bober-net
-    volumes:
-      - input:/home/input
   database:
     image: mariadb:latest
     container_name: database
     env_file: 
       - .env
     restart: always
+    ports:
+      - 3306:3306
     healthcheck:
             test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
             start_period: 10s
@@ -65,9 +65,3 @@ volumes:
     driver: local
   cloudbeaver:
     driver: local
-  input:
-    driver: local
-    driver_opts:
-        type: cifs
-        device: //192.168.0.102/input
-        o: username=bober,password=bober,uid=1654,gid=1654
