@@ -174,6 +174,14 @@ namespace TelegramMultiBot.Database.Services
             }
         }
 
+        public GeneralSettings GeneralSettings
+        {
+            get
+            {
+                return BindSettings<GeneralSettings>(_context.Settings.Where(x => x.SettingSection == GeneralSettings.Name));
+            }
+        }
+
         private T BindSettings<T>(IEnumerable<Settings> settings) where T : class, new()
         {
             var type = typeof(T);
@@ -193,6 +201,10 @@ namespace TelegramMultiBot.Database.Services
                     {
                         property.SetValue(obj, Convert.ChangeType(config.SettingsValue, property.PropertyType, CultureInfo.InvariantCulture));
                     }
+                }
+                else
+                {
+                    throw new ConfigurationMissingException($"{type.Name} {property.Name} is missing");
                 }
             }
 

@@ -1,4 +1,5 @@
-﻿using Newtonsoft.Json;
+﻿using Microsoft.Extensions.Configuration;
+using Newtonsoft.Json;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -8,11 +9,12 @@ using System.Text;
 using System.Text.Json;
 using System.Threading.Tasks;
 using Telegram.Bot.Types;
+using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.AiAssistant
 {
-    internal class SummarizeAiHelper
+    internal class SummarizeAiHelper(ISqlConfiguationService configuationService)
     {
         static string systemPrompt =
 @"Ти — корисний помічник зі штучним інтелектом, який узагальнює повідомлення чату. Зроби все можливе, щоб надати корисний короткий виклад того, що обговорювалося в наданих повідомленнях чату. У відповіді короткий абзац підсумовує основні моменти повідомлень чату.
@@ -27,10 +29,10 @@ namespace TelegramMultiBot.AiAssistant
 Ясність: Формулюй думки зрозуміло й доступно, щоб будь-який користувач міг легко зрозуміти резюме.""
 ";
 
-        static string token = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpZCI6IjZlNTZjMzY3LWNhMmYtNDc1Ni04NWYyLTI2Yjg0MDM3N2M4MiJ9.UkIzsrpyKyy3yih4DDFMqLw8ci3apPoZKK3_0GJ8V_w";
 
-        internal static async Task<string> Summarize(IEnumerable<ChatHistory>? history)
+        internal async Task<string> Summarize(IEnumerable<ChatHistory>? history)
         {
+            var token = Environment.GetEnvironmentVariable("LLM_TOKEN");
             var messages = JsonConvert.SerializeObject(history, new JsonSerializerSettings()
             {
                 ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
@@ -39,7 +41,7 @@ namespace TelegramMultiBot.AiAssistant
             var requestBody = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
 
             HttpClient client = new HttpClient();
-            client.BaseAddress = new Uri("http://192.168.0.102:3000/ollama/api");
+            client.BaseAddress = new Uri(configuationService.GeneralSettings.OllamaApiUrl);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
             var responce = await client.PostAsync("/ollama/api/generate", requestBody);
 

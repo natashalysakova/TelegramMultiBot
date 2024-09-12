@@ -1,4 +1,5 @@
 ﻿using AngleSharp.Browser.Dom;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -12,7 +13,7 @@ using TelegramMultiBot.Database.Models;
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("summarize")]
-    internal class SummarizeCommand(IAssistantDataService assistantDataService, TelegramClientWrapper clientWrapper) : BaseCommand
+    internal class SummarizeCommand(IAssistantDataService assistantDataService, TelegramClientWrapper clientWrapper, SummarizeAiHelper summarizeAiHelper, ILogger<SummarizeCommand> logger) : BaseCommand
     {
         public override async Task Handle(Message message)
         {
@@ -25,7 +26,6 @@ namespace TelegramMultiBot.Commands
 
             var botMessage = await clientWrapper.SendMessageAsync(message.Chat, "Чекайте, підбиваю підсумки", messageThreadId: message.MessageThreadId);
 
-            string shortSummary;
             IEnumerable<ChatHistory> history;
 
             if (message.ReplyToMessage != null)
@@ -42,9 +42,17 @@ namespace TelegramMultiBot.Commands
                 await clientWrapper.EditMessageTextAsync(botMessage, "Не можу знайти історію чату. Спробуй пізніше");
                 return;
             }
+            try
+            {
+                var shortSummary = await summarizeAiHelper.Summarize(history);
+                await clientWrapper.EditMessageTextAsync(botMessage, shortSummary);
 
-            shortSummary = await SummarizeAiHelper.Summarize(history);
-            await clientWrapper.EditMessageTextAsync(botMessage, shortSummary);
+            }
+            catch (Exception ex)
+            {
+                await clientWrapper.EditMessageTextAsync(botMessage, "Сталась помилка");
+                logger.LogError(ex, ex.Message);
+            }
         }
     }
 }

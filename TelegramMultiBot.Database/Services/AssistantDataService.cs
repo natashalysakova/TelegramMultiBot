@@ -13,7 +13,7 @@ namespace TelegramMultiBot.Database.Services
     {
         public int Cleanup()
         {
-            var toDelete = context.ChatHistory.Where(x => x.SendTime < DateTime.Now.AddDays(-3));
+            var toDelete = context.ChatHistory.Where(x => x.SendTime < DateTime.Now.AddDays(-2));
             context.RemoveRange(toDelete);
             context.SaveChanges();
             return toDelete.Count();

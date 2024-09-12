@@ -16,6 +16,7 @@ namespace TelegramMultiBot.Database.Interfaces
         public ImageGenerationSettings IGSettings { get;  }
         public Automatic1111Settings AutomaticSettings { get; }
         public ComfyUISettings ComfySettings { get; }
+        public GeneralSettings GeneralSettings { get; }
 
     }
 

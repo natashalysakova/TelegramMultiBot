@@ -8,6 +8,7 @@ using Microsoft.Extensions.Primitives;
 using MySqlConnector;
 using Telegram.Bot;
 using TelegramMultiBot;
+using TelegramMultiBot.AiAssistant;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Database;
@@ -138,6 +139,8 @@ internal class Program
         _ = serviceCollection.AddTransient<IAssistantDataService, AssistantDataService>();
 
         _ = serviceCollection.AddTransient<CleanupService>();
+
+        _ = serviceCollection.AddTransient<SummarizeAiHelper>();
 
         var botKey = configuration["TG_TOKEN"];
         if (string.IsNullOrEmpty(botKey))
