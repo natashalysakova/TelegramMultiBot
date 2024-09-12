@@ -14,10 +14,11 @@ using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.ImageCompare;
 using TelegramMultiBot.ImageGenerators;
 
-internal class BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, ISqlConfiguationService configuration, MonitorService monitorService)
+internal class BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, ISqlConfiguationService configuration, MonitorService monitorService, IAssistantDataService assistantDataService)
 {
     public static string? BotName;
     private System.Timers.Timer? _timer;
@@ -334,6 +335,8 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
     private async Task BotOnMessageRecived(Message message)
     {
+        HandleChatHistory(message);
+
         if (message.Type != MessageType.Text && message.Type != MessageType.Photo)
             return;
         ArgumentNullException.ThrowIfNull(message.From);
@@ -381,5 +384,64 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 }
             }
         }
+    }
+
+    private void HandleChatHistory(Message message)
+    {
+        var assistant = assistantDataService.Get(message.Chat.Id, message.MessageThreadId);
+
+        if(assistant is null || !assistant.IsActive)
+        {
+            return;
+        }
+
+        if(message.Entities != null && message.Entities.Any(x=>x.Type == MessageEntityType.BotCommand))
+        {
+            return;
+        }
+
+        string forwardedFrom = "";
+        string? text = message.Caption ?? message.Text;
+        if(message.ForwardOrigin != null)
+        {
+            switch (message.ForwardOrigin.Type)
+            {
+                case MessageOriginType.User:
+                    forwardedFrom = $"{message.ForwardFrom.FirstName} {message.ForwardFrom.LastName?? string.Empty}" ;
+                    break;
+                case MessageOriginType.Chat:
+                    forwardedFrom = message.ForwardFromChat.Title;
+                    break;
+                case MessageOriginType.Channel:
+                    forwardedFrom = message.ForwardFromChat.Title;
+                    break;
+                case MessageOriginType.HiddenUser:
+                    forwardedFrom = message.ForwardSenderName;
+                    break;
+                default:
+                    break;
+            }
+        }
+
+        var hasLink = message.Entities != null && message.Entities.Any(x => x.Type == MessageEntityType.Url);
+        var from = message.From.FirstName;
+        if (message.From.LastName != null)
+        {
+            from += " " + message.From.LastName;
+        }
+        var record = new ChatHistory()
+        {
+            Assistant = assistant,
+            Author = from,
+            HasLink = hasLink,
+            MessageId = message.MessageId,
+            HasPhoto = message.Photo is not null,
+            HasVideo = message.Video is not null,
+            RepostedFrom = forwardedFrom, 
+            SendTime = message.Date.ToLocalTime(),
+            Text = text
+        };
+
+        assistantDataService.SaveToHistory(record);
     }
 }

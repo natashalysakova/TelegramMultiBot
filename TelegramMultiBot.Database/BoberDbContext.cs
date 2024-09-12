@@ -2,12 +2,16 @@
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
+using System.Diagnostics;
 using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database
 {
-    public class BoberDbContext(DbContextOptions options) : DbContext(options)
+    public class BoberDbContext : DbContext
     {
+        public BoberDbContext(DbContextOptions options) : base(options) 
+        {
+        }
         public virtual DbSet<ImageJob> Jobs { get; set; }
         public virtual DbSet<JobResult> JobResult { get; set; }
         public virtual DbSet<BotMessage> BotMessages { get; set; }
@@ -18,6 +22,9 @@ namespace TelegramMultiBot.Database
 
         public virtual DbSet<ReminderJob> Reminders { get; set; }
         public virtual DbSet<MonitorJob> Monitor { get; set; }
+
+        public virtual DbSet<AssistantSubscriber> Assistants { get; set; }
+        public virtual DbSet<ChatHistory> ChatHistory { get; set; }
     }
 
     public class BoberDbContextFactory : IDesignTimeDbContextFactory<BoberDbContext>
@@ -36,6 +43,7 @@ namespace TelegramMultiBot.Database
                 throw new NullReferenceException(nameof(connectionString));
             }
             var serverVersion = GetServerVersion(connectionString);
+
             _ = optionsBuilder.UseMySql(connectionString, serverVersion);
             return new BoberDbContext(optionsBuilder.Options);
         }
