@@ -18,11 +18,11 @@ namespace TelegramMultiBot.Commands
 
             if (subscriber.IsActive)
             {
-                await clientWrapper.SendMessageAsync(message.Chat, "Асистента активовано");
+                await clientWrapper.SendMessageAsync(message.Chat, "Асистента активовано", messageThreadId: message.MessageThreadId);
             }
             else
             {
-                await clientWrapper.SendMessageAsync(message.Chat, "Асистента деактивовано");
+                await clientWrapper.SendMessageAsync(message.Chat, "Асистента деактивовано", messageThreadId: message.MessageThreadId);
             }
         }
     }
