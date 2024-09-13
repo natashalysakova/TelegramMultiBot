@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using TelegramMultiBot.Database.DTO;
@@ -174,12 +175,20 @@ namespace TelegramMultiBot.Database.Services
             }
         }
 
+        public GeneralSettings GeneralSettings
+        {
+            get
+            {
+                return BindSettings<GeneralSettings>(_context.Settings.Where(x => x.SettingSection == GeneralSettings.Name));
+            }
+        }
+
         private T BindSettings<T>(IEnumerable<Settings> settings) where T : class, new()
         {
             var type = typeof(T);
             var obj = Activator.CreateInstance(type);
 
-            foreach (var property in type.GetProperties())
+            foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
             {
                 if (settings.Any(x => x.SettingsKey == property.Name))
                 {
@@ -193,6 +202,10 @@ namespace TelegramMultiBot.Database.Services
                     {
                         property.SetValue(obj, Convert.ChangeType(config.SettingsValue, property.PropertyType, CultureInfo.InvariantCulture));
                     }
+                }
+                else
+                {
+                    throw new ConfigurationMissingException($"{type.Name} {property.Name} is missing");
                 }
             }
 

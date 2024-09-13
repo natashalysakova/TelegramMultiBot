@@ -23,6 +23,7 @@
     <PackageReference Include="Cronos" Version="0.8.4" />
     <PackageReference Include="Magick.NET-Q16-AnyCPU" Version="13.10.0" />
     <PackageReference Include="Magick.NET.Core" Version="13.10.0" />
+    <PackageReference Include="Microsoft.EntityFrameworkCore.Proxies" Version="8.0.8" />
     <PackageReference Include="Microsoft.EntityFrameworkCore.Relational" Version="8.0.8" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />

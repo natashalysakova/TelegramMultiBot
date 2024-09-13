@@ -3,11 +3,10 @@
     "Docker Compose": {
       "commandName": "DockerCompose",
       "commandVersion": "1.0",
-      "serviceActions": {
-        "bot": "StartDebugging",
-        "cloud-beaver": "StartWithoutDebugging",
-        "config-ui": "StartDebugging",
-        "database": "StartWithoutDebugging"
+      "composeProfile": {
+        "includes": [
+          "dev"
+        ]
       }
     }
   }

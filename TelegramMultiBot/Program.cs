@@ -8,9 +8,11 @@ using Microsoft.Extensions.Primitives;
 using MySqlConnector;
 using Telegram.Bot;
 using TelegramMultiBot;
+using TelegramMultiBot.AiAssistant;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Database;
+using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
@@ -40,10 +42,9 @@ internal class Program
         {
             context.Database.Migrate();
         }
-        if (!context.Settings.Any())
-        {
-            SetDefaultSettings(context);
-        }
+
+        SetDefaultSettings(context);
+
         if (!context.Models.Any())
         {
             AddModels(context);
@@ -70,34 +71,49 @@ internal class Program
         context.SaveChanges();
     }
 
+
+
     private static void SetDefaultSettings(BoberDbContext context)
     {
-        context.AddSetting("Automatic1111", "OutputDirectory", "automatic");
-        context.AddSetting("Automatic1111", "PayloadPath", "ImageGeneration/Automatic1111/Payload");
-        context.AddSetting("Automatic1111", "UpscalePath", "ImageGeneration/Automatic1111/Upscales");
+        //(string section, string key, string value)[] defaults = [
+        //("Automatic1111", "OutputDirectory", "automatic"),
+        //("Automatic1111", "PayloadPath", "ImageGeneration/Automatic1111/Payload"),
+        //("Automatic1111", "UpscalePath", "ImageGeneration/Automatic1111/Upscales"),
+        //("ComfyUI", "OutputDirectory", "comfy"),
+        //("ComfyUI", "PayloadPath", "ImageGeneration/ComfyUI/Payload"),
+        //("ComfyUI", "InputDirectory", "/home/input"),
+        //("ComfyUI", "NoiseStrength", "0.3"),
+        //("ComfyUI", "VegnietteIntensity", "0.3"),
+        //("ImageGeneration", "ActiveJobs", "1"),
+        //("ImageGeneration", "BaseImageDirectory", "images"),
+        //("ImageGeneration", "BatchCount", "1"),
+        //("ImageGeneration", "DatabaseCleanupInterval", "3600"),
+        //("ImageGeneration", "DefaultModel", "dreamshaper"),
+        //("ImageGeneration", "DownloadDirectory", "download"),
+        //("ImageGeneration", "HiresFixDenoise", "0.35"),
+        //("ImageGeneration", "JobAge", "172800"),
+        //("ImageGeneration", "JobLimitPerUser", "3"),
+        //("ImageGeneration", "MaxGpuUtil", "20"),
+        //("ImageGeneration", "RemoveFiles", "True"),
+        //("ImageGeneration", "UpscaleModel", "4x-UltraSharp.pth"),
+        //("ImageGeneration", "UpscaleMultiplier", "4"),
+        //("ImageGeneration", "Watermark", "True"),
+        //("ImageGeneration", "ReciverPort", "5267"),
+        //("General", "OllamaApiUrl", "http://localhost:3000/")
+        //];
 
-        context.AddSetting("ComfyUI", "OutputDirectory", "comfy");
-        context.AddSetting("ComfyUI", "PayloadPath", "ImageGeneration/ComfyUI/Payload");
-        context.AddSetting("ComfyUI", "InputDirectory", "/home/input");
-        context.AddSetting("ComfyUI", "NoiseStrength", "0.3");
-        context.AddSetting("ComfyUI", "VegnietteIntensity", "0.3");
-        context.AddSetting("ImageGeneration", "ActiveJobs", "1");
-        context.AddSetting("ImageGeneration", "BaseImageDirectory", "images");
-        context.AddSetting("ImageGeneration", "BatchCount", "1");
-        context.AddSetting("ImageGeneration", "DatabaseCleanupInterval", "3600");
-        context.AddSetting("ImageGeneration", "DefaultModel", "dreamshaper");
-        context.AddSetting("ImageGeneration", "DownloadDirectory", "download");
-        context.AddSetting("ImageGeneration", "HiresFixDenoise", "0.35");
-        context.AddSetting("ImageGeneration", "JobAge", "172800");
-        context.AddSetting("ImageGeneration", "JobLimitPerUser", "3");
-        context.AddSetting("ImageGeneration", "MaxGpuUtil", "20");
-        context.AddSetting("ImageGeneration", "RemoveFiles", "True");
-        context.AddSetting("ImageGeneration", "UpscaleModel", "4x-UltraSharp.pth");
-        context.AddSetting("ImageGeneration", "UpscaleMultiplier", "4");
-        context.AddSetting("ImageGeneration", "Watermark", "True");
-        context.AddSetting("ImageGeneration", "ReciverPort", "5267");
-
-
+        var defaults = new Automatic1111Settings().ToList();
+        defaults.AddRange(new ComfyUISettings().ToList());
+        defaults.AddRange(new ImageGenerationSettings().ToList());
+        defaults.AddRange(new GeneralSettings().ToList());
+         
+        foreach (var setting in defaults)
+        {
+            if(!context.Settings.Any(x=>x.SettingSection == setting.section && x.SettingsKey == setting.key))
+            {
+                context.AddSetting(setting);
+            }
+        }
         context.SaveChanges();
     }
 
@@ -125,6 +141,7 @@ internal class Program
 
         _ = serviceCollection.AddDbContext<BoberDbContext>(options =>
         {
+            _ = options.UseLazyLoadingProxies();
             _ = options.UseMySql(connectionString, serverVersion, op2 => { op2.EnableRetryOnFailure(100, TimeSpan.FromSeconds(30), null); });
             _ = options.LogTo(Console.WriteLine, LogLevel.Warning);
             _ = options.EnableDetailedErrors();
@@ -134,8 +151,11 @@ internal class Program
         _ = serviceCollection.AddTransient<ISqlConfiguationService, ConfigurationService>();
         _ = serviceCollection.AddTransient<IReminderDataService, ReminderService>();
         _ = serviceCollection.AddTransient<IMonitorDataService, MonitorDataService>();
+        _ = serviceCollection.AddTransient<IAssistantDataService, AssistantDataService>();
 
         _ = serviceCollection.AddTransient<CleanupService>();
+
+        _ = serviceCollection.AddTransient<SummarizeAiHelper>();
 
         var botKey = configuration["TG_TOKEN"];
         if (string.IsNullOrEmpty(botKey))

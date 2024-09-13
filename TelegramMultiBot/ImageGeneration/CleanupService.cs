@@ -5,7 +5,7 @@ using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.ImageGenerators
 {
-    internal class CleanupService(IImageDatabaseService databaseService, TelegramClientWrapper client, ISqlConfiguationService configuration, IBotMessageDatabaseService botMessageService, ILogger<CleanupService> logger)
+    internal class CleanupService(IImageDatabaseService databaseService, TelegramClientWrapper client, ISqlConfiguationService configuration, IBotMessageDatabaseService botMessageService, IAssistantDataService assistantDataService, ILogger<CleanupService> logger)
     {
         internal async Task Run()
         {
@@ -86,6 +86,10 @@ namespace TelegramMultiBot.ImageGenerators
                     }
                 }
             }
+
+
+            var cleanedhistory = assistantDataService.Cleanup();
+            logger.LogDebug("ChatHistory cleaned: {0}", cleanedhistory);
 
             logger.LogDebug("Cleanup Ended");
         }
