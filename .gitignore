@@ -369,9 +369,7 @@ FodyWeavers.xsd
 .DS_Store
 /ConfigUI/tokens.json
 /ConfigUI/devsettings.json
-/.env
 /TelegramMultiBot/images/automatic/
 /TelegramMultiBot/images/comfy/
 /TelegramMultiBot/images/download
-/dev.env
-/prod.env
+/*.env

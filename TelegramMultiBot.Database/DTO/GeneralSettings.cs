@@ -1,9 +1,9 @@
 ﻿namespace TelegramMultiBot.Database.DTO
 {
-    public class GeneralSettings
+    public class GeneralSettings : BaseSetting
     {
-        public const string Name = "General";
+        public static string Name => "General";
 
-        public string OllamaApiUrl { get; set; }
+        public string OllamaApiUrl { get; set; } = "http://localhost:3000/";
     }
 }

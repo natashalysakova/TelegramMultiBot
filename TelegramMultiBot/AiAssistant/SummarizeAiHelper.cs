@@ -40,10 +40,19 @@ namespace TelegramMultiBot.AiAssistant
             var request = new LLMRequest("llama3.1", systemPrompt, messages, false, new LLMOptions(5192));
             var requestBody = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
 
-            HttpClient client = new HttpClient();
+            using HttpClient client = new HttpClient();
             client.BaseAddress = new Uri(configuationService.GeneralSettings.OllamaApiUrl);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
-            var responce = await client.PostAsync("/ollama/api/generate", requestBody);
+
+            using HttpRequestMessage httpRequest = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = requestBody,
+                RequestUri = new Uri(configuationService.GeneralSettings.OllamaApiUrl + "ollama/api/generate")
+            };
+            httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using var responce = await client.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
 
             if (responce.IsSuccessStatusCode)
             {

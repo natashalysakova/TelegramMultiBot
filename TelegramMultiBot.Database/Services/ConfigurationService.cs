@@ -7,6 +7,7 @@ using System.Collections.Generic;
 using System.ComponentModel;
 using System.Globalization;
 using System.Linq;
+using System.Reflection;
 using System.Text;
 using System.Threading.Tasks;
 using TelegramMultiBot.Database.DTO;
@@ -187,7 +188,7 @@ namespace TelegramMultiBot.Database.Services
             var type = typeof(T);
             var obj = Activator.CreateInstance(type);
 
-            foreach (var property in type.GetProperties())
+            foreach (var property in type.GetProperties(BindingFlags.Instance | BindingFlags.Public))
             {
                 if (settings.Any(x => x.SettingsKey == property.Name))
                 {

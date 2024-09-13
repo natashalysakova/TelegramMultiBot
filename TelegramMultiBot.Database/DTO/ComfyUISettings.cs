@@ -1,15 +1,13 @@
 ﻿namespace TelegramMultiBot.Database.DTO
 {
-    public class ComfyUISettings
+    public class ComfyUISettings : BaseSetting
     {
-        public const string Name = "ComfyUI";
+        public static string Name => "ComfyUI";
 
-        public int HiResBatchCount { get; set; } = 1;
-        public int BatchCount { get; set; } = 1;
-        public string OutputDirectory { get; set; }
-        public string PayloadPath { get; set; }
-        public string InputDirectory { get; set; }
-        public double NoiseStrength { get; set; }
-        public double VegnietteIntensity { get; set; }
+        public string OutputDirectory { get; set; } = "comfy";
+        public string PayloadPath { get; set; } = "ImageGeneration/ComfyUI/Payload";
+        public string InputDirectory { get; set; } = "/home/input";
+        public double NoiseStrength { get; set; } = 0.3;
+        public double VegnietteIntensity { get; set; } = 0.3;
     }
 }

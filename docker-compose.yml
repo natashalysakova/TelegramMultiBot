@@ -1,73 +1,147 @@
 name: bober
 
+x-base-bot-service: &base-bot
+  restart: always
+   
+x-base-db: &base-db
+  image: mariadb:latest
+  restart: always
+  healthcheck:
+    test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+    start_period: 10s
+    interval: 10s
+    timeout: 5s
+    retries: 5
+
+x-base-config: &base-config
+  restart: always
+  environment:
+      - ASPNETCORE_URLS=http://+:8080
+  
 services:
   bot:
-    image: bober-bot:latest
+    image: ghcr.io/natashalysakova/bober-bot:latest
+    container_name: bot
+    networks:
+      - bober-net
+    profiles:
+      - prod
+    env_file:
+      - prod.env
+      - .env
+    depends_on:
+      database-dev:
+        condition: service_healthy
+        restart: true
+    << : *base-bot
+    
+  bot-dev:
+    image: bober-bot:dev
     build:
       context: .
       dockerfile: TelegramMultiBot/Dockerfile
-    container_name: bot
-    restart: always
-    depends_on:
-      database:
-        condition: service_healthy
-        restart: true
-    env_file:
-      - .env
+    container_name: bot-dev
     networks:
-      - bober-net
-  database:
-    image: mariadb:latest
-    container_name: database
-    env_file: 
+      - bober-net-dev
+    profiles:
+      - dev
+    env_file:
+      - dev.env
       - .env
-    restart: always
-    ports:
-      - 3306:3306
-    healthcheck:
-            test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
-            start_period: 10s
-            interval: 10s
-            timeout: 5s
-            retries: 5
+    << : *base-bot
+
+  database:
+    container_name: database  
     networks:
       - bober-net
     volumes:
       - dbdata:/var/lib/mysql
+    ports:
+      - 3306:3306
+    profiles:
+      - prod
+    env_file:
+      - prod.env
+      - .env
+    << : *base-db
+
+  database-dev:
+    container_name: database-dev
+    networks:
+      - bober-net-dev
+    volumes:
+      - dbdata-dev:/var/lib/mysql
+    ports:
+      - 3307:3306
+    profiles:
+      - dev
+    env_file:
+      - dev.env
+      - .env
+    << : *base-db
+
   cloud-beaver:
     image: dbeaver/cloudbeaver:latest
     container_name: database-ui
     restart: unless-stopped
     networks:
-      - bober-net
+      - bober-net-dev
     ports:
       - 5269:8978
     volumes:
       - cloudbeaver:/opt/cloudbeaver/workspace
+    profiles:
+      - dev
+      - prod
+
   config-ui:
-    image: bober-config:latest
-    container_name: config
-    build:
-      context: .
-      dockerfile: ConfigUI/Dockerfile
-    restart: always
+    image: ghcr.io/natashalysakova/bober-config:latest
+    container_name: config 
     ports:
-      - 5268:8080
-    environment:
-      - ASPNETCORE_URLS=http://+:8080
+      - 5268:8080 
     env_file:
+      - prod.env 
       - .env
+    networks:
+      - bober-net
+    profiles:
+      - prod
     depends_on:
       database:
         condition: service_healthy
         restart: true
+    << : *base-config
+  
+  config-ui-dev:
+    image: bober-config:dev
+    container_name: config-dev
+    build:
+      context: .
+      dockerfile: ConfigUI/Dockerfile
+    ports:
+      - 5266:8080 
+    env_file:
+      - dev.env 
+      - .env
     networks:
-      - bober-net
+      - bober-net-dev
+    profiles:
+      - dev
+    depends_on:
+      database-dev:
+        condition: service_healthy
+        restart: true
+    << : *base-config
+
 networks:
   bober-net:
     driver: bridge
+  bober-net-dev:
+    driver: bridge
 volumes:
   dbdata:
+    driver: local
+  dbdata-dev:
     driver: local
   cloudbeaver:
     driver: local
