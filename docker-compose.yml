@@ -96,7 +96,7 @@ services:
       - cloudbeaver:/opt/cloudbeaver/workspace
 
   config-ui:
-    image: ghcr.io/natashalysakova/bober-config:latest
+    image: ghcr.io/natashalysakova/bober-config-ui:latest
     container_name: config 
     ports:
       - 5268:8080 
@@ -114,7 +114,7 @@ services:
     << : *base-config
   
   config-ui-dev:
-    image: bober-config:dev
+    image: bober-config-ui:dev
     container_name: config-dev
     build:
       context: .
