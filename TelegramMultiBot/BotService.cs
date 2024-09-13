@@ -371,6 +371,11 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 }
             }
 
+            if (applicableComands.Any() && message.ForwardOrigin != null)
+            {
+                return;
+            }
+
             foreach (var command in applicableComands)
             {
                 logger.LogDebug("{command}", command);
