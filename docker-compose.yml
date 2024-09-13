@@ -30,7 +30,7 @@ services:
       - prod.env
       - .env
     depends_on:
-      database-dev:
+      database:
         condition: service_healthy
         restart: true
     << : *base-bot
@@ -48,6 +48,10 @@ services:
     env_file:
       - dev.env
       - .env
+    depends_on:
+      database-dev:
+        condition: service_healthy
+        restart: true
     << : *base-bot
 
   database:
