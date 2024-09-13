@@ -85,7 +85,7 @@ public class LLMResponse
     public long total_duration { get; set; }
     public long load_duration { get; set; }
     public int prompt_eval_count { get; set; }
-    public int prompt_eval_duration { get; set; }
+    public long prompt_eval_duration { get; set; }
     public int eval_count { get; set; }
     public long eval_duration { get; set; }
 }
