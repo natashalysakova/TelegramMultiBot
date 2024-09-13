@@ -7,7 +7,6 @@ function BuildAndPush {
     )
     
     docker build --platform=linux/arm64 -t ghcr.io/natashalysakova/$image`:latest . -f $dockerFile
-    #docker build -t ghcr.io/natashalysakova/$image`:latest . -f $dockerFile
     docker image tag ghcr.io/natashalysakova/$image`:latest ghcr.io/natashalysakova/$image`:$tag
     docker push ghcr.io/natashalysakova/$image`:latest
     docker push ghcr.io/natashalysakova/$image`:$tag
