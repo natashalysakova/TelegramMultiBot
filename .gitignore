@@ -373,3 +373,5 @@ FodyWeavers.xsd
 /TelegramMultiBot/images/automatic/
 /TelegramMultiBot/images/comfy/
 /TelegramMultiBot/images/download
+/dev.env
+/prod.env
