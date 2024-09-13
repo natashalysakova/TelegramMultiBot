@@ -94,9 +94,6 @@ services:
       - 5269:8978
     volumes:
       - cloudbeaver:/opt/cloudbeaver/workspace
-    profiles:
-      - dev
-      - prod
 
   config-ui:
     image: ghcr.io/natashalysakova/bober-config:latest
