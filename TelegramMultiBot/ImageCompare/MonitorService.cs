@@ -82,11 +82,11 @@ namespace TelegramMultiBot.ImageCompare
                 {
                     var datetime = DateTime.Now;
                     _logger.LogTrace("checking at {date}", datetime);
-                    var activeJobs = _dbservice.Jobs.Where(x=>x.IsActive).GroupBy(x=>x.Url);
+                    var activeJobs = _dbservice.Jobs.Where(x => x.IsActive).GroupBy(x => x.Url);
 
                     foreach (var group in activeJobs)
                     {
-                        var hasToBeRun = group.Any(x=>x.NextRun < datetime);
+                        var hasToBeRun = group.Any(x => x.NextRun < datetime);
 
                         if (!hasToBeRun)
                         {
@@ -94,7 +94,7 @@ namespace TelegramMultiBot.ImageCompare
                         }
 
                         bool isTheSame;
-                        string? localFilePath;
+                        IList<string> localFilePath;
                         try
                         {
                             isTheSame = Compare(group.Key, out localFilePath);
@@ -117,7 +117,10 @@ namespace TelegramMultiBot.ImageCompare
 
                             foreach (var job in group)
                             {
-                                ReadyToSend?.Invoke(job.ChatId, localFilePath, caption);
+                                foreach (var image in localFilePath)
+                                {
+                                    ReadyToSend?.Invoke(job.ChatId, image, caption);
+                                }
                             }
 
                         }
@@ -132,29 +135,38 @@ namespace TelegramMultiBot.ImageCompare
             }, token);
         }
 
-        private bool Compare(string url, out string? localFilePath)
+        private bool Compare(string url, out IList<string> localFilePath)
         {
             var baseDirectory = "monitor";
 
-            var folder = Path.Combine(baseDirectory, "url_" + ConvertUrlToValidFilename(url) );
+            var folder = Path.Combine(baseDirectory, "url_" + ConvertUrlToValidFilename(url));
+            var imgUrls = GetUrlFromHtml(url);
+            localFilePath = new List<string>();
+
 
             if (Directory.Exists(folder) && Directory.EnumerateFiles(folder).Any())
             {
-                var imgUrl = GetUrlFromHtml(url);
-                byte[] img = GetBytes(imgUrl);
 
                 var lastFile = Directory.EnumerateFiles(folder).Order().Last();
                 var img2 = File.ReadAllBytes(lastFile);
 
-                if (ImageComparator.Compare(img, img2))
+                foreach (var imgUrl in imgUrls)
                 {
-                    localFilePath = null;
+                    byte[] img = GetBytes(imgUrl);
+
+                    if (!ImageComparator.Compare(img, img2))
+                    {
+                        localFilePath.Add(SaveFile(imgUrl, folder, img));
+                    }
+                }
+
+                if(localFilePath.Count == 0)
+                {
                     return true;
                 }
                 else
                 {
-                    localFilePath = SaveFile(imgUrl, folder, img);
-                    return false;
+                    return false; 
                 }
             }
             else
@@ -164,10 +176,13 @@ namespace TelegramMultiBot.ImageCompare
                     Directory.CreateDirectory(folder);
                 }
 
-                var imgUrl = GetUrlFromHtml(url);
-                byte[] img = GetBytes(imgUrl);
+                foreach (var imgUrl in imgUrls)
+                {
+                    byte[] img = GetBytes(imgUrl);
 
-                localFilePath = SaveFile(imgUrl, folder, img);
+                    localFilePath.Add(SaveFile(imgUrl, folder, img));
+                }
+
                 return false;
             }
         }
@@ -265,7 +280,7 @@ namespace TelegramMultiBot.ImageCompare
             return task.Result;
         }
 
-        private static string GetUrlFromHtml(string url)
+        private static IEnumerable<string> GetUrlFromHtml(string url)
         {
             HttpClient client = new HttpClient();
 
@@ -274,11 +289,14 @@ namespace TelegramMultiBot.ImageCompare
             var urlToUse = ParsePage(htmltask.Result);
 
             Uri uri = new Uri(url);
-            return $"{uri.Scheme}://{uri.Host}{urlToUse}";
+            foreach (var urlFromPage in urlToUse)
+            {
+                yield return $"{uri.Scheme}://{uri.Host}{urlFromPage}";
+            }
         }
 
 
-        private static string ParsePage(string html)
+        private static IEnumerable<string?>? ParsePage(string html)
         {
             var document = new HtmlParser().ParseDocument(html);
 
@@ -291,7 +309,13 @@ namespace TelegramMultiBot.ImageCompare
                 throw new KeyNotFoundException("cannot find url. Check file " + filename);
             }
 
-            return url.First().GetAttribute("src");
+            foreach (var images in url)
+            {
+                var path = images.GetAttribute("src");
+                yield return path;
+            }
+
+            //return url?.Select(x => x.GetAttribute("src"));
 
         }
 
@@ -302,9 +326,10 @@ namespace TelegramMultiBot.ImageCompare
             {
                 extention = ".jpg";
             }
-            var filename = DateTime.Now.ToString("yyyyMMddHHmmss") + extention;
+            var filename = DateTime.Now.ToString("yyyyMMddHHmmssfff") + extention;
             var filePath = Path.Combine(folder, filename);
             File.WriteAllBytes(filePath, bytes);
+            Console.WriteLine(Path.GetFullPath(filePath));
             return filePath;
         }
 
@@ -319,14 +344,14 @@ namespace TelegramMultiBot.ImageCompare
             {
                 return -1;
             }
-            
+
             var existing = _dbservice.Jobs.SingleOrDefault(x => x.ChatId == chatId && x.Url == url);
 
             if (existing != null && existing.IsActive)
             {
                 return -1;
             }
-            else if(existing != null && existing.IsActive == false)
+            else if (existing != null && existing.IsActive == false)
             {
                 existing.IsActive = true;
                 existing.DeactivationReason = null;
@@ -398,7 +423,7 @@ namespace TelegramMultiBot.ImageCompare
         {
             var url = GetFromRegion(region);
 
-            if(url == null) 
+            if (url == null)
                 return false;
 
             var jobs = _dbservice.Jobs.Where(x => x.ChatId == chatId && x.Url == url);
@@ -411,7 +436,7 @@ namespace TelegramMultiBot.ImageCompare
 
         public void DisableJob(long chatId, string reason)
         {
-            var jobs = _dbservice.Jobs.Where(x => x.ChatId == chatId );
+            var jobs = _dbservice.Jobs.Where(x => x.ChatId == chatId);
             DisableJobs(jobs, reason);
         }
 
@@ -428,7 +453,7 @@ namespace TelegramMultiBot.ImageCompare
 
         internal IEnumerable<MonitorJob> GetJobs(long chatId)
         {
-            return _dbservice.Jobs.Where(x=>x.ChatId == chatId);
+            return _dbservice.Jobs.Where(x => x.ChatId == chatId);
         }
 
         internal IEnumerable<MonitorJob> GetActiveJobs(long chatId)
