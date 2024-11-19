@@ -153,7 +153,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             json[clipSkipNodeName]!["inputs"]!["stop_at_clip_layer"] = -model.CLIPskip;
 
             json[positivePromptNode]!["inputs"]!["text"] = upscaleParams.Prompt;
-            json[negativePromptNode]!["inputs"]!["text"] = upscaleParams.NegativePrompt;
+            json[negativePromptNode]!["inputs"]!["text"] = string.Join(",", upscaleParams.NegativePrompt, _generalSettings.StandartNegative);
 
             var info = GetInfos(job, _settings);
             int tiles = (int)(Math.Ceiling(upscaleParams.Width * _generalSettings.UpscaleMultiplier / 512.0) * Math.Ceiling(upscaleParams.Height * _generalSettings.UpscaleMultiplier / 512.0)) + 1;
@@ -285,7 +285,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 json[clipSkipNodeName]!["inputs"]!["stop_at_clip_layer"] = -genParams.Model.CLIPskip;
 
                 json[positivePromptNode]!["inputs"]!["text"] = genParams.Prompt;
-                json[negativePromptNode]!["inputs"]!["text"] = genParams.NegativePrompt;
+                json[negativePromptNode]!["inputs"]!["text"] = string.Join(",", genParams.NegativePrompt, _generalSettings.StandartNegative);
 
                 jsons.Add(json);
             }
@@ -346,7 +346,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 json[clipSkipNodeName]!["inputs"]!["stop_at_clip_layer"] = -genParams.Model.CLIPskip;
 
                 json[positivePromptNode]!["inputs"]!["text"] = genParams.Prompt;
-                json[negativePromptNode]!["inputs"]!["text"] = genParams.NegativePrompt;
+                json[negativePromptNode]!["inputs"]!["text"] = string.Join(",", genParams.NegativePrompt, _generalSettings.StandartNegative);
 
                 json[inputImageNode]!["inputs"]!["image"] = fileName;
 

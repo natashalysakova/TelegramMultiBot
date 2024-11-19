@@ -1,4 +1,5 @@
 ﻿using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database.Interfaces
 {

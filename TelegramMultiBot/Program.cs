@@ -50,8 +50,12 @@ internal class Program
             AddModels(context);
         }
 
+        var x = 1.0 / -0.0;
+
         var bot = serviceProvider.GetRequiredService<BotService>();
         bot.Run();
+
+        
     }
 
     private static void AddModels(BoberDbContext context)

@@ -128,8 +128,13 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["prompt"] = upscaleparams.Prompt;
             if (upscaleparams.NegativePrompt != null)
             {
-                json["negative_prompt"] = upscaleparams.NegativePrompt;
+                json["negative_prompt"] = string.Join(",", upscaleparams.NegativePrompt, _settings.StandartNegative);
             }
+            else
+            {
+                json["negative_prompt"] = _settings.StandartNegative;
+            }
+
             json["width"] = upscaleparams.Width * _settings.UpscaleMultiplier;
             json["height"] = upscaleparams.Height * _settings.UpscaleMultiplier;
 
@@ -172,7 +177,7 @@ namespace TelegramMultiBot.ImageGenerators.Automatic1111
             json["width"] = genParams.Width;
             json["height"] = genParams.Height;
             json["prompt"] = genParams.Prompt;
-            json["negative_prompt"] = genParams.NegativePrompt;
+            json["negative_prompt"] = string.Join(",", genParams.NegativePrompt, _settings.StandartNegative);
             json["seed"] = genParams.Seed;
 
 #pragma warning disable CS8602 // Dereference of a possibly null reference.

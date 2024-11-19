@@ -373,4 +373,4 @@ FodyWeavers.xsd
 /TelegramMultiBot/images/comfy/
 /TelegramMultiBot/images/download
 /*.env
-/TelegramMultiBot/monitor/url_www.dtek-krem.com.ua_ua_shutdowns
+/TelegramMultiBot/monitor/
