@@ -10,7 +10,7 @@ WORKDIR /src
 COPY ["nuget.config", "."]
 COPY ["TelegramMultiBot/TelegramMultiBot.csproj", "TelegramMultiBot/"]
 COPY ["TelegramMultiBot.Database/TelegramMultiBot.Database.csproj", "TelegramMultiBot.Database/"]
-RUN dotnet restore "./TelegramMultiBot/TelegramMultiBot.csproj"
+RUN dotnet restore "./TelegramMultiBot/TelegramMultiBot.csproj" -v diag
 COPY . .
 WORKDIR "/src/TelegramMultiBot"
 RUN dotnet build "./TelegramMultiBot.csproj" -c $BUILD_CONFIGURATION -o /app/build
