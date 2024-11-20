@@ -233,7 +233,7 @@ namespace TelegramMultiBot
         internal async Task DownloadFile(string filePath, string destination)
         {
             await using Stream fileStream = System.IO.File.Create(destination);
-            await client.DownloadFileAsync(filePath, fileStream);
+            await client.DownloadFile(filePath, fileStream);
         }
     }
 }
