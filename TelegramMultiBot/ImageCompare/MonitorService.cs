@@ -113,7 +113,7 @@ namespace TelegramMultiBot.ImageCompare
 
                         if (!isTheSame && localFilePath != null)
                         {
-                            string caption = "Оновлений графік на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+                            string caption = "Оновлений графік станом на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
 
                             foreach (var job in group)
                             {
@@ -146,27 +146,36 @@ namespace TelegramMultiBot.ImageCompare
 
             if (Directory.Exists(folder) && Directory.EnumerateFiles(folder).Any())
             {
-
-                var lastFile = Directory.EnumerateFiles(folder).Order().Last();
-                var img2 = File.ReadAllBytes(lastFile);
+                var lastFiles = Directory.EnumerateFiles(folder).Order().TakeLast(imgUrls.Count());
 
                 foreach (var imgUrl in imgUrls)
                 {
+                    var isFound = false;
                     byte[] img = GetBytes(imgUrl);
 
-                    if (!ImageComparator.Compare(img, img2))
+                    for (int i = 0; i < lastFiles.Count(); i++)
+                    {
+                        var img2 = File.ReadAllBytes(lastFiles.ElementAt(i));
+
+                        if (ImageComparator.Compare(img, img2))
+                        {
+                            isFound = true;
+                        }
+                    }
+
+                    if (!isFound)
                     {
                         localFilePath.Add(SaveFile(imgUrl, folder, img));
                     }
                 }
 
-                if(localFilePath.Count == 0)
+                if (localFilePath.Count == 0)
                 {
                     return true;
                 }
                 else
                 {
-                    return false; 
+                    return false;
                 }
             }
             else
@@ -289,10 +298,8 @@ namespace TelegramMultiBot.ImageCompare
             var urlToUse = ParsePage(htmltask.Result);
 
             Uri uri = new Uri(url);
-            foreach (var urlFromPage in urlToUse)
-            {
-                yield return $"{uri.Scheme}://{uri.Host}{urlFromPage}";
-            }
+
+            return urlToUse.Select(x => $"{uri.Scheme}://{uri.Host}{x}");
         }
 
 
@@ -304,18 +311,18 @@ namespace TelegramMultiBot.ImageCompare
 
             if (url is null || !url.Any())
             {
-                var filename = "failure_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".html";
+                //var filename = "failure_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".html";
                 //File.WriteAllText(filename, html);
-                throw new KeyNotFoundException("cannot find url. Check file " + filename);
+                throw new KeyNotFoundException("cannot find url.");
             }
 
-            foreach (var images in url)
-            {
-                var path = images.GetAttribute("src");
-                yield return path;
-            }
+            //foreach (var images in url)
+            //{
+            //    var path = images.GetAttribute("src");
+            //    yield return path;
+            //}
 
-            //return url?.Select(x => x.GetAttribute("src"));
+            return url?.Select(x => x.GetAttribute("src"));
 
         }
 

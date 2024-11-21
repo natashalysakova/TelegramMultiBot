@@ -1,0 +1,1 @@
+﻿docker build -t ghcr.io/natashalysakova/bober-bot:latest . -f .\TelegramMultibot\Dockerfile --platform linux/arm64
