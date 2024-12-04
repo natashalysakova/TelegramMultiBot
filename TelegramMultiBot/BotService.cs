@@ -104,16 +104,24 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
     }
 
-    private async void MonitorService_ReadyToSend(long chatId, string localFilePath, string caption)
+    private async void MonitorService_ReadyToSend(long chatId, List<(string localFilePath, string caption)> infos)
     {
+        var streams = new List<Stream>();
         try
         {
-            logger.LogDebug("sending new schedule: {chatId} {message}", chatId, localFilePath);
+            List<IAlbumInputMedia> media = new List<IAlbumInputMedia>();
+            foreach (var info in infos)
+            {
+                logger.LogDebug("sending new schedule: {chatId} {message}", chatId, info.localFilePath);
 
-            using var stream = System.IO.File.OpenRead(localFilePath);
-            var filename = Path.GetFileName(localFilePath);
+                var stream = System.IO.File.OpenRead(info.localFilePath);
+                streams.Add(stream);
+                var filename = Path.GetFileName(info.localFilePath);
+                var photo = new InputMediaPhoto(stream);
+                media.Add(photo);
+            }
 
-            await client.SendPhotoAsync(chatId, InputFile.FromStream(stream, filename), caption: caption);
+            await client.SendMediaGroup(chatId, media);
 
         }
         catch (Exception ex)
@@ -123,6 +131,14 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
             {
                 monitorService.DisableJob(chatId, ex.Message);
                 logger.LogWarning("Removing all jobs for {id}", chatId);
+            }
+        }
+        finally
+        {
+            foreach (var stream in streams)
+            {
+                stream.Close();
+                stream.Dispose();
             }
         }
 
@@ -395,24 +411,24 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
     {
         var assistant = assistantDataService.Get(message.Chat.Id, message.MessageThreadId);
 
-        if(assistant is null || !assistant.IsActive)
+        if (assistant is null || !assistant.IsActive)
         {
             return;
         }
 
-        if(message.Entities != null && message.Entities.Any(x=>x.Type == MessageEntityType.BotCommand))
+        if (message.Entities != null && message.Entities.Any(x => x.Type == MessageEntityType.BotCommand))
         {
             return;
         }
 
         string forwardedFrom = "";
         string? text = message.Caption ?? message.Text;
-        if(message.ForwardOrigin != null)
+        if (message.ForwardOrigin != null)
         {
             switch (message.ForwardOrigin.Type)
             {
                 case MessageOriginType.User:
-                    forwardedFrom = $"{message.ForwardFrom.FirstName} {message.ForwardFrom.LastName?? string.Empty}" ;
+                    forwardedFrom = $"{message.ForwardFrom.FirstName} {message.ForwardFrom.LastName ?? string.Empty}";
                     break;
                 case MessageOriginType.Chat:
                     forwardedFrom = message.ForwardFromChat.Title;
@@ -442,7 +458,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
             MessageId = message.MessageId,
             HasPhoto = message.Photo is not null,
             HasVideo = message.Video is not null,
-            RepostedFrom = forwardedFrom, 
+            RepostedFrom = forwardedFrom,
             SendTime = message.Date.ToLocalTime(),
             Text = text
         };

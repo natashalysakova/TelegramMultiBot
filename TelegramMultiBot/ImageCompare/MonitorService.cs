@@ -19,7 +19,7 @@ namespace TelegramMultiBot.ImageCompare
         private readonly IMonitorDataService _dbservice;
         CancellationToken _cancellationToken;
 
-        public event Action<long, string, string> ReadyToSend = delegate { };
+        public event Action<long, List<(string filename, string caption)>> ReadyToSend = delegate { };
 
         public MonitorService(ILogger<JobManager> logger, IMonitorDataService dbservice)
         {
@@ -83,7 +83,7 @@ namespace TelegramMultiBot.ImageCompare
                     var datetime = DateTime.Now;
                     _logger.LogTrace("checking at {date}", datetime);
                     var activeJobs = _dbservice.Jobs.Where(x => x.IsActive).GroupBy(x => x.Url);
-
+                    var sendList = new Dictionary<long, List<(string file, string caption)>>();
                     foreach (var group in activeJobs)
                     {
                         var hasToBeRun = group.Any(x => x.NextRun < datetime);
@@ -119,7 +119,10 @@ namespace TelegramMultiBot.ImageCompare
                             {
                                 foreach (var image in localFilePath)
                                 {
-                                    ReadyToSend?.Invoke(job.ChatId, image, caption);
+                                    if (!sendList.ContainsKey(job.ChatId))
+                                        sendList.Add(job.ChatId, new List<(string file, string caption)>() { (image, caption) });
+                                    else 
+                                        sendList[job.ChatId].Add((image, caption) );
                                 }
                             }
 
@@ -130,6 +133,13 @@ namespace TelegramMultiBot.ImageCompare
                         }
                         UpdateNextRun(group, 30);
                     }
+
+                    foreach (var item in sendList)
+                    {
+                        ReadyToSend?.Invoke(item.Key, item.Value);
+                    }
+
+
                     await Task.Delay(TimeSpan.FromSeconds(30));
                 }
             }, token);
@@ -402,10 +412,20 @@ namespace TelegramMultiBot.ImageCompare
 
         internal bool SendExisiting(int jobAdded)
         {
-            var job = _dbservice[jobAdded];
-            if (job == null)
+            var info = GetInfo(jobAdded);
+
+            if (info == default)
                 return false;
 
+            ReadyToSend?.Invoke(info.chatId, new List<(string filename, string caption)>() { (info.filename, info.caption) });
+            return true;
+        }
+
+        internal (string filename, string caption, long chatId) GetInfo(int jobId)
+        {
+            var job = _dbservice[jobId];
+            if (job == null)
+                return default;
 
             var baseDirectory = "monitor";
             var folder = Path.Combine(baseDirectory, "url_" + ConvertUrlToValidFilename(job.Url));
@@ -416,13 +436,11 @@ namespace TelegramMultiBot.ImageCompare
                 if (files.Any())
                 {
                     var fileToSend = files.Order().Last();
-                    string caption = $"Актуальний графік { GetLocation(job.Url)} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
-                    ReadyToSend?.Invoke(job.ChatId, fileToSend, caption);
-                    return true;
+                    string caption = $"Актуальний графік {GetLocation(job.Url)} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+                    return new() { filename = fileToSend, caption = caption, chatId = job.ChatId };
                 }
             }
-
-            return false;
+            return default;
         }
 
         public void UpdateNextRun(IGrouping<string, MonitorJob> jobs, int minutes)
@@ -482,13 +500,5 @@ namespace TelegramMultiBot.ImageCompare
             return _dbservice.Jobs.Where(x => x.ChatId == chatId && x.IsActive);
         }
 
-        internal void SendLastAvailable(long chatId)
-        {
-            var jobs = GetActiveJobs(chatId);
-            foreach (var job in jobs) 
-            {
-                SendExisiting(job.Id);
-            }
-        }
     }
 }

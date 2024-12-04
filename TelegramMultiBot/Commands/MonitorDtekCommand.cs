@@ -1,4 +1,5 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
 using System.Linq;
@@ -11,7 +12,7 @@ using TelegramMultiBot.ImageCompare;
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("monitor")]
-    internal class MonitorDtekCommand(TelegramClientWrapper client, MonitorService monitorService) : BaseCommand
+    internal class MonitorDtekCommand(TelegramClientWrapper client, MonitorService monitorService, ILogger<MonitorDtekCommand> logger) : BaseCommand
     {
         public async override Task Handle(Message message)
         {
@@ -35,7 +36,48 @@ namespace TelegramMultiBot.Commands
 
             if (command.Length == 1)
             {
-                monitorService.SendLastAvailable(message.Chat.Id);
+                var activeJobs = monitorService.GetActiveJobs(message.Chat.Id);
+                if (activeJobs.Count() == 0)
+                {
+                    await client.SendMessageAsync(message.Chat, "нема активних завдань", messageThreadId: message.MessageThreadId);
+                    return;
+                }
+
+                List<IAlbumInputMedia> media = new List<IAlbumInputMedia>();
+                List<Stream> streams = new List<Stream>();
+                foreach (var job in activeJobs)
+                {
+                    var info = monitorService.GetInfo(job.Id);
+                    var stream = System.IO.File.OpenRead(info.filename);
+                    streams.Add(stream);
+                    var filename = Path.GetFileName(info.filename);
+                    var photo = new InputMediaPhoto(InputFile.FromStream(stream, filename));
+                    photo.Caption = info.caption;
+                    media.Add(photo);
+                }
+                try
+                {
+                    await client.SendMediaAlbumAsync(message.Chat.Id, media, messageThreadId: message.MessageThreadId);
+                }
+                catch (Exception ex)
+                {
+                    logger.LogError(ex, "{message}", ex.Message);
+                    if (ex.Message.Contains("chat not found") || ex.Message.Contains("PEER_ID_INVALID") || ex.Message.Contains("bot was kicked from the group chat"))
+                    {
+                        monitorService.DisableJob(message.Chat.Id, ex.Message);
+                        logger.LogWarning("Removing all jobs for {id}", message.Chat.Id);
+                    }
+                }
+                finally
+                {
+                    foreach (var stream in streams)
+                    {
+                        stream.Close();
+                        stream.Dispose();
+                    }
+                }
+
+                return;
             }
 
             if (command[1].StartsWith("add-dtek-"))
@@ -125,7 +167,7 @@ namespace TelegramMultiBot.Commands
 
                 var region = command[1].Split('-', StringSplitOptions.RemoveEmptyEntries).Last();
 
-                if(monitorService.DisableJob(chatId, region, "user request"))
+                if (monitorService.DisableJob(chatId, region, "user request"))
                 {
                     await client.SendMessageAsync(message.Chat, "Задача видалена");
                 }
@@ -155,7 +197,7 @@ namespace TelegramMultiBot.Commands
                 }
                 else
                 {
-                    if(message.IsAutomaticForward && message.SenderChat != null)
+                    if (message.IsAutomaticForward && message.SenderChat != null)
                     {
                         chatId = message.SenderChat.Id;
                     }
