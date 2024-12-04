@@ -47,13 +47,19 @@ namespace TelegramMultiBot.Commands
                 List<Stream> streams = new List<Stream>();
                 foreach (var job in activeJobs)
                 {
+
                     var info = monitorService.GetInfo(job.Id);
+                    if (info == default)
+                        continue;
+
+                    logger.LogInformation("activeJob {id} - {file} - {caption}", job.Id, info.filename, info.caption);
                     var stream = System.IO.File.OpenRead(info.filename);
                     streams.Add(stream);
                     var filename = Path.GetFileName(info.filename);
                     var photo = new InputMediaPhoto(InputFile.FromStream(stream, filename));
                     photo.Caption = info.caption;
                     media.Add(photo);
+
                 }
                 try
                 {

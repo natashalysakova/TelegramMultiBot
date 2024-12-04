@@ -118,6 +118,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 streams.Add(stream);
                 var filename = Path.GetFileName(info.localFilePath);
                 var photo = new InputMediaPhoto(stream);
+                photo.Caption = info.caption;
                 media.Add(photo);
             }
 
