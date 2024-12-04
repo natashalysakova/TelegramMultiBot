@@ -113,7 +113,7 @@ namespace TelegramMultiBot.ImageCompare
 
                         if (!isTheSame && localFilePath != null)
                         {
-                            string caption = "Оновлений графік станом на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+                            string caption = $"Оновлений графік {GetLocation(group.Key)} станом на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
 
                             foreach (var job in group)
                             {
@@ -133,6 +133,19 @@ namespace TelegramMultiBot.ImageCompare
                     await Task.Delay(TimeSpan.FromSeconds(30));
                 }
             }, token);
+        }
+
+        private static string GetLocation(string url)
+        {
+            switch (url)
+            {
+                case "https://www.dtek-krem.com.ua/ua/shutdowns":
+                    return "для Київської області";
+                case "https://www.dtek-kem.com.ua/ua/shutdowns":
+                    return "для м.Київ";
+                default:
+                    return string.Empty;
+            }
         }
 
         private bool Compare(string url, out IList<string> localFilePath)
@@ -379,7 +392,8 @@ namespace TelegramMultiBot.ImageCompare
             {
                 case "krem":
                     return "https://www.dtek-krem.com.ua/ua/shutdowns";
-
+                case "kem":
+                    return "https://www.dtek-kem.com.ua/ua/shutdowns";
                 default:
                     return null;
 
@@ -402,7 +416,7 @@ namespace TelegramMultiBot.ImageCompare
                 if (files.Any())
                 {
                     var fileToSend = files.Order().Last();
-                    string caption = "Задача додана. Актуальний графік на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+                    string caption = $"Актуальний графік { GetLocation(job.Url)} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
                     ReadyToSend?.Invoke(job.ChatId, fileToSend, caption);
                     return true;
                 }
@@ -466,6 +480,15 @@ namespace TelegramMultiBot.ImageCompare
         internal IEnumerable<MonitorJob> GetActiveJobs(long chatId)
         {
             return _dbservice.Jobs.Where(x => x.ChatId == chatId && x.IsActive);
+        }
+
+        internal void SendLastAvailable(long chatId)
+        {
+            var jobs = GetActiveJobs(chatId);
+            foreach (var job in jobs) 
+            {
+                SendExisiting(job.Id);
+            }
         }
     }
 }

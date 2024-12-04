@@ -20,7 +20,7 @@ namespace TelegramMultiBot.Commands
 
             var command = message.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
 
-            if (command.Length > 3 || command.Length < 2)
+            if (command.Length > 3 || command.Length < 1)
             {
                 await client.SendMessageAsync(message.Chat, "invalid command");
                 return;
@@ -33,12 +33,16 @@ namespace TelegramMultiBot.Commands
 
             //}
 
+            if (command.Length == 1)
+            {
+                monitorService.SendLastAvailable(message.Chat.Id);
+            }
 
             if (command[1].StartsWith("add-dtek-"))
             {
                 if (command.Length < 2 || command.Length > 3)
                 {
-                    await client.SendMessageAsync(message.Chat, "invalid add command. use /monitor add-dtek-{region} {chatid}(optional). Supported regions: krem - Київська область");
+                    await client.SendMessageAsync(message.Chat, "invalid add command. use /monitor add-dtek-{region} {chatid}(optional). Supported regions: krem - Київська область, kem - м. Київ");
                     return;
                 }
 
