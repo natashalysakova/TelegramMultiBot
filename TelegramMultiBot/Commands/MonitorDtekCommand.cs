@@ -14,6 +14,8 @@ namespace TelegramMultiBot.Commands
     [ServiceKey("monitor")]
     internal class MonitorDtekCommand(TelegramClientWrapper client, MonitorService monitorService, ILogger<MonitorDtekCommand> logger) : BaseCommand
     {
+        private string supportedRegions = "регіони що підтримуються: krem - Київська область, kem - м. Київ";
+
         public async override Task Handle(Message message)
         {
             if (message.Text is null)
@@ -23,7 +25,7 @@ namespace TelegramMultiBot.Commands
 
             if (command.Length > 3 || command.Length < 1)
             {
-                await client.SendMessageAsync(message.Chat, "invalid command");
+                await client.SendMessageAsync(message.Chat, "Не поняв команду");
                 return;
             }
 
@@ -39,7 +41,7 @@ namespace TelegramMultiBot.Commands
                 var activeJobs = monitorService.GetActiveJobs(message.Chat.Id);
                 if (activeJobs.Count() == 0)
                 {
-                    await client.SendMessageAsync(message.Chat, "нема активних завдань", messageThreadId: message.MessageThreadId);
+                    await client.SendMessageAsync(message.Chat, "Нема активних завдань", messageThreadId: message.MessageThreadId);
                     return;
                 }
 
@@ -52,7 +54,7 @@ namespace TelegramMultiBot.Commands
                     if (info == default)
                         continue;
 
-                    logger.LogInformation("activeJob {id} - {file} - {caption}", job.Id, info.filename, info.caption);
+                    logger.LogDebug("activeJob {id} - {file} - {caption}", job.Id, info.filename, info.caption);
                     var stream = System.IO.File.OpenRead(info.filename);
                     streams.Add(stream);
                     var filename = Path.GetFileName(info.filename);
@@ -61,6 +63,14 @@ namespace TelegramMultiBot.Commands
                     media.Add(photo);
 
                 }
+
+                if (media.Count() == 0)
+                {
+                    await client.SendMessageAsync(message.Chat, "Нема актуальних даних", messageThreadId: message.MessageThreadId);
+                    CloseStreams(streams);
+                    return;
+                }
+
                 try
                 {
                     await client.SendMediaAlbumAsync(message.Chat.Id, media, messageThreadId: message.MessageThreadId);
@@ -76,11 +86,7 @@ namespace TelegramMultiBot.Commands
                 }
                 finally
                 {
-                    foreach (var stream in streams)
-                    {
-                        stream.Close();
-                        stream.Dispose();
-                    }
+                    CloseStreams(streams);
                 }
 
                 return;
@@ -90,7 +96,7 @@ namespace TelegramMultiBot.Commands
             {
                 if (command.Length < 2 || command.Length > 3)
                 {
-                    await client.SendMessageAsync(message.Chat, "invalid add command. use /monitor add-dtek-{region} {chatid}(optional). Supported regions: krem - Київська область, kem - м. Київ");
+                    await client.SendMessageAsync(message.Chat, "Не валідна команда. Використовуй /monitor add-dtek-{region} {chatid}(optional)." + supportedRegions);
                     return;
                 }
 
@@ -101,7 +107,7 @@ namespace TelegramMultiBot.Commands
                     if (!long.TryParse(command[2], out chatId))
                     {
 
-                        await client.SendMessageAsync(message.Chat, "cannot parse chat Id");
+                        await client.SendMessageAsync(message.Chat, "Неправильний Id чату");
                         return;
                     }
                 }
@@ -125,7 +131,7 @@ namespace TelegramMultiBot.Commands
 
                 if (jobAdded == -1)
                 {
-                    await client.SendMessageAsync(message.Chat, "Failed: job exist or unsupported region. Supported regions: krem - Київська область");
+                    await client.SendMessageAsync(message.Chat, "Упс, Така задача вже є, або регіон не підтримується. " + supportedRegions);
                 }
                 else
                 {
@@ -142,7 +148,7 @@ namespace TelegramMultiBot.Commands
             {
                 if (command.Length < 2 || command.Length > 3)
                 {
-                    await client.SendMessageAsync(message.Chat, "invalid add command. use /monitor add-dtek-{region} {chatid}(optional). Supported regions: krem - Київська область");
+                    await client.SendMessageAsync(message.Chat, "Не валідна команда. Використовуй /monitor add-dtek-{region} {chatid}(optional). " + supportedRegions);
                     return;
                 }
 
@@ -153,7 +159,7 @@ namespace TelegramMultiBot.Commands
                     if (!long.TryParse(command[2], out chatId))
                     {
 
-                        await client.SendMessageAsync(message.Chat, "cannot parse chat Id");
+                        await client.SendMessageAsync(message.Chat, "Неправильний Id чату");
                         return;
                     }
                 }
@@ -179,7 +185,7 @@ namespace TelegramMultiBot.Commands
                 }
                 else
                 {
-                    await client.SendMessageAsync(message.Chat, "Invalid request");
+                    await client.SendMessageAsync(message.Chat, "Шось пішло не так");
                 }
 
                 return;
@@ -189,7 +195,7 @@ namespace TelegramMultiBot.Commands
             {
                 if (command.Length < 2 || command.Length > 3)
                 {
-                    await client.SendMessageAsync(message.Chat, "invalid list command. use /monitor list {chatId}(optional)");
+                    await client.SendMessageAsync(message.Chat, "Не валідна команда. Використовуй /monitor list {chatId}(optional)");
                 }
 
                 long chatId;
@@ -197,7 +203,7 @@ namespace TelegramMultiBot.Commands
                 {
                     if (!long.TryParse(command[2], out chatId))
                     {
-                        await client.SendMessageAsync(message.Chat, "cannot parse chat Id");
+                        await client.SendMessageAsync(message.Chat, "Неправильний Id чату");
                         return;
                     }
                 }
@@ -224,6 +230,15 @@ namespace TelegramMultiBot.Commands
 
                 var responce = string.Join(", ", jobs.Select(x => $"Перевіряємо {x.Url} Наступний запуск: {x.NextRun}"));
                 await client.SendMessageAsync(message.Chat, responce);
+            }
+        }
+
+        private static void CloseStreams(List<Stream> streams)
+        {
+            foreach (var stream in streams)
+            {
+                stream.Close();
+                stream.Dispose();
             }
         }
     }

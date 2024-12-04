@@ -429,12 +429,12 @@ namespace TelegramMultiBot.ImageCompare
 
             var baseDirectory = "monitor";
             var folder = Path.Combine(baseDirectory, "url_" + ConvertUrlToValidFilename(job.Url));
-            _logger.LogInformation(folder);
+            _logger.LogDebug(folder);
             if (Directory.Exists(folder))
             {
                 var files = Directory.EnumerateFiles(folder);
 
-                _logger.LogInformation(string.Join(',', files));
+                _logger.LogDebug(string.Join(',', files));
 
                 if (files.Any())
                 {
