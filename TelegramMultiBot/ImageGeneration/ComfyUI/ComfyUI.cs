@@ -145,7 +145,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             var dest = Path.Combine(_settings.InputDirectory, Path.GetFileName(previousJob.FilePath));
 
             var client = new ComfyUiClient(ActiveHost);
-            var res =  await client.UploadImage(previousJob.FilePath);
+            var res = await client.UploadImage(previousJob.FilePath);
 
 
             json[upscaleModelNodeName]!["inputs"]!["model_name"] = _generalSettings.UpscaleModel;
@@ -258,7 +258,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             var positivePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "positive");
             var negativePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "negative");
             var clipSkipNodeName = FindNodeNameByClassType(json, "CLIPSetLastLayer");
-            
+
             outputNode = FindNodeNameByClassType(json, "PreviewImage");
             nodeCount = json.Count;
 
@@ -304,7 +304,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             {
                 genParams.BatchCount = _generalSettings.BatchCount;
             }
-           
+
 
             List<JObject> jsons = [];
 
@@ -351,7 +351,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 jsons.Add(json);
             }
 
-            
+
             // var dest = Path.Combine(_settings.InputDirectory, fileName);
             // if (!File.Exists(dest))
             // {
@@ -367,7 +367,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 { new ByteArrayContent(File.ReadAllBytes(job.InputImage)), "file", fileName }
             };
             var postResponse = await httpClient.PostAsync("sendImage", multipartContent);
-            if(postResponse.StatusCode == System.Net.HttpStatusCode.OK)
+            if (postResponse.StatusCode == System.Net.HttpStatusCode.OK)
             {
                 await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, json.Count), outputNode, genParams.Model.Steps);
             }
@@ -516,7 +516,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             using var comfyClient = new ComfyUiClient(ActiveHost);
             for (int i = 0; i < jsons.Count(); i++)
             {
-                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost!.UI}] {job.Type} - Працюю... {i+1}/{jsons.Count()} Прогресс: {100.0 / jsons.Count() * i }%");
+                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost!.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {100.0 / jsons.Count() * i}%");
 
                 var webcocketClient = new ClientWebSocket();
                 var uri = new Uri($"ws://{ActiveHost.Address}:{ActiveHost.Port}/ws?clientId={_clientId}");
@@ -538,9 +538,12 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                 var fraction = 100.0 / jsons.Count();
                 DateTime lastUpdate = DateTime.Now;
                 double lastProgress = 0;
+
+                bool tmpFixForMessage = false;
+
                 while (true)
                 {
-                    
+
                     StringBuilder builder = new StringBuilder();
                     WebSocketReceiveResult res = null;
                     do
@@ -561,12 +564,12 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                     var data = builder.ToString();
                     var obj = JsonConvert.DeserializeObject<WebsocketResponce>(data) ?? throw new InvalidOperationException("Cannot deserialize progress");
 
-                    if(obj.type != "crystools.monitor")
+                    if (obj.type != "crystools.monitor")
                         _logger.LogDebug("{data}", data);
                     else
                         _logger.LogTrace("{data}", data);
 
-                    if(obj.type == "execution_error")
+                    if (obj.type == "execution_error")
                     {
                         throw new RenderFailedException(obj.data.exception_message);
                     }
@@ -578,14 +581,24 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                             tile += 1;
                             var progress = (i * fraction) + fraction;
 
-                            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
+                            _logger.LogDebug("{0} Progress: {1}", jobId, progress);
                             _databaseService.PostProgress(job.Id, progress, "working");
+
+                            if (job.Type == JobType.HiresFix && !tmpFixForMessage)
+                            {
+                                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Неможливо порахувати прогрес. Чекайте.");
+                                tmpFixForMessage = true;
+                            }
+                            else if (job.Type != JobType.HiresFix)
+                            {
+                                await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
+                            }
                         }
                         else if ((DateTime.Now - lastUpdate) > TimeSpan.FromSeconds(1))
                         {
-                            var progress = (1.0 / obj.data.max * obj.data.value) * fraction + (i *fraction);
+                            var progress = (1.0 / obj.data.max * obj.data.value) * fraction + (i * fraction);
 
-                            if(progress > lastProgress)
+                            if (progress > lastProgress)
                             {
                                 await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
                                 _databaseService.PostProgress(job.Id, progress, "working");

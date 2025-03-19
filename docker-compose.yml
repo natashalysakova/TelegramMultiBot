@@ -4,7 +4,7 @@ x-base-bot-service: &base-bot
   restart: always
    
 x-base-db: &base-db
-  image: mariadb:latest
+  image: mariadb:11.6
   restart: always
   healthcheck:
     test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
