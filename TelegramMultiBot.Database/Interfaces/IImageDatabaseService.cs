@@ -13,13 +13,14 @@ namespace TelegramMultiBot.Database.Interfaces
         void AddResult(string id, JobResultInfoCreate jobResultInfo);
 
         void CancelUnfinishedJobs();
+        bool DeleteJob(Guid id);
         Guid Enqueue(IInputData message);
 
         JobInfo GetJob(string jobId);
         JobInfo? GetJobByFileId(string fileId);
         JobInfo? GetJobByResultId(string id);
         JobResultInfoView? GetJobResult(string jobResultId);
-
+        IEnumerable<JobInfo> GetJobsFromQueue();
         IEnumerable<JobInfo> GetJobsOlderThan(DateTime date);
 
         void PostProgress(string id, double progress, string status);

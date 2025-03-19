@@ -62,27 +62,30 @@ namespace TelegramMultiBot.ImageGenerators
             var botMessagesCleaned = botMessageService.RunCleanup();
             logger.LogDebug("BotMessages cleaned: {0}", botMessagesCleaned);
 
-
-            var monitorDirectories = Directory.GetDirectories("monitor", "*", SearchOption.TopDirectoryOnly);
-
-            foreach (var directory in monitorDirectories)
+            if (Directory.Exists("monitor"))
             {
 
-                var files = Directory.EnumerateFiles(directory);
-                if (files.Count() <= 1)
-                {
-                    continue;
-                }
+                var monitorDirectories = Directory.GetDirectories("monitor", "*", SearchOption.TopDirectoryOnly);
 
-                var dateToCheck = DateTime.Now.AddMinutes(-10);
-
-                foreach (var item in files.Order().SkipLast(2))
+                foreach (var directory in monitorDirectories)
                 {
-                    FileInfo file = new FileInfo(item);
-                    if (file.CreationTime < dateToCheck)
+
+                    var files = Directory.EnumerateFiles(directory);
+                    if (files.Count() <= 1)
                     {
-                        logger.LogTrace("removing " + item);
-                        File.Delete(item);
+                        continue;
+                    }
+
+                    var dateToCheck = DateTime.Now.AddMinutes(-10);
+
+                    foreach (var item in files.Order().SkipLast(2))
+                    {
+                        FileInfo file = new FileInfo(item);
+                        if (file.CreationTime < dateToCheck)
+                        {
+                            logger.LogTrace("removing " + item);
+                            File.Delete(item);
+                        }
                     }
                 }
             }

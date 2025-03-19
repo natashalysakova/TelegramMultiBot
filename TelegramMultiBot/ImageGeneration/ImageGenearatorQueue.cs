@@ -117,6 +117,27 @@ namespace TelegramMultiBot.ImageGenerators
             }
         }
 
+        internal IEnumerable<JobInfo> GetJobs()
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var databaseService = scope.ServiceProvider.GetRequiredService<IImageDatabaseService>();
+
+            return databaseService.GetJobsFromQueue();
+        }
+
+        internal bool CancelJob(string id)
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var databaseService = scope.ServiceProvider.GetRequiredService<IImageDatabaseService>();
+
+            if(Guid.TryParse(id, out var guid))
+            {
+                return databaseService.DeleteJob(guid);
+            }
+
+            return false;
+        }
+
         public event Action<JobInfo>? JobFinished;
         public event Action<JobInfo>? JobInQueue;
 

@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using System.Linq;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Database;
@@ -311,6 +312,26 @@ namespace TelegramMultiBot.Database.Services
             }
 
             
+        }
+
+        public IEnumerable<JobInfo> GetJobsFromQueue()
+        {
+            return _mapper.Map<IEnumerable<JobInfo>>(_context.Jobs.Where(x => x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running));
+        }
+
+        public bool DeleteJob(Guid id)
+        {
+            var job = _context.Jobs.Find(id);
+            if (job!= null)
+            {
+                job.Status = ImageJobStatus.Failed;
+                job.TextStatus = "canceled by user";
+                _context.Entry(job).State = EntityState.Modified;
+                _context.SaveChanges();
+                return true;
+            }
+
+            return false;
         }
     }
 }

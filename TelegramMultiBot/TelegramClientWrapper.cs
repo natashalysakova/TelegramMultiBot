@@ -34,7 +34,7 @@ namespace TelegramMultiBot
                 ChatId = chatId,
                 MessageId = messageId
             };
-            return await client.MakeRequestAsync(request);
+            return await client.SendRequest(request);
         }
 
         public async Task<bool> AnswerCallbackQueryAsync(string id, string? text = null, bool showAlert = false)
@@ -45,13 +45,13 @@ namespace TelegramMultiBot
                 Text = text,
                 ShowAlert = showAlert
             };
-            return await client.MakeRequestAsync(request);
+            return await client.SendRequest(request);
         }
 
         public async Task<bool> AnswerInlineQueryAsync(string inlineQueryId, InlineQueryResult[] results)
         {
             var request = new AnswerInlineQueryRequest() { InlineQueryId = inlineQueryId, Results = results };
-            return await client.MakeRequestAsync(request);
+            return await client.SendRequest(request);
         }
 
         public async Task<Message> SendMessageAsync(ChatId chatId, string text, IReplyMarkup? replyMarkup = null, int? messageThreadId = null, int? replyMessageId = null, bool disableNotification = default, ParseMode parseMode = default, bool protectContent = default, LinkPreviewOptions? linkPreviewOptions = null)
@@ -68,7 +68,7 @@ namespace TelegramMultiBot
                 ParseMode = parseMode,
                 ProtectContent = protectContent
             };
-            var botMessage = await client.MakeRequestAsync(request);
+            var botMessage = await client.SendRequest(request);
             databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private, botMessage.Date));
             return botMessage;
         }
@@ -93,7 +93,7 @@ namespace TelegramMultiBot
                 ReplyMarkup = markup,
                 ReplyParameters = reply && messageId.HasValue ? new ReplyParameters() { MessageId = messageId.Value, ChatId = chatId } : null
             };
-            var botMessage = await client.MakeRequestAsync(request);
+            var botMessage = await client.SendRequest(request);
             databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private, botMessage.Date));
             return botMessage;
         }
@@ -131,7 +131,7 @@ namespace TelegramMultiBot
                 ReplyParameters = reply && messageId.HasValue ? new ReplyParameters() { MessageId = messageId.Value, ChatId = chatId } : null
             };
 
-            var botMessage = await client.MakeRequestAsync(request);
+            var botMessage = await client.SendRequest(request);
             databaseService.AddMessage(new(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private, botMessage.Date));
             return botMessage;
         }
@@ -146,10 +146,10 @@ namespace TelegramMultiBot
                 ChatId = chatId,
                 Media = media,
                 MessageThreadId = messageThreadId,
-                ReplyParameters = replyToMessageId.HasValue ? new ReplyParameters() { MessageId = replyToMessageId.Value, ChatId = chatId } : null
+                ReplyParameters = replyToMessageId.HasValue ? new ReplyParameters() { MessageId = replyToMessageId.Value, ChatId = chatId } : null,
             };
 
-            var botMessages = await client.MakeRequestAsync(request);
+            var botMessages = await client.SendRequest(request);
             foreach (var item in botMessages)
             {
                 databaseService.AddMessage(new(item.Chat.Id, item.MessageId, item.Chat.Type == ChatType.Private, item.Date));
@@ -171,7 +171,7 @@ namespace TelegramMultiBot
                 ReplyMarkup = keys
             };
 
-            return await client.MakeRequestAsync(request);
+            return await client.SendRequest(request);
         }
 
         internal async Task<Message> EditMessageMediaAsync(Message message, InputMedia media, InlineKeyboardMarkup? keys = null)
@@ -189,7 +189,7 @@ namespace TelegramMultiBot
                 Media = media
             };
 
-            return await client.MakeRequestAsync(request);
+            return await client.SendRequest(request);
         }
 
         public async Task<Message> EditMessageTextAsync(Message message, string text, InlineKeyboardMarkup? keyboardMarkup = null, ParseMode parseMode = default, LinkPreviewOptions? linkPreviewOptions = null)
@@ -208,25 +208,25 @@ namespace TelegramMultiBot
                 ParseMode = parseMode,
                 LinkPreviewOptions = linkPreviewOptions
             };
-            return await client.MakeRequestAsync(request);
+            return await client.SendRequest(request);
         }
 
         public async Task<MessageId> CopyMessageAsync(ChatId destinationChatId, ChatId originalChatId, int messageId)
         {
             var request = new CopyMessageRequest() { ChatId = destinationChatId, FromChatId = originalChatId, MessageId = messageId };
-            return await client.MakeRequestAsync(request);
+            return await client.SendRequest(request);
         }
 
         public async Task<ChatMember> GetChatMemberAsync(ChatId chatId, long userId)
         {
             var request = new GetChatMemberRequest() { ChatId = chatId, UserId = userId };
-            return await client.MakeRequestAsync(request);
+            return await client.SendRequest(request);
         }
 
         internal async Task<string> GetFileUrl(string fileId)
         {
             var request = new GetFileRequest() { FileId = fileId };
-            var file = await client.MakeRequestAsync(request);
+            var file = await client.SendRequest(request);
             return file.FilePath;
         }
 
