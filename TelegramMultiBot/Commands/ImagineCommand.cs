@@ -164,8 +164,8 @@ namespace TelegramMultiBot.Commands
             InlineKeyboardButton upscale4 = InlineKeyboardButton.WithCallbackData("Upscale ⬆️4️⃣", new ImagineCallbackData(imagineCommand, ImagineCommands.Upscale, id, 4));
             InlineKeyboardButton info = InlineKeyboardButton.WithCallbackData("ℹ️ Інфо", new ImagineCallbackData(imagineCommand, ImagineCommands.Info, id, upscale));
             //InlineKeyboardButton actions = InlineKeyboardButton.WithCallbackData("Кнопоцькі тиць", new ImagineCallbackData(imagineCommand, ImagineCommands.Actions, id));
-            InlineKeyboardButton noise = InlineKeyboardButton.WithCallbackData("Шум", new ImagineCallbackData(imagineCommand, ImagineCommands.Noise, id));
-            InlineKeyboardButton vingette = InlineKeyboardButton.WithCallbackData("Віньєтка", new ImagineCallbackData(imagineCommand, ImagineCommands.Vingette, id));
+            //InlineKeyboardButton noise = InlineKeyboardButton.WithCallbackData("Шум", new ImagineCallbackData(imagineCommand, ImagineCommands.Noise, id));
+            //InlineKeyboardButton vingette = InlineKeyboardButton.WithCallbackData("Віньєтка", new ImagineCallbackData(imagineCommand, ImagineCommands.Vingette, id));
             InlineKeyboardButton? copyPrompt = prompt != null ? InlineKeyboardButton.WithSwitchInlineQueryCurrentChat("📝 Змінити", prompt) : null;
 
             switch (type)
@@ -188,9 +188,9 @@ namespace TelegramMultiBot.Commands
                                 upscale2,
                                 upscale4
                             },
-                            new() {
-                                 vingette, noise
-                            }
+                            //new() {
+                            //     vingette, noise
+                            //}
                         });
                     }
                     else
@@ -205,9 +205,9 @@ namespace TelegramMultiBot.Commands
                                 upscale2,
                                 upscale4
                             },
-                            new() {
-                                 vingette, noise
-                            }
+                            //new() {
+                            //     vingette, noise
+                            //}
                         });
                     }
 
@@ -218,10 +218,10 @@ namespace TelegramMultiBot.Commands
                             info,
                             upscale2,
                         },
-                        new()
-                        {
-                             vingette, noise
-                        }
+                        //new()
+                        //{
+                        //     vingette, noise
+                        //}
                     });
 
                 case ImagineCommands.Upscale:
@@ -231,10 +231,10 @@ namespace TelegramMultiBot.Commands
                             new() {
                                 info
                             },
-                            new()
-                            {
-                                 vingette, noise
-                            }
+                            //new()
+                            //{
+                            //     vingette, noise
+                            //}
                         });
                     }
                 case ImagineCommands.Info:
@@ -257,10 +257,10 @@ namespace TelegramMultiBot.Commands
                                     upscale2,
                                     upscale4
                                 },
-                                new()
-                                {
-                                     vingette, noise
-                                }
+                                //new()
+                                //{
+                                //     vingette, noise
+                                //}
                             });
                             }
                             else
@@ -277,10 +277,10 @@ namespace TelegramMultiBot.Commands
                                         upscale2,
                                         upscale4
                                     },
-                                    new()
-                                    {
-                                         vingette, noise
-                                    }
+                                    //new()
+                                    //{
+                                    //     vingette, noise
+                                    //}
                                 });
                             }
 
@@ -346,10 +346,10 @@ namespace TelegramMultiBot.Commands
                             new() {
                                 info
                             },
-                            new()
-                            {
-                                 vingette, noise
-                            }
+                            //new()
+                            //{
+                            //     vingette, noise
+                            //}
                         });
 
                 default:

@@ -1,9 +1,11 @@
-﻿using Microsoft.Extensions.Configuration;
+﻿using Microsoft.AspNetCore.Components.Forms;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using System;
 using System.Diagnostics;
+using System.Net.Http.Headers;
 using System.Net.NetworkInformation;
 using System.Net.WebSockets;
 using System.Text;
@@ -13,7 +15,6 @@ using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGeneration.Exceptions;
-using TelegramMultiBot.Reminder;
 
 namespace TelegramMultiBot.ImageGenerators.ComfyUI
 {
@@ -143,10 +144,9 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
             var dest = Path.Combine(_settings.InputDirectory, Path.GetFileName(previousJob.FilePath));
 
-            if (!File.Exists(dest))
-            {
-                File.Copy(previousJob.FilePath, dest, true);
-            }
+            var client = new ComfyUiClient(ActiveHost);
+            var res =  await client.UploadImage(previousJob.FilePath);
+
 
             json[upscaleModelNodeName]!["inputs"]!["model_name"] = _generalSettings.UpscaleModel;
 
@@ -158,8 +158,6 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             var info = GetInfos(job, _settings);
             int tiles = (int)(Math.Ceiling(upscaleParams.Width * _generalSettings.UpscaleMultiplier / 512.0) * Math.Ceiling(upscaleParams.Height * _generalSettings.UpscaleMultiplier / 512.0)) + 1;
             await StartAndMonitorJob(job, directory, [json], [info], outputNode, tiles);
-
-            File.Delete(dest);
         }
 
         private async Task RunTextToImage(JobInfo job, string directory)
@@ -505,15 +503,12 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
             var dest = Path.Combine(_settings.InputDirectory, Path.GetFileName(jobResultInfo.FilePath));
 
-            if (!File.Exists(dest))
-            {
-                File.Copy(jobResultInfo.FilePath, dest, true);
-            }
+            var client = new ComfyUiClient(ActiveHost);
+            var res = await client.UploadImage(jobResultInfo.FilePath);
+
 
             var info = GetInfos(job, _settings);
             await StartAndMonitorJob(job, directory, [json], [info], outputNode, 1);
-
-            File.Delete(dest);
         }
 
         private async Task StartAndMonitorJob(JobInfo job, string directory, IEnumerable<JObject> jsons, IEnumerable<string> infos, string outputNode, int maxTiles)
@@ -635,7 +630,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
                     var fileName = $"{job.Id}_{i}_{j}_{job.Type}.png";
                     var filePath = Path.Combine(directory, fileName);
 
-                    File.WriteAllBytes(filePath, img);
+                    System.IO.File.WriteAllBytes(filePath, img);
                     //File.WriteAllText(filePath + ".txt", info.infotexts[j]);
 
                     //inputMedia.Add(filePath);
@@ -667,6 +662,7 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
         private readonly string _propmt = "/prompt";
         private readonly string _view = "/view";
         private readonly string _history = "/history";
+        private readonly string _upload = "/upload/image";
         private readonly HostInfo _host;
 
         public ComfyUiClient(HostInfo host)
@@ -694,6 +690,28 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
             HttpRequestMessage message = new(HttpMethod.Get, $"{_view}?filename={filename}&type={type}&subfolder={subfolder}");
             var response = await _httpClient.SendAsync(message);
             return await response.Content.ReadAsByteArrayAsync();
+        }
+
+        public async Task<string> UploadImage(string inputPath)
+        {
+            //string pathOnServer = "test";
+            //string name = "imageName";
+            //HttpRequestMessage message = new(HttpMethod.Post, $"{_upload}?input_path={pathOnServer}&name={name}&server_adderess={_host.Address}:{_host.Port}");
+
+            using (var fileStream = new FileStream(inputPath, FileMode.Open, FileAccess.Read))
+            using (var content = new MultipartFormDataContent())
+            using (var fileContent = new StreamContent(fileStream))
+            {
+                fileContent.Headers.ContentType = new MediaTypeHeaderValue("image/png");
+                content.Add(fileContent, "image", Path.GetFileName(inputPath));
+                content.Add(new StringContent("input"), "type");
+                content.Add(new StringContent("false"), "overwrite");
+
+                var response = await _httpClient.PostAsync(_upload, content);
+
+                response.EnsureSuccessStatusCode();
+                return await response.Content.ReadAsStringAsync();
+            }
         }
 
         public async Task<StartJobResponse> StartJob(string workflow)

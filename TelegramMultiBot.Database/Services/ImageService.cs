@@ -319,7 +319,7 @@ namespace TelegramMultiBot.Database.Services
             return _mapper.Map<IEnumerable<JobInfo>>(_context.Jobs.Where(x => x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running));
         }
 
-        public bool DeleteJob(Guid id)
+        public int DeleteJob(Guid id)
         {
             var job = _context.Jobs.Find(id);
             if (job!= null)
@@ -328,10 +328,10 @@ namespace TelegramMultiBot.Database.Services
                 job.TextStatus = "canceled by user";
                 _context.Entry(job).State = EntityState.Modified;
                 _context.SaveChanges();
-                return true;
+                return job.BotMessageId;
             }
 
-            return false;
+            return -1;
         }
     }
 }

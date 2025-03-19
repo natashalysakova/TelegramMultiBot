@@ -13,7 +13,7 @@ using TelegramMultiBot.ImageGenerators;
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("queue")]
-    internal class QueueCommand(TelegramClientWrapper client, ILogger<QueueCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IImageDatabaseService databaseService) : BaseCommand, ICallbackHandler, IInlineQueryHandler
+    internal class QueueCommand(TelegramClientWrapper client, ILogger<QueueCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IImageDatabaseService databaseService) : BaseCommand, ICallbackHandler
     {
         public async override Task Handle(Message message)
         {
@@ -28,15 +28,15 @@ namespace TelegramMultiBot.Commands
 
                     foreach (var item in jobs.Take(10))
                     {
-                        InlineKeyboardButton jobbutton = InlineKeyboardButton.WithCallbackData($"{item.Status}: {(item.Text?.Length > 64 ? item.Text?.Substring(0, 64) : item.Text)}", $"queue|delete|{item.Id}");
+                        InlineKeyboardButton jobbutton = InlineKeyboardButton.WithCallbackData($"{item.Status}: {item.Type} {item.Text}", $"queue|delete|{item.Id}");
                         keyboard.AddNewRow(jobbutton);
                     }
 
-                    await client.SendMessageAsync(message.Chat.Id, $"Черга генерації. Усього { jobs.Count() } запитів. Оберіть запит, який хочете відмінити.", replyMarkup: keyboard);
+                    await client.SendMessageAsync(message.Chat.Id, $"Черга генерації. Усього { jobs.Count() } запитів. Оберіть запит, який хочете відмінити.", replyMarkup: keyboard, message.MessageThreadId, message.Id);
                 }
                 else
                 {
-                    await client.SendMessageAsync(message.Chat.Id, "Черга генерації порожня");
+                    await client.SendMessageAsync(message.Chat.Id, "Черга генерації порожня", messageThreadId: message.MessageThreadId, replyMessageId: message.Id);
                 }
             }
         }
@@ -50,14 +50,10 @@ namespace TelegramMultiBot.Commands
 
             if (splitted[1] == "delete")
             {
-                imageGenearatorQueue.CancelJob(splitted[2]);
+                var messageToUpdate = imageGenearatorQueue.CancelJob(splitted[2]);
                 await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Запит видалено", true);
+                await client.EditMessageTextAsync(callbackQuery.Message!.Chat, messageToUpdate, "Запит видалено");
             }
-        }
-
-        public Task HandleInlineQuery(InlineQuery inlineQuery)
-        {
-            throw new NotImplementedException();
         }
     }
 }

@@ -125,7 +125,7 @@ namespace TelegramMultiBot.ImageGenerators
             return databaseService.GetJobsFromQueue();
         }
 
-        internal bool CancelJob(string id)
+        internal int CancelJob(string id)
         {
             using var scope = _serviceProvider.CreateScope();
             var databaseService = scope.ServiceProvider.GetRequiredService<IImageDatabaseService>();
@@ -135,7 +135,7 @@ namespace TelegramMultiBot.ImageGenerators
                 return databaseService.DeleteJob(guid);
             }
 
-            return false;
+            return -1;
         }
 
         public event Action<JobInfo>? JobFinished;
