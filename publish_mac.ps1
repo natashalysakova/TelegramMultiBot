@@ -13,9 +13,9 @@ function BuildAndPush {
 }
 
 if ($buildBot) {
-    BuildAndPush -image "bober-bot" -dockerFile ".\TelegramMultiBot\Dockerfile" -tag $versionTag
+    BuildAndPush -image "bober-bot" -dockerFile "./TelegramMultiBot/Dockerfile" -tag $versionTag
 }
 
 if ($buildConfig){
-    BuildAndPush -image "bober-config-ui" -dockerFile ".\ConfigUI\Dockerfile" -tag $versionTag
+    BuildAndPush -image "bober-config-ui" -dockerFile "./ConfigUI/Dockerfile" -tag $versionTag
 }
