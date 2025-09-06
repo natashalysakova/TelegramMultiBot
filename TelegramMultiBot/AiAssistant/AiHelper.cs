@@ -14,7 +14,7 @@ using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.AiAssistant
 {
-    internal class SummarizeAiHelper(ISqlConfiguationService configuationService)
+    internal class AiHelper(ISqlConfiguationService configuationService, IConfiguration configuration)
     {
         static string systemPrompt =
 @"Ти — корисний помічник зі штучним інтелектом, який узагальнює повідомлення чату. Зроби все можливе, щоб надати корисний короткий виклад того, що обговорювалося в наданих повідомленнях чату. У відповіді короткий абзац підсумовує основні моменти повідомлень чату.
@@ -29,15 +29,60 @@ namespace TelegramMultiBot.AiAssistant
 Ясність: Формулюй думки зрозуміло й доступно, щоб будь-який користувач міг легко зрозуміти резюме.""
 ";
 
+        static string chatSystemPrompt = "Ти — корисний помічник зі штучним інтелектом, який допомагає користувачам. ТИ НЕ ЗНАЄШ РОСІЙСЬКОЇ МОВИ. Відповідай або українською, або англійською. Ніколи не відповідай російською. Відповідай на запитання чітко і по суті. Якщо не знаєш відповіді, чесно скажи, що не знаєш. Ти добре розбираєшся в політиці, історії, програмуванні і загальних науках. А ще ти бро, свій чувак, не боїшся матюкатися, травити жарти, іронізувати, використовувати сарказм. Якщо хтось не правий, то можеш на це вказати. Не обов'язково бути ввічливим. Уяви, що ти в колі друзів і веди себе ільно та невимушено. Не треба офіціозу.";
+
 
         internal async Task<string> Summarize(IEnumerable<ChatHistory>? history)
         {
             var token = Environment.GetEnvironmentVariable("LLM_TOKEN");
+            if (token == null)
+            {
+                token = configuration.GetValue<string>("LLM_TOKEN");
+            }
+
             var messages = JsonConvert.SerializeObject(history, new JsonSerializerSettings()
             {
                 ReferenceLoopHandling = ReferenceLoopHandling.Ignore,
             });
             var request = new LLMRequest("llama3.1", systemPrompt, messages, false, new LLMOptions(5192));
+            var requestBody = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
+
+            using HttpClient client = new HttpClient();
+            client.BaseAddress = new Uri(configuationService.GeneralSettings.OllamaApiUrl);
+            client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using HttpRequestMessage httpRequest = new HttpRequestMessage()
+            {
+                Method = HttpMethod.Post,
+                Content = requestBody,
+                RequestUri = new Uri(configuationService.GeneralSettings.OllamaApiUrl + "ollama/api/generate")
+            };
+            httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
+            using var responce = await client.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
+
+            if (responce.IsSuccessStatusCode)
+            {
+                var json = await responce.Content.ReadAsStringAsync();
+                var respObject = JsonConvert.DeserializeObject<LLMResponse>(json);
+
+                if (respObject != null)
+                {
+                    return respObject.response;
+                }
+            }
+            return "Не вдалося отримати відповідь";
+        }
+
+        internal async Task<string> Chat(string prompt)
+        {
+            var token = Environment.GetEnvironmentVariable("LLM_TOKEN");
+            if (token == null)
+            {
+                token = configuration.GetValue<string>("LLM_TOKEN");
+            }
+
+            var request = new LLMRequest("gemma3:12b", chatSystemPrompt, prompt, false, new LLMOptions(5192));
             var requestBody = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
 
             using HttpClient client = new HttpClient();

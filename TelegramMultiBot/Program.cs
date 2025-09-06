@@ -157,7 +157,7 @@ internal class Program
 
         _ = serviceCollection.AddTransient<CleanupService>();
 
-        _ = serviceCollection.AddTransient<SummarizeAiHelper>();
+        _ = serviceCollection.AddTransient<AiHelper>();
 
         var botKey = configuration["TG_TOKEN"];
         if (string.IsNullOrEmpty(botKey))

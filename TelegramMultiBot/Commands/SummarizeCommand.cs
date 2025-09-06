@@ -13,7 +13,7 @@ using TelegramMultiBot.Database.Models;
 namespace TelegramMultiBot.Commands
 {
     [ServiceKey("summarize")]
-    internal class SummarizeCommand(IAssistantDataService assistantDataService, TelegramClientWrapper clientWrapper, SummarizeAiHelper summarizeAiHelper, ILogger<SummarizeCommand> logger) : BaseCommand
+    internal class SummarizeCommand(IAssistantDataService assistantDataService, TelegramClientWrapper clientWrapper, AiHelper summarizeAiHelper, ILogger<SummarizeCommand> logger) : BaseCommand
     {
         public override async Task Handle(Message message)
         {
