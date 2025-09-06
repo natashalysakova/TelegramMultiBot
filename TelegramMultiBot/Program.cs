@@ -21,6 +21,7 @@ using TelegramMultiBot.Database.Services;
 using TelegramMultiBot.ImageCompare;
 using TelegramMultiBot.ImageGenerators;
 using TelegramMultiBot.ImageGenerators.Automatic1111;
+using TelegramMultiBot.MessageCache;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 
 internal class Program
@@ -172,7 +173,7 @@ internal class Program
         _ = serviceCollection.AddSingleton<JobManager>();
         _ = serviceCollection.AddSingleton<DialogManager>();
         _ = serviceCollection.AddSingleton<ImageGenearatorQueue>();
-
+        _ = serviceCollection.AddSingleton<IMessageCacheService, InMemoryMessageCacheService>();
         _ = serviceCollection.AddSingleton<MonitorService>();
 
         _ = RegisterMyServices<IDialogHandler>(serviceCollection);
@@ -268,6 +269,7 @@ internal class Program
             .AddJsonFile($"appsettings.json", false, true)
             .AddJsonFile($"appsettings.{environment}.json", true, true)
             .AddEnvironmentVariables()
+            .AddUserSecrets(typeof(Program).Assembly, true)
             .AddCommandLine(args)
             .Build();
     }

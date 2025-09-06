@@ -17,8 +17,19 @@ using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.ImageCompare;
 using TelegramMultiBot.ImageGenerators;
+using TelegramMultiBot.MessageCache;
 
-internal class BotService(TelegramBotClient client, ILogger<BotService> logger, JobManager jobManager, DialogManager dialogManager, IServiceProvider serviceProvider, ImageGenearatorQueue imageGenearatorQueue, ISqlConfiguationService configuration, MonitorService monitorService, IAssistantDataService assistantDataService)
+internal class BotService(
+    TelegramBotClient client,
+    ILogger<BotService> logger,
+    JobManager jobManager,
+    DialogManager dialogManager,
+    IServiceProvider serviceProvider,
+    ImageGenearatorQueue imageGenearatorQueue,
+    ISqlConfiguationService configuration,
+    MonitorService monitorService,
+    IAssistantDataService assistantDataService,
+    IMessageCacheService messageCacheService)
 {
     public static string? BotName;
     private System.Timers.Timer? _timer;
@@ -353,6 +364,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
     private async Task BotOnMessageRecived(Message message)
     {
         HandleChatHistory(message);
+        CacheMessageForChat(message);
 
         if (message.Type != MessageType.Text && message.Type != MessageType.Photo)
             return;
@@ -406,6 +418,18 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 }
             }
         }
+    }
+
+    private void CacheMessageForChat(Message message)
+    {
+        var chatId = message.Chat.Id;
+        var threadId = message.MessageThreadId;
+        var text = message.Text;
+
+        if (string.IsNullOrEmpty(text)) return;
+
+        var chatMessage = new ChatMessage(chatId, threadId, text, message.From.Username ?? message.From.FirstName);
+        messageCacheService.AddMessage(chatMessage);
     }
 
     private void HandleChatHistory(Message message)
