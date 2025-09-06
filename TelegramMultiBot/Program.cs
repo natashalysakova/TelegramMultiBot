@@ -38,10 +38,8 @@ internal class Program
         ServiceProvider serviceProvider = RegisterServices(args);
 
         var context = serviceProvider.GetRequiredService<BoberDbContext>();
-        if (context.Database.GetPendingMigrations().Any())
-        {
-            context.Database.Migrate();
-        }
+        context.Database.Migrate();
+
 
         SetDefaultSettings(context);
 
@@ -55,7 +53,7 @@ internal class Program
         var bot = serviceProvider.GetRequiredService<BotService>();
         bot.Run();
 
-        
+
     }
 
     private static void AddModels(BoberDbContext context)
@@ -110,10 +108,10 @@ internal class Program
         defaults.AddRange(new ComfyUISettings().ToList());
         defaults.AddRange(new ImageGenerationSettings().ToList());
         defaults.AddRange(new GeneralSettings().ToList());
-         
+
         foreach (var setting in defaults)
         {
-            if(!context.Settings.Any(x=>x.SettingSection == setting.section && x.SettingsKey == setting.key))
+            if (!context.Settings.Any(x => x.SettingSection == setting.section && x.SettingsKey == setting.key))
             {
                 context.AddSetting(setting);
             }
