@@ -196,7 +196,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
         }
     }
 
-    private async void JobManager_ReadyToSend(long chatId, string message, string photo)
+    private async void JobManager_ReadyToSend(long chatId, int? messageThreadId, string message, string photo)
     {
         try
         {
@@ -204,7 +204,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
 
             if (string.IsNullOrEmpty(photo))
             {
-                await client.SendTextMessageAsync(chatId, message, linkPreviewOptions: new LinkPreviewOptions() { IsDisabled = true });
+                await client.SendMessage(chatId, message, messageThreadId: messageThreadId, linkPreviewOptions: new LinkPreviewOptions() { IsDisabled = true });
             }
             else
             {
@@ -212,7 +212,7 @@ internal class BotService(TelegramBotClient client, ILogger<BotService> logger, 
                 //MemoryStream stream = new MemoryStream();
                 //await client.DownloadFileAsync(filePath.FilePath, stream);
                 //var request = new SendPhotoRequest() { ChatId = chatId, Caption = message, Photo = InputFile.FromFileId(photo) };
-                await client.SendPhotoAsync(chatId, InputFile.FromFileId(photo), caption: message);
+                await client.SendPhoto(chatId, InputFile.FromFileId(photo), messageThreadId: messageThreadId, caption: message);
             }
 
             //await _client.SendTextMessageAsync(chatId, message, disableWebPagePreview: true);

@@ -177,71 +177,10 @@ namespace TelegramMultiBot.ImageGenerators.ComfyUI
 
             string outputNode;
             int nodeCount;
-            if (genParams.Model.Name == "flux")
-            {
-                jsons = FluxTxt2Img(genParams, out outputNode, out nodeCount);
-            }
-            else
-            {
-                jsons = GeneralTxt2Img(genParams, out outputNode, out nodeCount);
-            }
 
-
+            jsons = GeneralTxt2Img(genParams, out outputNode, out nodeCount);
+            
             await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, nodeCount), outputNode, genParams.Model.Steps);
-        }
-
-        private IEnumerable<JObject> FluxTxt2Img(GenerationParams genParams, out string outputNode, out int nodeCount)
-        {
-            var payload = File.ReadAllText(Path.Combine(_settings.PayloadPath, "text2image.flux.json"));
-
-            List<JObject> jsons = new List<JObject>();
-            var json = JObject.Parse(payload);
-
-            var modelLoaderNodeName = FindNodeNameByClassType(json, "UNETLoader");
-
-            var schedulerNode = FindNodeNameByClassType(json, "BasicScheduler");
-            var samplerNode = FindNodeNameByClassType(json, "KSamplerSelect");
-            var positivePromptNode = FindNodeNameByMeta(json, "CLIPTextEncode", "positive");
-            var guidanceNode = FindNodeNameByClassType(json, "FluxGuidance");
-            var noiseNode = FindNodeNameByClassType(json, "RandomNoise");
-            var latentNodeName = FindNodeNameByClassType(json, "EmptySD3LatentImage");
-            var modelSamplingNode = FindNodeNameByClassType(json, "ModelSamplingFlux");
-
-            outputNode = FindNodeNameByClassType(json, "PreviewImage");
-            nodeCount = json.Count;
-
-            for (int i = 0; i < genParams.BatchCount; i++)
-            {
-                json = JObject.Parse(payload);
-
-                json[modelLoaderNodeName]!["inputs"]!["unet_name"] = genParams.Model.Path;
-
-                json[schedulerNode]["inputs"]["scheduler"] = genParams.Model.Scheduler;
-                json[schedulerNode]["inputs"]["steps"] = genParams.Model.Steps;
-
-                json[samplerNode]["inputs"]["sampler_name"] = genParams.Model.Sampler;
-
-                json[positivePromptNode]!["inputs"]!["text"] = genParams.Prompt;
-
-                json[guidanceNode]["inputs"]["guidance"] = genParams.Model.CGF;
-
-                json[noiseNode]["inputs"]["noise_seed"] = genParams.Seed + i;
-
-
-                var latentNode = json[latentNodeName]!["inputs"]!;
-                latentNode["width"] = genParams.Width;
-                latentNode["height"] = genParams.Height;
-                latentNode["batch_size"] = 1;
-
-                json[modelSamplingNode]["inputs"]["width"] = genParams.Width;
-                json[modelSamplingNode]["inputs"]["height"] = genParams.Height;
-
-                jsons.Add(json);
-            }
-
-            return jsons;
-
-
         }
 
         private IEnumerable<JObject> GeneralTxt2Img(GenerationParams genParams, out string outputNode, out int nodeCount)

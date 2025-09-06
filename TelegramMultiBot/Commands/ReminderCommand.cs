@@ -123,6 +123,7 @@ namespace TelegramMultiBot.Commands
             var dialog = new AddJobDialog()
             {
                 ChatId = chatId,
+                ThreadId = message.MessageThreadId,
                 UserId = callbackQuery.From.Id
             };
 

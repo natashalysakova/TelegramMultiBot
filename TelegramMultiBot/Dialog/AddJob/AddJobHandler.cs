@@ -28,7 +28,7 @@ internal class AddJobHandler(TelegramClientWrapper client, JobManager jobManager
 
         string photoId = string.Empty;
 
-        dialog.Attachment = message.Photo != null;       
+        dialog.Attachment = message.Photo != null;
         if (dialog.Attachment)
         {
             photoId = message.Photo.Last().FileId;
@@ -41,7 +41,7 @@ internal class AddJobHandler(TelegramClientWrapper client, JobManager jobManager
 
         dialog.IsFinished = true;
 
-        _ = jobManager.AddJob(dialog.ChatId, dialog.Name, dialog.CRON, dialog.Text, photoId);
+        _ = jobManager.AddJob(dialog.ChatId, dialog.ThreadId, dialog.Name, dialog.CRON, dialog.Text, photoId);
         var responce = $"Завдання додано: {dialog.Name} ({dialog.CRON}) з текстом: {dialog.Text}";
         if (dialog.Attachment)
         {

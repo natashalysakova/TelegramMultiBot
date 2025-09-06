@@ -11,6 +11,7 @@ internal class AddJobDialog : BaseDialog<AddDialogState>
     public string CRON { get; set; }
     public string? Text { get; set; }
     public bool Attachment { get; internal set; }
+    public int? ThreadId { get; internal set; }
 
     protected override IEnumerable<StateTransition> GetStates()
     {

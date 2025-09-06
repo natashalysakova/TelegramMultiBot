@@ -24,6 +24,7 @@ namespace TelegramMultiBot.Database.DTO
         public ushort ReciverPort { get; set; } = 5267;
 
         public string StandartNegative { get; set; } = "deformed iris, deformed pupils, bad eyes, bad anatomy, bad hands, long neck, long body, extra, fewer, missing, depth of field, blurry, cropped, jpeg artifacts, greyscale, monochrome, motion blur, emphasis lines, title, trademark, watermark, signature, username, artist name, lowres, bad anatomy, bad hands, error, missing fingers, extra digit, fewer digits, cropped, worst quality, low quality, normal quality, jpeg artifacts, signature, watermark, username, blurry";
+        public string StandartPositive { get; set; } = "masterpiece, best quality, ";
     }
 
     public abstract class BaseSetting : IEnumerable<(string section, string key, string value)>

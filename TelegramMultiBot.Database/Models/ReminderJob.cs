@@ -13,5 +13,6 @@ namespace TelegramMultiBot.Database.Models
         public long ChatId { get; set; }
         public DateTime NextExecution { get; set; }
         public string? FileId { get; internal set; }
+        public int? MessageThreadId { get; internal set; }
     }
 }

@@ -108,9 +108,6 @@
     <None Update="ImageGeneration\ComfyUI\Payload\noise.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
-    <None Update="ImageGeneration\ComfyUI\Payload\text2image.flux.json">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
     <None Update="ImageGeneration\ComfyUI\Payload\text2image.json">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
