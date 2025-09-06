@@ -92,5 +92,27 @@
             // threadId может быть 0, поэтому проверяем на null.
             return threadId.HasValue ? $"{chatId}:{threadId.Value}" : chatId.ToString();
         }
+
+        public void RemoveContext(long chatId, int? messageThreadId)
+        {
+            lock (_lock)
+            {
+                var chatKey = GetChatKey(chatId, messageThreadId);
+                
+                // Check if we have any messages for this chat
+                if (_messagesByChat.TryGetValue(chatKey, out var chatMessages))
+                {
+                    // Remove all messages from the chronological list and update the total size
+                    foreach (var message in chatMessages)
+                    {
+                        _chronologicalMessages.Remove(message);
+                        _currentTotalSize -= message.SizeInBytes;
+                    }
+                    
+                    // Remove the entire chat entry from the dictionary
+                    _messagesByChat.Remove(chatKey);
+                }
+            }
+        }
     }
 }

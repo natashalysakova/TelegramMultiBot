@@ -9,10 +9,10 @@ namespace TelegramMultiBot.Commands
 {
     [ServiceKey("gpt")]
     internal class GptCommand(
-        IAssistantDataService assistantDataService, 
-        TelegramClientWrapper clientWrapper, 
-        AiHelper chatHelper, 
-        ILogger<SummarizeCommand> logger, 
+        IAssistantDataService assistantDataService,
+        TelegramClientWrapper clientWrapper,
+        AiHelper chatHelper,
+        ILogger<SummarizeCommand> logger,
         IMessageCacheService messageCacheService) : BaseCommand
     {
         public override async Task Handle(Message message)
@@ -23,13 +23,11 @@ namespace TelegramMultiBot.Commands
                 try
                 {
                     var contextMessages = messageCacheService.GetContextForChat(message.Chat.Id, message.MessageThreadId);
-                    var contextForLlm = string.Join("\n", contextMessages.Select(m => $"{m.UserName}:{m.Text}"));
-
-                    // 4. Передаем контекст и текущий вопрос в LLM
+                    var contextForLlm = string.Join(";", contextMessages.Select(m => $"[{m.UserName}]:{m.Text}"));
 
                     var text = message.Text.Replace("/gpt", string.Empty).Trim();
 
-                    var llmRequest = $"Context:\n{contextForLlm}\n\nQuestion:\n{text}";
+                    var llmRequest = $"Context:\n{contextForLlm}|Question:[{message.From?.Username ?? message.From?.FirstName}]{text}";
 
                     var response = await chatHelper.Chat(llmRequest);
 
@@ -38,9 +36,6 @@ namespace TelegramMultiBot.Commands
                         var indexOfEnd = response.IndexOf("</think>");
                         response = response.Substring(indexOfEnd + "</think>".Length).Trim();
                     }
-
-                   
-
 
                     await clientWrapper.SendMessageAsync(message.Chat, response, messageThreadId: message.MessageThreadId);
 

@@ -15,5 +15,6 @@
         /// <param name="threadId">Идентификатор темы (опционально).</param>
         /// <returns>Коллекция сообщений в хронологическом порядке.</returns>
         IEnumerable<ChatMessage> GetContextForChat(long chatId, int? threadId);
+        void RemoveContext(long id, int? messageThreadId);
     }
 }
