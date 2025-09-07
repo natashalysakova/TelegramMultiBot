@@ -8,8 +8,22 @@ on:
 env:
   # Use docker.io for Docker Hub if empty
   REGISTRY: ghcr.io
+  # github.repository as <account>/<repo>
+  IMAGE_NAME: ${{ github.repository }}
+  USER_NAME: ${{github.actor}}
   
 jobs:
+  compute:
+      runs-on: ubuntu-latest
+      outputs:
+        REGISTRY: ${{ env.REGISTRY }}
+        USER_NAME: ${{ env.USER_NAME }}
+      steps:
+      - name: Compute outputs
+        run: |
+          echo "REGISTRY=${{ env.REGISTRY }}" >> $GITHUB_OUTPUT
+          echo "USER_NAME=${{ env.USER_NAME }}" >> $GITHUB_OUTPUT   
+          
   tag:
     runs-on: ubuntu-latest
     outputs:
