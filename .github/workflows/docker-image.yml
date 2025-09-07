@@ -54,6 +54,7 @@ jobs:
             image: ${{ needs.compute.outputs.REGISTRY }}/${{ needs.compute.outputs.USER_NAME }}/bober-config-ui  
     permissions:
       packages: write
+      contents: read
     steps:
       - uses: actions/checkout@v4
       - name: Set up Docker Buildx
