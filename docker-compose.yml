@@ -136,9 +136,11 @@ services:
     
   watchtower:
       image: containrrr/watchtower:arm64v8-latest
+      environment:
+        DOCKER_CONFIG: /config
       volumes:
+        - /etc/watchtower/config/:/config/
         - /var/run/docker.sock:/var/run/docker.sock
-        - /root/.docker/config.json:/config.json
       command: --interval 30
       
 networks:
