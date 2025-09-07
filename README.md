@@ -1,0 +1,1 @@
+[![Docker Image CI](https://github.com/natashalysakova/TelegramMultiBot/actions/workflows/docker-image.yml/badge.svg)](https://github.com/natashalysakova/TelegramMultiBot/actions/workflows/docker-image.yml)
