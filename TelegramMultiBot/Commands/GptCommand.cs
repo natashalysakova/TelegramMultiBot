@@ -28,7 +28,7 @@ namespace TelegramMultiBot.Commands
                     var text = message.Text.Replace("/gpt", string.Empty).Trim();
 
                     var llmRequest = $"Context:\n{contextForLlm}\n\nQuestion:{text}";
-
+                    Console.WriteLine("LLM Request: " + llmRequest);
                     var response = await chatHelper.Chat(llmRequest);
 
                     if (response.Contains("</think>"))

@@ -424,11 +424,15 @@ internal class BotService(
     {
         var chatId = message.Chat.Id;
         var threadId = message.MessageThreadId;
-        var text = message.Text;
+        var text = message.Text?.Replace("/gpt", string.Empty).Trim();
 
         if (string.IsNullOrEmpty(text)) return;
 
-        var chatMessage = new ChatMessage(chatId, threadId, text, message.From.Username ?? message.From.FirstName);
+        var user = message.From == null ?
+        "Unknown" :
+        message.From.Username ?? message.From.FirstName;
+
+        var chatMessage = new ChatMessage(chatId, threadId, text, user);
         messageCacheService.AddMessage(chatMessage);
     }
 

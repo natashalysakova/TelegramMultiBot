@@ -25,7 +25,7 @@ namespace TelegramMultiBot.MessageCache
             Text = text;
             Timestamp = DateTime.UtcNow;
             SizeInBytes = Encoding.UTF8.GetByteCount(Text ?? string.Empty);
-            userName = userName;
+            UserName = userName;
         }
     }
 }
