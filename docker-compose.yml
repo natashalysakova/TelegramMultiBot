@@ -141,7 +141,7 @@ services:
       volumes:
         - /etc/watchtower/config/:/config/
         - /var/run/docker.sock:/var/run/docker.sock
-      command: 0 0 5 * * *
+      command: --schedule "0 0 5 * * *" 
       
 networks:
   bober-net:
