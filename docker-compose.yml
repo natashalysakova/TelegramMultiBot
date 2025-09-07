@@ -134,13 +134,13 @@ services:
         restart: true
     << : *base-config
     
-watchtower:
-    image: containrrr/watchtower:arm64v8-latest
-    volumes:
-      - /var/run/docker.sock:/var/run/docker.sock
-      - /root/.docker/config.json:/config.json
-    command: --interval 30
-    
+  watchtower:
+      image: containrrr/watchtower:arm64v8-latest
+      volumes:
+        - /var/run/docker.sock:/var/run/docker.sock
+        - /root/.docker/config.json:/config.json
+      command: --interval 30
+      
 networks:
   bober-net:
     driver: bridge
