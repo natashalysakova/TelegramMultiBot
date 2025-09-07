@@ -5,6 +5,10 @@ on:
     branches: [ "master" ]
   workflow_dispatch:
 
+env:
+  # Use docker.io for Docker Hub if empty
+  REGISTRY: ghcr.io
+  
 jobs:
   tag:
     runs-on: ubuntu-latest
@@ -19,30 +23,53 @@ jobs:
         with:
           github_token: ${{ secrets.GITHUB_TOKEN }}
           tag_prefix: "v"
-          default_bump: patch
+          default_bump: major
 
   build:
     runs-on: ubuntu-24.04-arm
     needs: tag
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - dockerfile: ./TelegramMultiBot/Dockerfile
+            image: ${{ needs.compute.outputs.REGISTRY }}/${{ needs.compute.outputs.USER_NAME }}/bober-bot
+          - dockerfile: ./ConfigUI/Dockerfile
+            image: ${{ needs.compute.outputs.REGISTRY }}/${{ needs.compute.outputs.USER_NAME }}/bober-config-ui
+    
     steps:
       - uses: actions/checkout@v4
 
       - name: Set up Docker Buildx
-        uses: docker/setup-buildx-action@v3
+        uses: docker/setup-buildx-action@v3.11.1
 
-      - name: Log in to DockerHub
-        uses: docker/login-action@v3
+      - name: Log into registry ${{ env.REGISTRY }}
+        if: github.event_name != 'pull_request'
+        uses: docker/login-action@v3.5.0
         with:
-          username: ${{ secrets.DOCKERHUB_USERNAME }}
-          password: ${{ secrets.DOCKERHUB_TOKEN }}
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+          
+      - name: Extract Docker metadata
+        id: meta
+        uses: docker/metadata-action@v5.8.0
+        with:
+          images: ${{ matrix.image }}
+          tags: |
+            type=raw,value=${{ needs.tag.outputs.new_tag }}
+            type=raw,value=latest
 
       - name: Build and push Docker images
         uses: docker/build-push-action@v6.7.0
         with:
           context: .
-          file: ./TelegramMultiBot/Dockerfile
-          platforms: linux/arm64
+          file: ${{ matrix.dockerfile }}
+          platforms: linux/arm64,linux/amd64
           push: true
-          tags: |
-            bober-bot:${{ needs.tag.outputs.new_tag }}
-            bober-bot:latest
+          labels: ${{ steps.meta.outputs.labels }}
+          tags: ${{ steps.meta.outputs.tags }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+
