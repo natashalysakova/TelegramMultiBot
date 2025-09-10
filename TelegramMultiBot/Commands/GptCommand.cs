@@ -35,12 +35,10 @@ namespace TelegramMultiBot.Commands
 
                 try
                 {
-                    var contextMessages = messageCacheService.GetContextForChat(message.Chat.Id, message.MessageThreadId);
-                    var contextForLlm = string.Join("\n\n", contextMessages.Select(m => $"{m.UserName}:\n{m.Text}"));
-
+                    var context = messageCacheService.GetContextForChat(message.Chat.Id, message.MessageThreadId);
                     var text = message.Text.Replace("/gpt", string.Empty).Trim();
 
-                    var llmRequest = $"Context:\n{contextForLlm}\n\nQuestion:{text}";
+                    var llmRequest = context.ToString();
                     Console.WriteLine("LLM Request: " + llmRequest);
                     var response = await chatHelper.Chat(llmRequest);
 
