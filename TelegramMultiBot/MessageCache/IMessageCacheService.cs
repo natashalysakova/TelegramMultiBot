@@ -6,7 +6,7 @@
         /// Добавляет новое сообщение в кэш и применяет политику вытеснения, если необходимо.
         /// </summary>
         /// <param name="message">Сообщение для добавления.</param>
-        void AddMessage(ChatMessage message);
+        void AddMessage(long chatId, int? threadId, ChatMessage message);
 
         /// <summary>
         /// Возвращает все сохраненные сообщения для указанного чата и/или темы (thread).
@@ -14,7 +14,7 @@
         /// <param name="chatId">Идентификатор чата.</param>
         /// <param name="threadId">Идентификатор темы (опционально).</param>
         /// <returns>Коллекция сообщений в хронологическом порядке.</returns>
-        IEnumerable<ChatMessage> GetContextForChat(long chatId, int? threadId);
+        ChatContext GetContextForChat(long chatId, int? threadId);
         void RemoveContext(long id, int? messageThreadId);
     }
 }
