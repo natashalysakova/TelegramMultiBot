@@ -39,7 +39,7 @@ namespace TelegramMultiBot.Commands
 
                     var llmRequest = context.ToString();
                     Console.WriteLine("LLM Request: " + llmRequest);
-                    var response = await chatHelper.Chat(llmRequest);
+                    var response = await chatHelper.Chat(context.GetMessages());
 
                     if (response.Contains("</think>"))
                     {

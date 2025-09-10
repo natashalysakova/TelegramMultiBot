@@ -11,6 +11,7 @@ using System.Threading.Tasks;
 using Telegram.Bot.Types;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
+using TelegramMultiBot.MessageCache;
 using static System.Net.Mime.MediaTypeNames;
 
 namespace TelegramMultiBot.AiAssistant
@@ -114,7 +115,7 @@ Message Handling
             return "Не вдалося отримати відповідь";
         }
 
-        internal async Task<string> Chat(string prompt)
+        internal async Task<string> Chat(IEnumerable<LLMChatMessage> messages)
         {
             var token = Environment.GetEnvironmentVariable("LLM_TOKEN");
             if (token == null)
@@ -122,10 +123,13 @@ Message Handling
                 token = configuration.GetValue<string>("LLM_TOKEN");
             }
 
-            var request = new LLMRequest("gemma3:12b", chatSystemPrompt, prompt, false, new LLMOptions(5192));
-            var requestBody = new StringContent(JsonConvert.SerializeObject(request), Encoding.UTF8, "application/json");
+            var request = new LLMChatRequest("gemma3:12b", chatSystemPrompt, messages, false, new LLMOptions(5192));
+            var serialized = JsonConvert.SerializeObject(request);
+            Console.WriteLine(serialized);
+            var requestBody = new StringContent(serialized, Encoding.UTF8, "application/json");
 
             using HttpClient client = new HttpClient();
+            client.DefaultRequestHeaders.Clear();
             client.BaseAddress = new Uri(configuationService.GeneralSettings.OllamaApiUrl);
             client.DefaultRequestHeaders.Authorization = new AuthenticationHeaderValue("Bearer", token);
 
@@ -133,20 +137,21 @@ Message Handling
             {
                 Method = HttpMethod.Post,
                 Content = requestBody,
-                RequestUri = new Uri(configuationService.GeneralSettings.OllamaApiUrl + "ollama/api/generate")
+                RequestUri = new Uri(configuationService.GeneralSettings.OllamaApiUrl + "ollama/api/chat")
             };
             httpRequest.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
+
 
             using var responce = await client.SendAsync(httpRequest, HttpCompletionOption.ResponseHeadersRead);
 
             if (responce.IsSuccessStatusCode)
             {
                 var json = await responce.Content.ReadAsStringAsync();
-                var respObject = JsonConvert.DeserializeObject<LLMResponse>(json);
+                var respObject = JsonConvert.DeserializeObject<LLmChatResponse>(json);
 
                 if (respObject != null)
                 {
-                    return respObject.response;
+                    return respObject.message.content;
                 }
             }
             return "Не вдалося отримати відповідь";
@@ -154,6 +159,7 @@ Message Handling
     }
 
     record LLMRequest(string model, string system, string prompt, bool stream, LLMOptions options);
+    record LLMChatRequest(string model, string system, IEnumerable<LLMChatMessage> messages, bool stream, LLMOptions options);
     record LLMOptions(int num_ctx);
 }
 
@@ -173,4 +179,26 @@ public class LLMResponse
     public long prompt_eval_duration { get; set; }
     public int eval_count { get; set; }
     public long eval_duration { get; set; }
+}
+
+
+public class LLmChatResponse
+{
+    public string model { get; set; }
+    public string created_at { get; set; }
+    public LLMChatMessage message { get; set; }
+    public string done_reason { get; set; }
+    public bool done { get; set; }
+    public long total_duration { get; set; }
+    public long load_duration { get; set; }
+    public int prompt_eval_count { get; set; }
+    public int prompt_eval_duration { get; set; }
+    public int eval_count { get; set; }
+    public long eval_duration { get; set; }
+}
+
+public class LLMChatMessage
+{
+    public string role { get; set; }
+    public string content { get; set; }
 }

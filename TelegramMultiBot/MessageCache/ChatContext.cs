@@ -1,5 +1,7 @@
-﻿using System.Text;
+﻿using System.Data;
+using System.Text;
 using System.Text.Json;
+using TelegramMultiBot.AiAssistant;
 
 namespace TelegramMultiBot.MessageCache
 {
@@ -55,6 +57,15 @@ namespace TelegramMultiBot.MessageCache
             if (oldestMessage == null) return;
 
             messages.Remove(oldestMessage);
+        }
+
+        internal IEnumerable<LLMChatMessage> GetMessages()
+        {
+            return messages.Select(x => new LLMChatMessage()
+            {
+                role = x.UserName == BotService.BotName ? "assistant" : "user",
+                content = x.Text
+            });
         }
     }
 }
