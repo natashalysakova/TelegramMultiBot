@@ -15,6 +15,18 @@ namespace TelegramMultiBot.Commands
         ILogger<SummarizeCommand> logger,
         IMessageCacheService messageCacheService) : BaseCommand
     {
+
+        public override bool CanHandle(Message message)
+        {
+            var lookupWords = new[] { "бобер", "бобр", "бобрик", BotService.BotName };
+
+            if(lookupWords.Any(w => message.Text != null && message.Text.Contains(w, StringComparison.OrdinalIgnoreCase)) )
+            {
+                return true;
+            }
+
+            return base.CanHandle(message);
+        }
         public override async Task Handle(Message message)
         {
             if (message.Text != null)
@@ -22,12 +34,10 @@ namespace TelegramMultiBot.Commands
 
                 try
                 {
-                    var contextMessages = messageCacheService.GetContextForChat(message.Chat.Id, message.MessageThreadId);
-                    var contextForLlm = string.Join("\n\n", contextMessages.Select(m => $"{m.UserName}:\n{m.Text}"));
-
+                    var context = messageCacheService.GetContextForChat(message.Chat.Id, message.MessageThreadId);
                     var text = message.Text.Replace("/gpt", string.Empty).Trim();
 
-                    var llmRequest = $"Context:\n{contextForLlm}\n\nQuestion:{text}";
+                    var llmRequest = context.ToString();
                     Console.WriteLine("LLM Request: " + llmRequest);
                     var response = await chatHelper.Chat(llmRequest);
 
@@ -36,6 +46,8 @@ namespace TelegramMultiBot.Commands
                         var indexOfEnd = response.IndexOf("</think>");
                         response = response.Substring(indexOfEnd + "</think>".Length).Trim();
                     }
+
+                    context.AddLast(new ChatMessage(text, BotService.BotName?? "bober" ));
 
                     await clientWrapper.SendMessageAsync(message.Chat, response, messageThreadId: message.MessageThreadId);
 
