@@ -432,8 +432,8 @@ internal class BotService(
         "Unknown" :
         message.From.Username ?? message.From.FirstName;
 
-        var chatMessage = new ChatMessage(chatId, threadId, text, user);
-        messageCacheService.AddMessage(chatMessage);
+        var chatMessage = new ChatMessage(text, user);
+        messageCacheService.AddMessage(chatId, threadId, chatMessage);
     }
 
     private void HandleChatHistory(Message message)
