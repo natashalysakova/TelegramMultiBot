@@ -56,7 +56,11 @@ namespace TelegramMultiBot.Commands
                 {
                     if (ex.Message.Contains("No route to host") || ex.Message.Contains("No connection could be made"))
                     {
-                        await clientWrapper.SendMessageAsync(message.Chat, phrasesService.GetRandomPhrase(), messageThreadId: message.MessageThreadId);
+                        await clientWrapper.SendMessageAsync(message.Chat, phrasesService.GetRandomServiceUnavailablePhrase(), messageThreadId: message.MessageThreadId);
+                    }
+                    else if (ex.Message.Contains("Timeout") || ex.Message.Contains("timed out"))
+                    {
+                        await clientWrapper.SendMessageAsync(message.Chat, phrasesService.GetRandomTimeoutPhrase(), messageThreadId: message.MessageThreadId);
                     }
                     else
                     {
