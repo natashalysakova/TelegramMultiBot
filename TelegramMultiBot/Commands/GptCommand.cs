@@ -55,7 +55,7 @@ namespace TelegramMultiBot.Commands
                 }
                 catch (Exception ex)
                 {
-                    if (ex.Message.Contains("No route to host"))
+                    if (ex.Message.Contains("No route to host") || ex.Message.Contains("No connection could be made"))
                     {
                         await clientWrapper.SendMessageAsync(message.Chat, phrasesService.GetRandomPhrase(), messageThreadId: message.MessageThreadId);
                     }
