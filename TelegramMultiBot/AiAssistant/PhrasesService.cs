@@ -42,6 +42,7 @@ namespace TelegramMultiBot.AiAssistant
             catch (Exception)
             {
                 _serviceUnavailablePhrases = ["В мене лапки :("];
+                _timeoutPhrases = ["Час вийшов :("];
             }
         }
 
@@ -57,6 +58,10 @@ namespace TelegramMultiBot.AiAssistant
 
         private string GetRandomPhrase(List<string> target)
         {
+            if (target == null || target.Count == 0)
+            {
+                return "No phrases available";
+            }
             return target[Random.Shared.Next(target.Count)];
         }
     }
