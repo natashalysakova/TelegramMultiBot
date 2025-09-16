@@ -15,7 +15,7 @@ namespace TelegramMultiBot.AiAssistant
     public class PhrasesService : IPhrasesService
     {
         private List<string> _serviceUnavailablePhrases = new List<string>();
-        private List<string> _timeoutPhrases= new List<string>();
+        private List<string> _timeoutPhrases = new List<string>();
 
         public PhrasesService()
         {
