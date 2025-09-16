@@ -42,6 +42,7 @@ namespace TelegramMultiBot.AiAssistant
             catch (Exception)
             {
                 _serviceUnavailablePhrases = ["В мене лапки :("];
+                _timeoutPhrases = ["Час вийшов :("];
             }
         }
 
