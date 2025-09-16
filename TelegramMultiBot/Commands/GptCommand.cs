@@ -15,6 +15,18 @@ namespace TelegramMultiBot.Commands
         ILogger<SummarizeCommand> logger,
         IMessageCacheService messageCacheService) : BaseCommand
     {
+
+        public override bool CanHandle(Message message)
+        {
+            var lookupWords = new[] { "бобер", "бобр", "бобрик", BotService.BotName };
+
+            if (lookupWords.Any(w => message.Text != null && message.Text.Contains(w, StringComparison.OrdinalIgnoreCase)))
+            {
+                return true;
+            }
+
+            return base.CanHandle(message);
+        }
         public override async Task Handle(Message message)
         {
             if (message.Text != null)
@@ -37,14 +49,39 @@ namespace TelegramMultiBot.Commands
                         response = response.Substring(indexOfEnd + "</think>".Length).Trim();
                     }
 
+                    context.AddLast(new ChatMessage(text, BotService.BotName ?? "bober"));
+
                     await clientWrapper.SendMessageAsync(message.Chat, response, messageThreadId: message.MessageThreadId);
 
                 }
                 catch (Exception ex)
                 {
-                    await clientWrapper.SendMessageAsync(message.Chat, "Упсі, шось не так: " + ex.Message, messageThreadId: message.MessageThreadId);
-                    logger.LogError(ex, ex.Message);
+                    if (ex.Message.Contains("No route to host"))
+                    {
+                        await clientWrapper.SendMessageAsync(message.Chat, SelectRandomPhrase(), messageThreadId: message.MessageThreadId);
+                    }
+                    else
+                    {
+                        await clientWrapper.SendMessageAsync(message.Chat, "Упсі, шось не так: " + ex.Message, messageThreadId: message.MessageThreadId);
+                        logger.LogError(ex, ex.Message);
+                    }
                 }
+            }
+        }
+
+        private string SelectRandomPhrase()
+        {
+            try
+            {
+                var phrases = System.IO.File.ReadAllLines("phrases.txt");
+                Random random = new Random();
+                var randomPhraseIndex = random.Next(phrases.Length - 1);
+                return phrases[randomPhraseIndex];
+
+            }
+            catch (Exception)
+            {
+                return "В мене лапки :(";
             }
         }
     }
