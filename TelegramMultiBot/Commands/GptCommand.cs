@@ -13,7 +13,8 @@ namespace TelegramMultiBot.Commands
         TelegramClientWrapper clientWrapper,
         AiHelper chatHelper,
         ILogger<SummarizeCommand> logger,
-        IMessageCacheService messageCacheService) : BaseCommand
+        IMessageCacheService messageCacheService,
+        IPhrasesService phrasesService) : BaseCommand
     {
 
         public override bool CanHandle(Message message)
@@ -58,7 +59,7 @@ namespace TelegramMultiBot.Commands
                 {
                     if (ex.Message.Contains("No route to host"))
                     {
-                        await clientWrapper.SendMessageAsync(message.Chat, SelectRandomPhrase(), messageThreadId: message.MessageThreadId);
+                        await clientWrapper.SendMessageAsync(message.Chat, phrasesService.GetRandomPhrase(), messageThreadId: message.MessageThreadId);
                     }
                     else
                     {
@@ -66,22 +67,6 @@ namespace TelegramMultiBot.Commands
                         logger.LogError(ex, ex.Message);
                     }
                 }
-            }
-        }
-
-        private string SelectRandomPhrase()
-        {
-            try
-            {
-                var phrases = System.IO.File.ReadAllLines("phrases.txt");
-                Random random = new Random();
-                var randomPhraseIndex = random.Next(phrases.Length - 1);
-                return phrases[randomPhraseIndex];
-
-            }
-            catch (Exception)
-            {
-                return "В мене лапки :(";
             }
         }
     }
