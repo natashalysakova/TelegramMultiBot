@@ -19,9 +19,7 @@ namespace TelegramMultiBot.Commands
 
         public override bool CanHandle(Message message)
         {
-            var lookupWords = new[] { "бобер", "бобр", "бобрик", BotService.BotName };
-
-
+            var lookupWords = new[] { "бобер", "бобр", "бобрик", "боре", BotService.BotName };
             if (lookupWords.Any(w => message.Text != null && message.Text.Contains(w, StringComparison.OrdinalIgnoreCase)))
             {
                 return true;

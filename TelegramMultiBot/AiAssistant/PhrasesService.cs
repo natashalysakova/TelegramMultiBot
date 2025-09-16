@@ -21,7 +21,7 @@ namespace TelegramMultiBot.AiAssistant
             _random = new Random();
             try
             {
-                _phrases = File.ReadAllLines("phrases.txt");
+                _phrases = File.ReadAllLines("phrases.txt").Select(x=>x.Trim()).ToArray();
             }
             catch (Exception)
             {
