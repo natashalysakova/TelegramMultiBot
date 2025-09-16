@@ -21,6 +21,7 @@ namespace TelegramMultiBot.Commands
         {
             var lookupWords = new[] { "бобер", "бобр", "бобрик", BotService.BotName };
 
+
             if (lookupWords.Any(w => message.Text != null && message.Text.Contains(w, StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
