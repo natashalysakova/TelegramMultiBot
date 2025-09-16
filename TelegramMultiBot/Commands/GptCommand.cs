@@ -13,14 +13,14 @@ namespace TelegramMultiBot.Commands
         TelegramClientWrapper clientWrapper,
         AiHelper chatHelper,
         ILogger<SummarizeCommand> logger,
-        IMessageCacheService messageCacheService) : BaseCommand
+        IMessageCacheService messageCacheService,
+        IPhrasesService phrasesService) : BaseCommand
     {
 
         public override bool CanHandle(Message message)
         {
-            var lookupWords = new[] { "бобер", "бобр", "бобрик", BotService.BotName };
-
-            if(lookupWords.Any(w => message.Text != null && message.Text.Contains(w, StringComparison.OrdinalIgnoreCase)) )
+            var lookupWords = new[] { "бобер", "бобр", "бобрик", "боре", BotService.BotName };
+            if (lookupWords.Any(w => message.Text != null && message.Text.Contains(w, StringComparison.OrdinalIgnoreCase)))
             {
                 return true;
             }
@@ -47,15 +47,22 @@ namespace TelegramMultiBot.Commands
                         response = response.Substring(indexOfEnd + "</think>".Length).Trim();
                     }
 
-                    context.AddLast(new ChatMessage(text, BotService.BotName?? "bober" ));
+                    context.AddLast(new ChatMessage(text, BotService.BotName ?? "bober"));
 
                     await clientWrapper.SendMessageAsync(message.Chat, response, messageThreadId: message.MessageThreadId);
 
                 }
                 catch (Exception ex)
                 {
-                    await clientWrapper.SendMessageAsync(message.Chat, "Упсі, шось не так: " + ex.Message, messageThreadId: message.MessageThreadId);
-                    logger.LogError(ex, ex.Message);
+                    if (ex.Message.Contains("No route to host") || ex.Message.Contains("No connection could be made"))
+                    {
+                        await clientWrapper.SendMessageAsync(message.Chat, phrasesService.GetRandomPhrase(), messageThreadId: message.MessageThreadId);
+                    }
+                    else
+                    {
+                        await clientWrapper.SendMessageAsync(message.Chat, "Упсі, шось не так: " + ex.Message, messageThreadId: message.MessageThreadId);
+                        logger.LogError(ex, ex.Message);
+                    }
                 }
             }
         }

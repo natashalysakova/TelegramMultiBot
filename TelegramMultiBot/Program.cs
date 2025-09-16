@@ -170,6 +170,8 @@ internal class Program
         _ = serviceCollection.AddScoped<TelegramClientWrapper>();
         _ = serviceCollection.AddScoped<ImageGenerator>();
 
+        _ = serviceCollection.AddSingleton<IPhrasesService, PhrasesService>();
+
         _ = serviceCollection.AddSingleton<JobManager>();
         _ = serviceCollection.AddSingleton<DialogManager>();
         _ = serviceCollection.AddSingleton<ImageGenearatorQueue>();
