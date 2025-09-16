@@ -14,11 +14,9 @@ namespace TelegramMultiBot.AiAssistant
     public class PhrasesService : IPhrasesService
     {
         private string[] _phrases;
-        private Random _random;
 
         public PhrasesService()
         {
-            _random = new Random();
             try
             {
                 _phrases = File.ReadAllLines("phrases.txt").Select(x=>x.Trim()).ToArray();
@@ -31,7 +29,7 @@ namespace TelegramMultiBot.AiAssistant
 
         public string GetRandomPhrase()
         {
-            return _phrases[_random.Next(_phrases.Length)];
+            return _phrases[Random.Shared.Next(_phrases.Length)];
         }
     }
 }
