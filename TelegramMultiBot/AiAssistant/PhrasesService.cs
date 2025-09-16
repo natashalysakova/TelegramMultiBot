@@ -58,6 +58,10 @@ namespace TelegramMultiBot.AiAssistant
 
         private string GetRandomPhrase(List<string> target)
         {
+            if (target == null || target.Count == 0)
+            {
+                return "No phrases available";
+            }
             return target[Random.Shared.Next(target.Count)];
         }
     }
