@@ -20,6 +20,7 @@
   </ItemGroup>
 
   <ItemGroup>
+    <ProjectReference Include="..\DtekParsers\DtekParsers.csproj" />
     <ProjectReference Include="..\TelegramMultiBot.Database\TelegramMultiBot.Database.csproj" />
     <ProjectReference Include="..\TelegramMultiBot\TelegramMultiBot.csproj" />
   </ItemGroup>

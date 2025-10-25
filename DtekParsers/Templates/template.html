@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
+</head>
+<style>
+    :root {
+        --border-color: rgb(190, 190, 190);
+        --no-background: rgb(211, 211, 211);
+        --no-background-image: url(https://www.dtek-krem.com.ua/img/icons/elec-off.svg);
+        --yes-background: white;
+        --yes-background-image: url(https://www.dtek-krem.com.ua/img/icons/elec-on.svg);
+        --maybe-background: rgb(238, 239, 238);
+        --maybe-background-image: url(https://www.dtek-krem.com.ua/img/icons/elec-maybe.svg);
+
+        --left-bakckground-position: 6px center;
+        --right-background-position: -8px center;
+    }   
+
+    body {
+        font-family: Roboto, serif;
+        font-weight: 500;
+        font-size: 14px;
+    }
+    table, th, td {
+        border: 1px solid var(--border-color);
+    }
+
+    table {
+        border-radius: 10px !important;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        padding: 5px;
+        text-align: center;
+        background-repeat: no-repeat;
+        background-size: 16px 16px;
+        background-position: center;
+
+
+        /* IMPORTANT: confine pseudo-elements to each cell */
+        position: relative;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+    .yes {
+        background-color: white;
+    }
+    .no {
+        background-color: var(--no-background);
+        background-image: var(--no-background-image);
+    }
+    .maybe {
+        background-color: var(--maybe-background);
+        background-image: var(--maybe-background-image);
+    }
+
+
+    .second {
+        background-color: none;
+    }
+    .second::before,
+    .second::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        height: 100%;
+        width: 50%;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 16px 16px;
+    }
+    /* left half */
+    .second::before {
+        right: 0;
+        background-color: var(--no-background);
+        background-image: var(--no-background-image);
+        background-position: var(--right-background-position)
+    }
+    /* right half */
+    .second::after {
+        left: 0;
+        background-color: var(--yes-background);  /* right color */
+        background-image: var(--yes-background-image);
+        background-position: var(--left-bakckground-position)
+    }
+
+
+    .first {
+        background-color: none;
+    }
+
+    .first::before,
+    .first::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        height: 100%;
+        width: 50%;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 16px 16px;
+    }
+    /* left half */
+    .first::before {
+        left: 0;
+        background-color: var(--no-background); /* left color */
+        background-image: var(--no-background-image);
+        background-position: var(--left-bakckground-position);
+    }
+    /* right half */
+    .first::after {
+        right: 0;
+        background-color: var(--yes-background);  /* right color */
+        background-image: var(--yes-background-image);
+        background-position: var(--right-background-position);
+    }
+
+
+
+
+
+    .mfirst {
+        background-color: none;
+    }
+    .mfirst::before,
+    .mfirst::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        height: 100%;
+        width: 50%;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 16px 16px;
+    }
+    /* left half */
+    .mfirst::before {
+        left: 0;
+        background-color: var(--maybe-background);
+        background-image: var(--maybe-background-image);
+        background-position: var(--left-bakckground-position);
+    }
+    /* right half */
+    .mfirst::after {
+        right: 0;
+        background-color: var(--yes-background);  /* right color */
+        background-image: var(--yes-background-image);
+        background-position: var(--right-background-position);
+    }
+
+
+    .msecond {
+        background-color: none;
+    }
+
+    .msecond::before,
+    .msecond::after {
+        content: "";
+        position: absolute;
+        top: 0;
+        height: 100%;
+        width: 50%;
+        background-repeat: no-repeat;
+        background-position: center;
+        background-size: 16px 16px;
+    }
+    /* left half */
+    .msecond::before {
+        right: 0;
+        background-color: var(--maybe-background); /* left color */
+        background-image: var(--maybe-background-image);
+        background-position: var(--right-background-position);
+    }
+    /* right half */
+    .msecond::after {
+        left: 0;
+        background-color: var(--yes-background);  /* right color */
+        background-image: var(--yes-background-image);
+        background-position: var(--left-bakckground-position);
+    }
+
+    .timezone {
+        writing-mode: vertical-rl;
+    }
+    .first-column {
+        text-align: start; 
+        padding: 9px 11px 9px 11px;
+    }
+    .schedule-header {
+        font-size: 24px;
+        font-weight: 500;
+        margin-bottom: 10px;
+    }
+</style>
+<body>
+    <div class="schedule-header">Графік відключеннь:</div>
+    <table>
+        <thead>
+            <tr id="header-row">
+                <th class="first-column">{{group}}</th>              
+            </tr>
+        </thead>
+        <tbody id="schedule-body">
+        </tbody>
+    </table>
+</body>
+</html>
