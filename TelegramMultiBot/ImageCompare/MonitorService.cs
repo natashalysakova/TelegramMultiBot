@@ -13,15 +13,15 @@ using TelegramMultiBot.Database.Services;
 
 namespace TelegramMultiBot.ImageCompare
 {
-    internal class MonitorService
+    public class MonitorService
     {
-        private readonly ILogger<JobManager> _logger;
+        private readonly ILogger<MonitorService> _logger;
         private readonly IMonitorDataService _dbservice;
         CancellationToken _cancellationToken;
 
         public event Action<long, List<(string filename, string caption)>> ReadyToSend = delegate { };
 
-        public MonitorService(ILogger<JobManager> logger, IMonitorDataService dbservice)
+        public MonitorService(ILogger<MonitorService> logger, IMonitorDataService dbservice)
         {
             _logger = logger;
             _dbservice = dbservice;
