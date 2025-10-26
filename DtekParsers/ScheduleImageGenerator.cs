@@ -9,77 +9,86 @@ public class ScheduleImageGenerator
 {
     public static async Task<byte[]> GenerateRealScheduleSingleGroupImage(GroupSchedule groupSchedule)
     {
-        return await GenerateSchedule(
+        //return await GenerateSchedule(
+        //    "Графік відключень",
+        //    groupSchedule.GroupName,
+        //    groupSchedule.Updated,
+        //    groupSchedule.RealSchedule.Cast<BaseScheduleDay>().ToList(),
+        //    "real");
+
+        var html = await GenerateScheduleBody(
+            "Графік відключень",
             groupSchedule.GroupName,
+            groupSchedule.RealSchedule.First().Items.Keys.ToList(),
             groupSchedule.Updated,
-            groupSchedule.RealSchedule.Cast<BaseScheduleDay>().ToList(),
-            "real");
+            groupSchedule.RealSchedule.Cast<BaseScheduleDay>().ToList());
+
+        return await GetHtmlImage(html, ViewportSize.SingleGroup);
     }
 
-    public static async Task<byte[]> GeneratePlannedScheduleSingleGroupImage(GroupSchedule groupSchedule)
+    public static async Task<byte[]> GeneratePlannedScheduleSingleGroup(GroupSchedule groupSchedule)
     {
-        return await GenerateSchedule(
+        //return await GenerateSchedule(
+        //    "Графік можливих відключень",
+        //    groupSchedule.GroupName,
+        //    groupSchedule.Updated,
+        //    groupSchedule.PlannedSchedule.Cast<BaseScheduleDay>().ToList(),
+        //    "planned");
+        var html = await GenerateScheduleBody(
+            "Графік можливих відключень",
             groupSchedule.GroupName,
+            groupSchedule.PlannedSchedule.First().Items.Keys.ToList(),
             groupSchedule.Updated,
-            groupSchedule.RealSchedule.Cast<BaseScheduleDay>().ToList(),
-            "planned");
+            groupSchedule.PlannedSchedule.Cast<BaseScheduleDay>().ToList());
+
+        return await GetHtmlImage(html, ViewportSize.AllGroups);
+
     }
 
     public static async Task<byte[]> GenerateAllGroupsRealSchedule(List<GroupSchedule> groupSchedule)
     {
-        var doc = new HtmlDocument();
+        var html = await GenerateScheduleBody(
+            "Графік відключень по групах",
+            "Часові проміжки",
+            groupSchedule.First().RealSchedule.First().Items.Keys.ToList(),
+            groupSchedule.Max(x => x.Updated),
+            groupSchedule.Select(x=> x.RealSchedule.First()).Cast<BaseScheduleDay>().ToList(), true);
 
-        doc.Load("Templates/template.html");
-
-        var headerRow = doc.GetElementbyId("header-row");
-
-        foreach (var timezone in groupSchedule.First().RealSchedule.SelectMany(x => x.Items.Keys))
-        {
-            headerRow.AppendChild(HtmlNode.CreateNode($"<th class=\"timezone\">{timezone.Short}</th>"));
-        }
-
-        var tableBody = doc.GetElementbyId("schedule-body");
-
-        foreach (var day in groupSchedule)
-        {
-            var dayRowNode = HtmlNode.CreateNode("<tr></tr>");
-            dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{day.GroupName}</td>"));
-
-            foreach (var item in day.RealSchedule.First().Items.OrderBy(x => x.Key.Id))
-            {
-                dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"{item.Value}\"></td>"));
-            }
-
-            tableBody.AppendChild(dayRowNode);
-        }
-
-        var fileName = $"all_{DateTime.Now.ToString("ddMMyyyyHHmmss")}_real.html";
-        var html = doc.ToString();
-
-        return await GetHtmlImage(html);
+        return await GetHtmlImage(html, ViewportSize.AllGroups);
     }
 
-    private static async Task<byte[]> GenerateSchedule(string groupName, DateTime updated, List<BaseScheduleDay> scheduleDays, string name_suffix)
+    private static async Task<string> GenerateScheduleBody(string title, string firstColumnTitle, List<ScheduleTimeZone> timeZones, DateTime updated, List<BaseScheduleDay> schedule, bool useGroupHeader = false)
     {
         var doc = new HtmlDocument();
 
         doc.Load("Templates/template.html");
 
-        var headerRow = doc.GetElementbyId("header-row");
+        var titleNode = doc.GetElementbyId("schedule-header");
+        titleNode.InnerHtml = title;
 
-        foreach (var timezone in scheduleDays.SelectMany(x => x.Items.Keys))
+        var headerRow = doc.GetElementbyId("header-row");
+        headerRow.ChildNodes.Clear();
+        headerRow.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{firstColumnTitle}</td>"));
+        foreach (var timezone in timeZones)
         {
             headerRow.AppendChild(HtmlNode.CreateNode($"<th class=\"timezone\">{timezone.Short}</th>"));
         }
 
         var tableBody = doc.GetElementbyId("schedule-body");
-
-        foreach (var day in scheduleDays)
+        tableBody.ChildNodes.Clear();
+        foreach (var line in schedule)
         {
             var dayRowNode = HtmlNode.CreateNode("<tr></tr>");
-            dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{day.DateHeader}</td>"));
+            if (useGroupHeader)
+            {
+                dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{line.Group}</td>"));
+            }
+            else
+            {
+                dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{line.DateHeader}</td>"));
+            }
 
-            foreach (var item in day.Items.OrderBy(x => x.Key.Id))
+            foreach (var item in line.Items.OrderBy(x => int.Parse(x.Key.Id)))
             {
                 dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"{item.Value}\"></td>"));
             }
@@ -87,13 +96,14 @@ public class ScheduleImageGenerator
             tableBody.AppendChild(dayRowNode);
         }
 
-        var fileName = $"{groupName}_{updated.ToString("ddMMyyyyHHmmss")}_{name_suffix}.html";
-        var html = doc.DocumentNode.OuterHtml;
+        var updatedInfo = doc.GetElementbyId("updated-info");
+        updatedInfo.InnerHtml = $"Оновлено: {updated.ToString("dd.MM.yyyy HH:mm")}";
 
-        return await GetHtmlImage(html);
+        //var fileName = $"{groupName}_{updated.ToString("ddMMyyyyHHmmss")}_{name_suffix}.html";
+        return doc.DocumentNode.OuterHtml;
     }
 
-    private static  async Task<byte[]> GetHtmlImage(string html)
+    private static async Task<byte[]> GetHtmlImage(string html, ViewportSize viewportSize)
     {
         int retry = 0;
         var maxretry = 3;
@@ -104,13 +114,30 @@ public class ScheduleImageGenerator
                 var browserFetcher = new BrowserFetcher();
                 await browserFetcher.DownloadAsync();
 
-                await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions {});
+                await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions
+                {
+                    
+                });
 
                 await using var page = await browser.NewPageAsync();
+
+                var viewPortOptions = viewportSize == ViewportSize.SingleGroup
+                    ? new ViewPortOptions
+                    {
+                        Width = 2500,
+                        Height = 440,
+                    }
+                    : new ViewPortOptions
+                    {
+                        Width = 1500,
+                        Height = 760,
+                    };
+
+                await page.SetViewportAsync(viewPortOptions);
                 await page.SetContentAsync(html);
+                await page.EvaluateFunctionAsync("() => document.body.style.zoom = 2");
                 return await page.ScreenshotDataAsync(new ScreenshotOptions
                 {
-                    FullPage = true,
                     Type = ScreenshotType.Png
                 });
             }
@@ -124,4 +151,10 @@ public class ScheduleImageGenerator
 
         throw new Exception("Cannot make a screenshot of page");
     }
+}
+
+enum ViewportSize
+{
+    SingleGroup,
+    AllGroups
 }

@@ -4,10 +4,6 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100..900;1,100..900&display=swap" rel="stylesheet">
 </head>
 <style>
     :root {
@@ -21,7 +17,12 @@
 
         --left-bakckground-position: 6px center;
         --right-background-position: -8px center;
-    }   
+    }
+
+    @font-face {
+        font-family: 'Roboto';
+        src: url("Roboto-VariableFont_wdth,wght.ttf")
+    }
 
     body {
         font-family: Roboto, serif;
@@ -199,17 +200,74 @@
         font-weight: 500;
         margin-bottom: 10px;
     }
+    .updated-info {
+        font-size: 12px;
+        margin-top: 10px;
+        color: gray;
+    }
 </style>
-<body>
-    <div class="schedule-header">Графік відключеннь:</div>
+<body id="body">
+    <div id="schedule-header" class="schedule-header">Графік відключеннь:</div>
     <table>
         <thead>
             <tr id="header-row">
-                <th class="first-column">{{group}}</th>              
+                <th class="first-column">Група 1.1</th>
+                <th class="timezone">00-01</th>
+                <th class="timezone">01-02</th>
+                <th class="timezone">02-03</th>
+                <th class="timezone">03-04</th>
+                <th class="timezone">04-05</th>
+                <th class="timezone">05-06</th>
+                <th class="timezone">06-07</th>
+                <th class="timezone">07-08</th>
+                <th class="timezone">08-09</th>
+                <th class="timezone">09-10</th>
+                <th class="timezone">10-11</th>
+                <th class="timezone">11-12</th>
+                <th class="timezone">12-13</th>
+                <th class="timezone">13-14</th>
+                <th class="timezone">14-15</th>
+                <th class="timezone">15-16</th>
+                <th class="timezone">16-17</th>
+                <th class="timezone">17-18</th>
+                <th class="timezone">18-19</th>
+                <th class="timezone">19-20</th>
+                <th class="timezone">20-21</th>
+                <th class="timezone">21-22</th>
+                <th class="timezone">22-23</th>
+                <th class="timezone">23-00</th>
             </tr>
         </thead>
         <tbody id="schedule-body">
+            <tr>
+                <td class="first-column">26.10.25</td>
+                <td class="yes"></td>
+                <td class=""></td>   
+                <td class="no"></td>
+                <td class=""></td>   
+                <td class="mfirst"></td>
+                <td class=""></td>   
+                <td class="first"></td>
+                <td class=""></td>   
+                <td class="second"></td>
+                <td class=""></td>   
+                <td class="msecond"></td>
+                <td class=""></td>   
+                <td class="maybe"></td>     
+                <td class=""></td>  
+                <td class="yes"></td>
+                <td class=""></td>   
+                <td class="no"></td>
+                <td class=""></td>   
+                <td class="mfirst"></td>
+                <td class=""></td>   
+                <td class="first"></td>
+                <td class=""></td>   
+                <td class="second"></td>
+                <td class=""></td>    
+            </tr>
         </tbody>
     </table>
+    <div id="updated-info" class="updated-info">Оновлено: 26.10.25 10:59</div>
 </body>
 </html>

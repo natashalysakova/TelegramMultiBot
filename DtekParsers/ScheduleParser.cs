@@ -17,7 +17,7 @@ public class ScheduleParser
         }
 
         var imageBytes = await ScheduleImageGenerator.GenerateRealScheduleSingleGroupImage(groupSchedule);
-        
+
         return imageBytes;
     }
 
@@ -26,18 +26,24 @@ public class ScheduleParser
     {
         var html = await GetHtmlFromUrl(url);
 
-
         var realVariableJobject = GetJsonFromScriptVariables(html, "DisconSchedule.fact");
         var presetVariableJobject = GetJsonFromScriptVariables(html, "DisconSchedule.preset");
 
         var timeZones = GetTimeZones(presetVariableJobject);
-        var gropus = GetGroups(presetVariableJobject);
+        var groups = GetGroups(presetVariableJobject);
 
-        FillRealSchedule(gropus, timeZones, realVariableJobject);
-        FillPlannedSchedule(gropus, timeZones, presetVariableJobject);
+        FillRealSchedule(groups, timeZones, realVariableJobject);
+        FillPlannedSchedule(groups, timeZones, presetVariableJobject);
 
+        var updatedFact = DateTime.ParseExact(realVariableJobject["update"].ToString(), "dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
 
-        return gropus;
+        var udpatedPreset = DateTime.ParseExact(presetVariableJobject["updateFact"].ToString(), "dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+        foreach (var group in groups)
+        {
+            group.Updated = updatedFact != DateTime.MinValue ? updatedFact : udpatedPreset;
+        }
+
+        return groups;
     }
 
     private void FillPlannedSchedule(List<GroupSchedule> gropus, Dictionary<string, ScheduleTimeZone> timeZones, JObject presetVariableJobject)
@@ -58,7 +64,8 @@ public class ScheduleParser
                 schedule.PlannedSchedule.Add(new ScheduleDay()
                 {
                     DayNumber = int.Parse(day.Name),
-                    Items = GetScheduleStatuses(day.Value, timeZones)
+                    Items = GetScheduleStatuses(day.Value, timeZones),
+                    Group = schedule.GroupName,
                 });
             }
         }
@@ -83,7 +90,8 @@ public class ScheduleParser
                 schedule.RealSchedule.Add(new RealScheduleDay()
                 {
                     Date = UnixTimeStampToDateTime(dayTimestamp),
-                    Items = GetScheduleStatuses(group.Value, timezones)
+                    Items = GetScheduleStatuses(group.Value, timezones),
+                    Group = schedule.GroupName,
                 });
             }
         }

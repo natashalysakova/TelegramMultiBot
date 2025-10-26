@@ -41,15 +41,39 @@ public class MonitorDtekTests
     }
 
     [TestMethod]
-    public async Task RealScheduleSingleGroupImageReady()
+    public async Task Image_RealScheduleSingleGroupImageReady()
     {
         var parser = new ScheduleParser();
 
         var schedule = await parser.Parse("https://www.dtek-krem.com.ua/ua/shutdowns");
 
-        var image = await ScheduleImageGenerator.GenerateRealScheduleSingleGroupImage(schedule.ElementAt(1));
+        var image = await ScheduleImageGenerator.GenerateRealScheduleSingleGroupImage(schedule.ElementAt(6));
 
         File.WriteAllBytes("img.png", image);
+    }
+
+    [TestMethod]
+    public async Task Image_GenerateAllGroupsRealScheduleImageReady()
+    {
+        var parser = new ScheduleParser();
+
+        var schedule = await parser.Parse("https://www.dtek-krem.com.ua/ua/shutdowns");
+
+        var image = await ScheduleImageGenerator.GenerateAllGroupsRealSchedule(schedule);
+
+        File.WriteAllBytes("all.png", image);
+    }
+
+    [TestMethod]
+    public async Task Image_GeneratePlannedScheduleSingleGroupImageReady()
+    {
+        var parser = new ScheduleParser();
+
+        var schedule = await parser.Parse("https://www.dtek-krem.com.ua/ua/shutdowns");
+
+        var image = await ScheduleImageGenerator.GeneratePlannedScheduleSingleGroup(schedule.First());
+
+        File.WriteAllBytes("single.png", image);
     }
 
     private static MonitorService CreateService()
