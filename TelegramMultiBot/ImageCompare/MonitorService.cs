@@ -1,5 +1,6 @@
 ﻿using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
+using DtekParsers;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -26,53 +27,6 @@ namespace TelegramMultiBot.ImageCompare
             _logger = logger;
             _dbservice = dbservice;
         }
-
-        //https://www.dtek-krem.com.ua/media/page/page-chart-8596-1050.jpg
-        //public void Run(CancellationToken token)
-        //{
-        //    _cancellationToken = token;
-        //    _ = Task.Run(async () =>
-        //    {
-        //        while (!_cancellationToken.IsCancellationRequested)
-        //        {
-        //            var activeJobs = _dbservice.GetActiveJobs();
-
-        //            foreach (var activeJob in activeJobs)
-        //            {
-        //                bool isTheSame;
-        //                string? localFilePath;
-        //                try
-        //                {
-        //                    isTheSame = Compare(activeJob, out localFilePath);
-        //                }
-        //                catch(KeyNotFoundException ex)
-        //                {
-        //                    _logger.LogError($"{activeJob.Id} {activeJob.Url} failed:" + ex.Message);
-        //                    continue;
-        //                }
-        //                catch (Exception ex)
-        //                {
-        //                    _dbservice.DisableJob(activeJob, ex.Message);
-        //                    _logger.LogError($"{activeJob.Id} {activeJob.Url} disabled:" + ex.Message);
-        //                    continue;
-        //                }
-
-        //                if (!isTheSame && localFilePath != null)
-        //                {
-        //                    ReadyToSend(activeJob.ChatId, localFilePath);
-        //                }
-        //                else
-        //                {
-        //                    _logger.LogTrace("shedule is the same");
-        //                }
-        //                _dbservice.UpdateNextRun(activeJob);
-        //                await Task.Delay(500);
-        //            }
-        //            await Task.Delay(TimeSpan.FromSeconds(1));
-        //        }
-        //    }, token);
-        //}
-
         public void Run(CancellationToken token)
         {
             _cancellationToken = token;
@@ -94,10 +48,15 @@ namespace TelegramMultiBot.ImageCompare
                         }
 
                         bool isTheSame;
-                        IList<string> localFilePath;
+
+                        List<GroupSchedule> schedule;
                         try
                         {
-                            isTheSame = Compare(group.Key, out localFilePath);
+                            schedule = await new ScheduleParser().Parse(group.Key);
+
+                            var updateTime = schedule.First().Updated;
+
+                            isTheSame = group.All(x => x.LastScheduleUpdate == updateTime);
                         }
                         catch (KeyNotFoundException ex)
                         {
@@ -111,21 +70,35 @@ namespace TelegramMultiBot.ImageCompare
                             continue;
                         }
 
-                        if (!isTheSame && localFilePath != null)
+                        if (!isTheSame && schedule != null)
                         {
                             string caption = $"Оновлений графік {GetLocation(group.Key)} станом на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
 
-                            foreach (var job in group)
+                            try
                             {
-                                foreach (var image in localFilePath)
-                                {
-                                    if (!sendList.ContainsKey(job.ChatId))
-                                        sendList.Add(job.ChatId, new List<(string file, string caption)>() { (image, caption) });
-                                    else 
-                                        sendList[job.ChatId].Add((image, caption) );
-                                }
-                            }
 
+                                var imagePathList = await GetImagePathList(group.Key, schedule);
+                                var updateTime = schedule.First().Updated;
+
+                                foreach (var job in group)
+                                {
+                                    foreach (var image in imagePathList)
+                                    {
+                                        if (!sendList.ContainsKey(job.ChatId))
+                                            sendList.Add(job.ChatId, new List<(string file, string caption)>() { (image, caption) });
+                                        else
+                                            sendList[job.ChatId].Add((image, caption));
+                                    }
+                                }
+
+                                UpdateLastSendScheduleTime(group, updateTime);
+
+                            }
+                            catch (Exception ex)
+                            {
+                                _logger.LogError(ex.Message);
+                                continue;
+                            }
                         }
                         else
                         {
@@ -143,6 +116,30 @@ namespace TelegramMultiBot.ImageCompare
                     await Task.Delay(TimeSpan.FromSeconds(30));
                 }
             }, token);
+        }
+
+        private async Task<string[]> GetImagePathList(string url, List<GroupSchedule> schedule)
+        {
+            var baseDirectory = "monitor";
+
+            var folder = Path.Combine(baseDirectory, "url_" + ConvertUrlToValidFilename(url));
+
+
+            if (Directory.Exists(folder))
+            {
+                var files = Directory.EnumerateFiles(folder);
+                foreach (var file in files)
+                {
+                    File.Delete(file);
+                }
+            }
+            else
+            {
+                Directory.CreateDirectory(folder);
+            }
+            var imageBytes = await ScheduleImageGenerator.GenerateAllGroupsRealSchedule(schedule);
+
+            return [SaveFile(folder, imageBytes)];
         }
 
         private static string GetLocation(string url)
@@ -244,66 +241,6 @@ namespace TelegramMultiBot.ImageCompare
             return Regex.Replace(filename, $"[{Regex.Escape(invalidCharsPattern)}]", "_");
         }
 
-        //private bool Compare(MonitorJob activeJob, out string? localFilePath)
-        //{
-        //    var baseDirectory = "monitor";
-
-        //    var folder = Path.Combine(baseDirectory, "chat_" + activeJob.ChatId);
-
-        //    if (Directory.Exists(folder) && Directory.EnumerateFiles(folder).Any())
-        //    {
-        //        byte[] img = GetBytes(activeJob);
-
-        //        var lastFile = Directory.EnumerateFiles(folder).Order().Last();
-        //        var img2 = File.ReadAllBytes(lastFile);
-
-        //        if (ImageComparator.Compare(img, img2))
-        //        {
-        //            localFilePath = null;
-        //            return true;
-        //        }
-        //        else
-        //        {
-        //            localFilePath = SaveFile(activeJob.Url, folder, img);
-        //            return false;
-        //        }
-        //    }
-        //    else
-        //    {
-        //        if(!Directory.Exists(folder))
-        //        {
-        //            Directory.CreateDirectory(folder);
-        //        }
-
-        //        byte[] img = GetBytes(activeJob);
-
-        //        localFilePath = SaveFile(activeJob.Url, folder, img);
-        //        return false;
-        //    }
-        //}
-
-        //private static byte[] GetBytes(MonitorJob activeJob)
-        //{
-        //    HttpClient client = new HttpClient();
-
-        //    var urlToUse = activeJob.Url;
-        //    if (activeJob.IsDtekJob)
-        //    {
-        //        var htmltask = client.GetStringAsync(activeJob.Url);
-        //        htmltask.Wait();
-        //        urlToUse = ParsePage(htmltask.Result);
-
-        //        Uri uri = new Uri(activeJob.Url);
-        //        urlToUse = $"{uri.Scheme}://{uri.Host}{urlToUse}";
-        //    }
-
-
-
-        //    var task = client.GetByteArrayAsync(urlToUse);
-        //    task.Wait();
-        //    return task.Result;
-        //}
-
         private static byte[] GetBytes(string url)
         {
             HttpClient client = new HttpClient();
@@ -347,6 +284,16 @@ namespace TelegramMultiBot.ImageCompare
 
             return url?.Select(x => x.GetAttribute("src"));
 
+        }
+
+        private static string SaveFile(string folder, byte[] bytes)
+        {
+            var extention = ".png";
+            var filename = DateTime.Now.ToString("yyyyMMddHHmmssfff") + extention;
+            var filePath = Path.Combine(folder, filename);
+            File.WriteAllBytes(filePath, bytes);
+            Console.WriteLine(Path.GetFullPath(filePath));
+            return filePath;
         }
 
         private static string SaveFile(string url, string folder, byte[] bytes)
@@ -410,6 +357,23 @@ namespace TelegramMultiBot.ImageCompare
             }
         }
 
+        internal bool SendExisiting(long chatId, string region)
+        {
+            var job = _dbservice.Jobs.Where(x => x.Url == GetFromRegion(region)).FirstOrDefault();
+            if(job is null)
+            {
+                return false;
+            }
+
+            var info = GetInfo(job.Id);
+
+            if (info == default)
+                return false;
+
+            ReadyToSend?.Invoke(chatId, new List<(string filename, string caption)>() { (info.filename, info.caption) });
+            return true;
+        }
+
         internal bool SendExisiting(int jobAdded)
         {
             var info = GetInfo(jobAdded);
@@ -456,7 +420,15 @@ namespace TelegramMultiBot.ImageCompare
             _dbservice.SaveChanges();
         }
 
+        public void UpdateLastSendScheduleTime(IGrouping<string, MonitorJob> jobs, DateTime updateTime)
+        {
+            foreach (var job in jobs)
+            {
+                job.LastScheduleUpdate = updateTime;
+            }
 
+            _dbservice.SaveChanges();
+        }
 
 
 
@@ -472,9 +444,6 @@ namespace TelegramMultiBot.ImageCompare
             DisableJobs(jobs, reason);
             return true;
         }
-
-
-
 
         public void DisableJob(long chatId, string reason)
         {
@@ -503,5 +472,9 @@ namespace TelegramMultiBot.ImageCompare
             return _dbservice.Jobs.Where(x => x.ChatId == chatId && x.IsActive);
         }
 
+        internal bool IsSubscribed(long id, string region)
+        {
+            return _dbservice.Jobs.Any(x => x.ChatId == id && x.Url == GetFromRegion(region) && x.IsActive);
+        }
     }
 }

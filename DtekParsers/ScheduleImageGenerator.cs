@@ -9,55 +9,44 @@ public class ScheduleImageGenerator
 {
     public static async Task<byte[]> GenerateRealScheduleSingleGroupImage(GroupSchedule groupSchedule)
     {
-        //return await GenerateSchedule(
-        //    "Графік відключень",
-        //    groupSchedule.GroupName,
-        //    groupSchedule.Updated,
-        //    groupSchedule.RealSchedule.Cast<BaseScheduleDay>().ToList(),
-        //    "real");
-
         var html = await GenerateScheduleBody(
-            "Графік відключень",
-            groupSchedule.GroupName,
+            $"Графік відключень {groupSchedule.Location} {groupSchedule.GroupName}",
             groupSchedule.RealSchedule.First().Items.Keys.ToList(),
             groupSchedule.Updated,
             groupSchedule.RealSchedule.Cast<BaseScheduleDay>().ToList());
 
-        return await GetHtmlImage(html, ViewportSize.SingleGroup);
+        var images = await GetHtmlImage([html], groupSchedule.RealSchedule.Count);
+        return images.First();
     }
 
     public static async Task<byte[]> GeneratePlannedScheduleSingleGroup(GroupSchedule groupSchedule)
     {
-        //return await GenerateSchedule(
-        //    "Графік можливих відключень",
-        //    groupSchedule.GroupName,
-        //    groupSchedule.Updated,
-        //    groupSchedule.PlannedSchedule.Cast<BaseScheduleDay>().ToList(),
-        //    "planned");
         var html = await GenerateScheduleBody(
-            "Графік можливих відключень",
-            groupSchedule.GroupName,
+            $"Графік можливих відключень {groupSchedule.Location} {groupSchedule.GroupName}",
             groupSchedule.PlannedSchedule.First().Items.Keys.ToList(),
             groupSchedule.Updated,
             groupSchedule.PlannedSchedule.Cast<BaseScheduleDay>().ToList());
 
-        return await GetHtmlImage(html, ViewportSize.AllGroups);
+        var images = await GetHtmlImage([html], groupSchedule.PlannedSchedule.Count);
+        return images.First();
 
     }
 
     public static async Task<byte[]> GenerateAllGroupsRealSchedule(List<GroupSchedule> groupSchedule)
     {
-        var html = await GenerateScheduleBody(
-            "Графік відключень по групах",
-            "Часові проміжки",
-            groupSchedule.First().RealSchedule.First().Items.Keys.ToList(),
-            groupSchedule.Max(x => x.Updated),
-            groupSchedule.Select(x=> x.RealSchedule.First()).Cast<BaseScheduleDay>().ToList(), true);
+        var group = groupSchedule.First();
 
-        return await GetHtmlImage(html, ViewportSize.AllGroups);
+        var html = await GenerateScheduleBody(
+            $"Графік відключень {group.RealSchedule.First().DateHeader} {groupSchedule.First().Location}",
+            group.RealSchedule.First().Items.Keys.ToList(),
+            groupSchedule.Max(x => x.Updated),
+            groupSchedule.Select(x => x.RealSchedule.First()).Cast<BaseScheduleDay>().ToList(), true);
+
+        var images = await GetHtmlImage([html], groupSchedule.Count);
+        return images.First();
     }
 
-    private static async Task<string> GenerateScheduleBody(string title, string firstColumnTitle, List<ScheduleTimeZone> timeZones, DateTime updated, List<BaseScheduleDay> schedule, bool useGroupHeader = false)
+    private static async Task<string> GenerateScheduleBody(string title, List<ScheduleTimeZone> timeZones, DateTime updated, List<BaseScheduleDay> schedule, bool useGroupHeader = false)
     {
         var doc = new HtmlDocument();
 
@@ -68,7 +57,7 @@ public class ScheduleImageGenerator
 
         var headerRow = doc.GetElementbyId("header-row");
         headerRow.ChildNodes.Clear();
-        headerRow.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{firstColumnTitle}</td>"));
+        headerRow.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">Часові проміжки</td>"));
         foreach (var timezone in timeZones)
         {
             headerRow.AppendChild(HtmlNode.CreateNode($"<th class=\"timezone\">{timezone.Short}</th>"));
@@ -95,6 +84,17 @@ public class ScheduleImageGenerator
 
             tableBody.AppendChild(dayRowNode);
         }
+        
+        HtmlNode legendToRemove;
+        if (schedule.Any(x=>x.Items.Any(y=>y.Value != ScheduleStatus.maybe)))
+        {
+            legendToRemove = doc.GetElementbyId("legend-planned");
+        }
+        else
+        {
+            legendToRemove = doc.GetElementbyId("legend-real");
+        }
+        legendToRemove.Remove();
 
         var updatedInfo = doc.GetElementbyId("updated-info");
         updatedInfo.InnerHtml = $"Оновлено: {updated.ToString("dd.MM.yyyy HH:mm")}";
@@ -103,7 +103,7 @@ public class ScheduleImageGenerator
         return doc.DocumentNode.OuterHtml;
     }
 
-    private static async Task<byte[]> GetHtmlImage(string html, ViewportSize viewportSize)
+    private static async Task<IEnumerable<byte[]>> GetHtmlImage(string[] html, int rowNumber)
     {
         int retry = 0;
         var maxretry = 3;
@@ -120,26 +120,28 @@ public class ScheduleImageGenerator
                 });
 
                 await using var page = await browser.NewPageAsync();
-
-                var viewPortOptions = viewportSize == ViewportSize.SingleGroup
-                    ? new ViewPortOptions
-                    {
-                        Width = 2500,
-                        Height = 440,
-                    }
-                    : new ViewPortOptions
-                    {
-                        Width = 1500,
-                        Height = 760,
-                    };
+                var viewPortOptions = new ViewPortOptions
+                {
+                    Width = 1000,
+                    Height = (175 + (rowNumber * 35))*2,
+                    DeviceScaleFactor = 1.5
+                };
 
                 await page.SetViewportAsync(viewPortOptions);
-                await page.SetContentAsync(html);
-                await page.EvaluateFunctionAsync("() => document.body.style.zoom = 2");
-                return await page.ScreenshotDataAsync(new ScreenshotOptions
+
+                var images = new List<byte[]>();
+                foreach (var part in html)
                 {
-                    Type = ScreenshotType.Png
-                });
+                    await page.SetContentAsync(part);
+                    var selctor = await page.WaitForSelectorAsync("#body");
+                    images.Add(await selctor.ScreenshotDataAsync(new ElementScreenshotOptions
+                    {
+                        Type = ScreenshotType.Png,
+                        CaptureBeyondViewport = true,
+                    }));
+                }
+
+                return images;
             }
             catch (Exception ex)
             {
@@ -151,10 +153,4 @@ public class ScheduleImageGenerator
 
         throw new Exception("Cannot make a screenshot of page");
     }
-}
-
-enum ViewportSize
-{
-    SingleGroup,
-    AllGroups
 }

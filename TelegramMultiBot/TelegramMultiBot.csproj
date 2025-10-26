@@ -73,6 +73,7 @@
 	</ItemGroup>
 
 	<ItemGroup>
+	  <ProjectReference Include="..\DtekParsers\DtekParsers.csproj" />
 	  <ProjectReference Include="..\TelegramMultiBot.Database\TelegramMultiBot.Database.csproj" />
 	</ItemGroup>
 
@@ -132,6 +133,18 @@
     <None Update="restart.sh">
       <CopyToOutputDirectory>Always</CopyToOutputDirectory>
     </None>
+    <None Update="Templates\Roboto-VariableFont_wdth,wght.ttf">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+    <None Update="Templates\template.html">
+      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+    </None>
+  </ItemGroup>
+
+		
+  <ItemGroup>
+    <Folder Include="monitor\url_www.dtek-kem.com.ua_ua_shutdowns\" />
+    <Folder Include="monitor\url_www.dtek-krem.com.ua_ua_shutdowns\" />
   </ItemGroup>
 
 </Project>

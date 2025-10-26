@@ -39,43 +39,6 @@ public class MonitorDtekTests
             Assert.IsTrue(group.PlannedSchedule.Count == 7);
         }
     }
-
-    [TestMethod]
-    public async Task Image_RealScheduleSingleGroupImageReady()
-    {
-        var parser = new ScheduleParser();
-
-        var schedule = await parser.Parse("https://www.dtek-krem.com.ua/ua/shutdowns");
-
-        var image = await ScheduleImageGenerator.GenerateRealScheduleSingleGroupImage(schedule.ElementAt(6));
-
-        File.WriteAllBytes("img.png", image);
-    }
-
-    [TestMethod]
-    public async Task Image_GenerateAllGroupsRealScheduleImageReady()
-    {
-        var parser = new ScheduleParser();
-
-        var schedule = await parser.Parse("https://www.dtek-krem.com.ua/ua/shutdowns");
-
-        var image = await ScheduleImageGenerator.GenerateAllGroupsRealSchedule(schedule);
-
-        File.WriteAllBytes("all.png", image);
-    }
-
-    [TestMethod]
-    public async Task Image_GeneratePlannedScheduleSingleGroupImageReady()
-    {
-        var parser = new ScheduleParser();
-
-        var schedule = await parser.Parse("https://www.dtek-krem.com.ua/ua/shutdowns");
-
-        var image = await ScheduleImageGenerator.GeneratePlannedScheduleSingleGroup(schedule.First());
-
-        File.WriteAllBytes("single.png", image);
-    }
-
     private static MonitorService CreateService()
     {
         var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<MonitorService>();
@@ -87,5 +50,52 @@ public class MonitorDtekTests
 
         return new MonitorService(logger, database);
     }
+}
+
+[TestClass]
+public class  ImageGenerationTests
+{
+    [TestMethod]
+    [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns", "kem.img.png")]
+    [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "krem.img.png")]
+    public async Task Image_RealScheduleSingleGroupImageReady(string url, string fileName)
+    {
+        var parser = new ScheduleParser();
+
+        var schedule = await parser.Parse(url);
+
+        var image = await ScheduleImageGenerator.GenerateRealScheduleSingleGroupImage(schedule.ElementAt(6));
+
+        File.WriteAllBytes(fileName, image);
+    }
+
+    [TestMethod]
+    [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns", "kem.all.png")]
+    [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "krem.all.png")]
+    public async Task Image_GenerateAllGroupsRealScheduleImageReady(string url, string fileName)
+    {
+        var parser = new ScheduleParser();
+
+        var schedule = await parser.Parse(url);
+
+        var image = await ScheduleImageGenerator.GenerateAllGroupsRealSchedule(schedule);
+
+        File.WriteAllBytes(fileName, image);
+    }
+
+    [TestMethod]
+    [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns", "kem.single.png")]
+    [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "krem.single.png")]
+    public async Task Image_GeneratePlannedScheduleSingleGroupImageReady(string url, string fileName)
+    {
+        var parser = new ScheduleParser();
+
+        var schedule = await parser.Parse(url);
+
+        var image = await ScheduleImageGenerator.GeneratePlannedScheduleSingleGroup(schedule.First());
+
+        File.WriteAllBytes(fileName, image);
+    }
+
 }
 

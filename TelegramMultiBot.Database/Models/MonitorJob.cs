@@ -18,6 +18,7 @@ namespace TelegramMultiBot.Database.Models
         public bool IsActive { get; set; } = true;
         public string? DeactivationReason { get; set; }
         public DateTime NextRun { get; set; }
+        public DateTime? LastScheduleUpdate { get; set; }
 
     }
 }

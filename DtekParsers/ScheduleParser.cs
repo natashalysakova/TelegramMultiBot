@@ -26,11 +26,13 @@ public class ScheduleParser
     {
         var html = await GetHtmlFromUrl(url);
 
+        var location = GetLocationByUrl(url);
+
         var realVariableJobject = GetJsonFromScriptVariables(html, "DisconSchedule.fact");
         var presetVariableJobject = GetJsonFromScriptVariables(html, "DisconSchedule.preset");
 
         var timeZones = GetTimeZones(presetVariableJobject);
-        var groups = GetGroups(presetVariableJobject);
+        var groups = GetGroups(presetVariableJobject, location);
 
         FillRealSchedule(groups, timeZones, realVariableJobject);
         FillPlannedSchedule(groups, timeZones, presetVariableJobject);
@@ -44,6 +46,17 @@ public class ScheduleParser
         }
 
         return groups;
+    }
+
+    private string GetLocationByUrl(string url)
+    {
+        var location = url switch
+        {
+            "https://www.dtek-kem.com.ua/ua/shutdowns" => "м.Київ",
+            "https://www.dtek-krem.com.ua/ua/shutdowns" => "Київська область",
+            _ => throw new NotImplementedException(),
+        };
+        return location;
     }
 
     private void FillPlannedSchedule(List<GroupSchedule> gropus, Dictionary<string, ScheduleTimeZone> timeZones, JObject presetVariableJobject)
@@ -107,7 +120,7 @@ public class ScheduleParser
         return JObject.Parse(groupsLine);
     }
 
-    private List<GroupSchedule> GetGroups(JObject presetJson)
+    private List<GroupSchedule> GetGroups(JObject presetJson, string location)
     {
 
         var result = new List<GroupSchedule>();
@@ -120,7 +133,8 @@ public class ScheduleParser
             {
                 Id = group.Name,
                 GroupName = group.Value.ToString(),
-                Updated = DateTime.Now
+                Updated = DateTime.Now,
+                Location = location,
             };
             result.Add(groupSchedule);
         }

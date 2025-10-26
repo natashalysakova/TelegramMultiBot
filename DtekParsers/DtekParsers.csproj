@@ -12,10 +12,4 @@
     <PackageReference Include="PuppeteerSharp" Version="20.2.4" />
   </ItemGroup>
 
-  <ItemGroup>
-    <None Update="Templates\template.html">
-      <CopyToOutputDirectory>Always</CopyToOutputDirectory>
-    </None>
-  </ItemGroup>
-
 </Project>
