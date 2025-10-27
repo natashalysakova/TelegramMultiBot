@@ -138,8 +138,8 @@ public class ScheduleImageGenerator
                 foreach (var part in html)
                 {
                     await page.SetContentAsync(part);
-                    var selctor = await page.WaitForSelectorAsync("#body");
-                    images.Add(await selctor.ScreenshotDataAsync(new ElementScreenshotOptions
+                    var selector = await page.WaitForSelectorAsync("#body");
+                    images.Add(await selector.ScreenshotDataAsync(new ElementScreenshotOptions
                     {
                         Type = ScreenshotType.Png,
                         CaptureBeyondViewport = true,
