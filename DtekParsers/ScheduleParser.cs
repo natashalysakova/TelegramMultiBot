@@ -59,20 +59,20 @@ public class ScheduleParser
         return location;
     }
 
-    private void FillPlannedSchedule(List<GroupSchedule> gropus, Dictionary<string, ScheduleTimeZone> timeZones, JObject presetVariableJobject)
+    private void FillPlannedSchedule(List<GroupSchedule> groups, Dictionary<string, ScheduleTimeZone> timeZones, JObject presetVariableJobject)
     {
         if (presetVariableJobject is null)
         {
             throw new ParseException("Planned schedule JSON is null");
         }
 
-        var groups = presetVariableJobject["data"]?.Children();
+        var groupsData = presetVariableJobject["data"]?.Children();
 
-        foreach (JProperty group in groups)
+        foreach (JProperty group in groupsData)
         {
             foreach (JProperty day in group.Value)
             {
-                var schedule = gropus.First(x => x.Id == group.Name);
+                var schedule = groups.First(x => x.Id == group.Name);
 
                 schedule.PlannedSchedule.Add(new ScheduleDay()
                 {
