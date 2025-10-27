@@ -86,7 +86,7 @@ public class ScheduleImageGenerator
         }
         
         HtmlNode legendToRemove;
-        if (schedule.Any(x=>x.Items.Any(y=>y.Value != ScheduleStatus.maybe)))
+        if (schedule.Any(x => x.Items.Any(y => y.Value != ScheduleStatus.maybe)))
         {
             legendToRemove = doc.GetElementbyId("legend-planned");
         }
