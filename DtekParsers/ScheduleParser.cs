@@ -63,7 +63,7 @@ public class ScheduleParser
     {
         if (presetVariableJobject is null)
         {
-            throw new ParseException("Fact schedule JSON is null");
+            throw new ParseException("Planned schedule JSON is null");
         }
 
         var groups = presetVariableJobject["data"]?.Children();
