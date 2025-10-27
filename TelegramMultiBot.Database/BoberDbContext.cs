@@ -31,7 +31,7 @@ namespace TelegramMultiBot.Database
         public BoberDbContext CreateDbContext(string[] args)
         {
             IConfigurationRoot configuration = new ConfigurationBuilder()
-                .AddJsonFile("appsettings.json")
+                .AddJsonFile("appsettings-design.json")
                 .Build();
 
             var optionsBuilder = new DbContextOptionsBuilder<BoberDbContext>();
