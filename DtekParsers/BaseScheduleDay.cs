@@ -1,6 +1,4 @@
 ﻿using System.Globalization;
-using System.Security.Cryptography;
-
 namespace DtekParsers;
 
 public abstract class BaseScheduleDay
