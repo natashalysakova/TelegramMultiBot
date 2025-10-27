@@ -1,0 +1,348 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document</title>
+</head>
+<style>
+    :root {
+        --border-color: rgb(190, 190, 190);
+        --no-background: rgb(211, 211, 211);
+        --no-background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE1Ljg3NSAxNS4wODE4TDAuOTE4MTI1IDAuMTI0OTU3TDAuMTI1IDAuOTE4MDgyTDMuNzI1IDQuNTIzNzFMMi45Mzc1IDcuODcwNThDMi45MTc2NSA3Ljk1NDQzIDIuOTE3MzMgOC4wNDE3MSAyLjkzNjU2IDguMTI1N0MyLjk1NTc5IDguMjA5NjkgMi45OTQwNiA4LjI4ODE1IDMuMDQ4NDIgOC4zNTVDMy4xMDI3NyA4LjQyMTg2IDMuMTcxNzYgOC40NzUzMyAzLjI1MDA2IDguNTExM0MzLjMyODM1IDguNTQ3MjcgMy40MTM4NyA4LjU2NDc3IDMuNSA4LjU2MjQ2SDYuMjE2ODhMNS4xODc1IDE1LjIyODFDNS4xNjg5MiAxNS4zNTE2IDUuMTkyMDEgMTUuNDc3OSA1LjI1MzEyIDE1LjU4NjhDNS4zMTQyMyAxNS42OTU4IDUuNDA5ODkgMTUuNzgxNCA1LjUyNSAxNS44M0M1LjU5NjUgMTUuODU5IDUuNjcyODQgMTUuODc0MiA1Ljc1IDE1Ljg3NUM1LjgzNTkgMTUuODc0NyA1LjkyMDYyIDE1Ljg1NDkgNS45OTc2NSAxNS44MTY4QzYuMDc0NjggMTUuNzc4OCA2LjE0MTk3IDE1LjcyMzcgNi4xOTQzOCAxNS42NTU2TDkuOTUxODcgMTAuNzQ1TDE1LjA4MTkgMTUuODc1TDE1Ljg3NSAxNS4wODE4Wk0xMS42NzMxIDguNDg5MzNMMTMuNTA2OSA2LjA5MzA4QzEzLjU2NiA2LjAxMzE1IDEzLjYwMjggNS45MTg5OSAxMy42MTM3IDUuODIwMThDMTMuNjI0NiA1LjcyMTM3IDEzLjYwOTEgNS42MjE0NSAxMy41Njg3IDUuNTMwNThDMTMuNTI2NSA1LjQzMDY1IDEzLjQ1NjIgNS4zNDUwOSAxMy4zNjYzIDUuMjg0MjFDMTMuMjc2NSA1LjIyMzMzIDEzLjE3MSA1LjE4OTczIDEzLjA2MjUgNS4xODc0NkgxMC4zOTA2TDExLjM3NSAwLjgxMTIwN0MxMS4zOTM2IDAuNzI4MTkyIDExLjM5MzIgMC42NDIwMzMgMTEuMzczNyAwLjU1OTIxNkMxMS4zNTQyIDAuNDc2Mzk5IDExLjMxNjIgMC4zOTkwODEgMTEuMjYyNSAwLjMzMzA4MkMxMS4yMDg0IDAuMjY2MzE4IDExLjEzOTcgMC4yMTI4NDQgMTEuMDYxNyAwLjE3Njc2NkMxMC45ODM3IDAuMTQwNjg3IDEwLjg5ODQgMC4xMjI5NjQgMTAuODEyNSAwLjEyNDk1N0g1LjE4NzVDNS4wNTgyNCAwLjEyMTUwMSA0LjkzMTc0IDAuMTYyNjgzIDQuODI5MjkgMC4yNDE1NzFDNC43MjY4NCAwLjMyMDQ1OCA0LjY1NDY5IDAuNDMyMjM0IDQuNjI1IDAuNTU4MDgyTDQuNDU2MjUgMS4yODkzM0wxMS42NzMxIDguNDg5MzNaIiBmaWxsPSIjMTEyMDNFIi8+Cjwvc3ZnPg==");
+        --yes-background: white;
+        --yes-background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTExLjkwMzkgOC40OTU1M0w0LjQyNTcxIDEuMTgyODFMMy43NDg3NSA0LjQ2NzgyTDMuMDE2OTkgNy44NjcwOUMyLjk5ODUzIDcuOTUyMjUgMi45OTk5OSA4LjA0MDkgMy4wMjEyMyA4LjEyNjIxQzMuMDQyNDggOC4yMTE1MSAzLjA4Mjk2IDguMjkxMTkgMy4xMzk1NCA4LjM1OTFDMy4xOTYxMiA4LjQyNyAzLjI2NzI5IDguNDgxMzEgMy4zNDc1NiA4LjUxNzg1QzMuNDI3ODQgOC41NTQzOCAzLjUxNTA2IDguNTcyMTUgMy42MDI1MiA4LjU2OThINi4zNjI1Mkw1LjQ1MjY2IDE1LjMzOThDNS40MzYzIDE1LjQ2NTMgNS40NjIzMiAxNS41OTM1IDUuNTI2NjMgMTUuNzA0MkM1LjU5MDkzIDE1LjgxNDkgNS42ODk4NSAxNS45MDE3IDUuODA3NzggMTUuOTUxMUM1Ljg4MTAxIDE1Ljk4MDYgNS45NTg4NyAxNS45OTYxIDYuMDM3MjcgMTUuOTk2OEM2LjEyNDUzIDE1Ljk5NjYgNi4yMTAxOSAxNS45NzY0IDYuMjg3NjYgMTUuOTM3OEM2LjM2NTE0IDE1Ljg5OTEgNi40MzIzOCAxNS44NDMxIDYuNDg0MjMgMTUuNzc0TDEwLjIwMTMgMTAuNzg2NUwxMS45MDM5IDguNDk1NTNaTTExLjkwMzkgOC40OTU1M0wxMy43MTc5IDYuMDYxNzZDMTMuNzc2MyA1Ljk4MDU4IDEzLjgxMTggNS44ODQ5NCAxMy44MjA5IDUuNzg0NTlDMTMuODI5OSA1LjY4NDIzIDEzLjgxMjEgNS41ODI3NSAxMy43NjkzIDUuNDkwNDZDMTMuNzI0MyA1LjM4ODk2IDEzLjY1MTEgNS4zMDIwNiAxMy41NTg2IDUuMjQwMjNDMTMuNDY2MiA1LjE3ODM5IDEzLjM1ODMgNS4xNDQyNyAxMy4yNDggNS4xNDE5NkwxMC41MzM3IDUuMTQxOTZMMTEuNDQ0NSAwLjY5NzE5OEMxMS40NjE4IDAuNjEyODg0IDExLjQ1OTYgMC41MjUzNzYgMTEuNDM4MSAwLjQ0MTI2MkMxMS40MTY2IDAuMzU3MTQ4IDExLjM3NjQgMC4yNzg2MiAxMS4zMjA1IDAuMjExNTg3QzExLjI2NDIgMC4xNDM3NzggMTEuMTkzMyAwLjA4OTQ2NyAxMS4xMTMzIDAuMDUyODIzOUMxMS4wMzMzIDAuMDE2MTgwOCAxMC45NDY0IC0wLjAwMTgxOTgzIDEwLjg1OTEgMC4wMDAyMDQxOTJMNS4xNDQ4NCAwLjAwMDIwNDE5MkM1LjAxMzQ2IC0wLjAwMzMwNTU2IDQuODg1NzkgMC4wMzg1MjEzIDQuNzgzMzIgMC4xMTg2NDRDNC42ODA4NSAwLjE5ODc2NiA0LjYwOTg0IDAuMzEyMjkyIDQuNTgyMjQgMC40NDAxMUw0LjQyNTcxIDEuMTgyODFMMTEuOTAzOSA4LjQ5NTUzWiIgZmlsbD0iI0ZGRTUwMCIvPgo8L3N2Zz4=");
+        --maybe-background: rgb(238, 239, 238);
+        --maybe-background-image: url("data:image/svg+xml;base64,PHN2ZyB3aWR0aD0iMTYiIGhlaWdodD0iMTYiIHZpZXdCb3g9IjAgMCAxNiAxNiIgZmlsbD0ibm9uZSIgeG1sbnM9Imh0dHA6Ly93d3cudzMub3JnLzIwMDAvc3ZnIj4KPHBhdGggZD0iTTE1Ljg3NSAxNS4wODE4TDAuOTE4MTI1IDAuMTI0OTU3TDAuMTI1IDAuOTE4MDgyTDMuNzI1IDQuNTIzNzFMMi45Mzc1IDcuODcwNThDMi45MTc2NSA3Ljk1NDQzIDIuOTE3MzMgOC4wNDE3MSAyLjkzNjU2IDguMTI1N0MyLjk1NTc5IDguMjA5NjkgMi45OTQwNiA4LjI4ODE1IDMuMDQ4NDIgOC4zNTVDMy4xMDI3NyA4LjQyMTg2IDMuMTcxNzYgOC40NzUzMyAzLjI1MDA2IDguNTExM0MzLjMyODM1IDguNTQ3MjcgMy40MTM4NyA4LjU2NDc3IDMuNSA4LjU2MjQ2SDYuMjE2ODhMNS4xODc1IDE1LjIyODFDNS4xNjg5MiAxNS4zNTE2IDUuMTkyMDEgMTUuNDc3OSA1LjI1MzEyIDE1LjU4NjhDNS4zMTQyMyAxNS42OTU4IDUuNDA5ODkgMTUuNzgxNCA1LjUyNSAxNS44M0M1LjU5NjUgMTUuODU5IDUuNjcyODQgMTUuODc0MiA1Ljc1IDE1Ljg3NUM1LjgzNTkgMTUuODc0NyA1LjkyMDYyIDE1Ljg1NDkgNS45OTc2NSAxNS44MTY4QzYuMDc0NjggMTUuNzc4OCA2LjE0MTk3IDE1LjcyMzcgNi4xOTQzOCAxNS42NTU2TDkuOTUxODcgMTAuNzQ1TDE1LjA4MTkgMTUuODc1TDE1Ljg3NSAxNS4wODE4Wk0xMS42NzMxIDguNDg5MzNMMTMuNTA2OSA2LjA5MzA4QzEzLjU2NiA2LjAxMzE1IDEzLjYwMjggNS45MTg5OSAxMy42MTM3IDUuODIwMThDMTMuNjI0NiA1LjcyMTM3IDEzLjYwOTEgNS42MjE0NSAxMy41Njg3IDUuNTMwNThDMTMuNTI2NSA1LjQzMDY1IDEzLjQ1NjIgNS4zNDUwOSAxMy4zNjYzIDUuMjg0MjFDMTMuMjc2NSA1LjIyMzMzIDEzLjE3MSA1LjE4OTczIDEzLjA2MjUgNS4xODc0NkgxMC4zOTA2TDExLjM3NSAwLjgxMTIwN0MxMS4zOTM2IDAuNzI4MTkyIDExLjM5MzIgMC42NDIwMzMgMTEuMzczNyAwLjU1OTIxNkMxMS4zNTQyIDAuNDc2Mzk5IDExLjMxNjIgMC4zOTkwODEgMTEuMjYyNSAwLjMzMzA4MkMxMS4yMDg0IDAuMjY2MzE4IDExLjEzOTcgMC4yMTI4NDQgMTEuMDYxNyAwLjE3Njc2NkMxMC45ODM3IDAuMTQwNjg3IDEwLjg5ODQgMC4xMjI5NjQgMTAuODEyNSAwLjEyNDk1N0g1LjE4NzVDNS4wNTgyNCAwLjEyMTUwMSA0LjkzMTc0IDAuMTYyNjgzIDQuODI5MjkgMC4yNDE1NzFDNC43MjY4NCAwLjMyMDQ1OCA0LjY1NDY5IDAuNDMyMjM0IDQuNjI1IDAuNTU4MDgyTDQuNDU2MjUgMS4yODkzM0wxMS42NzMxIDguNDg5MzNaIiBmaWxsPSIjODk4RTk2Ii8+Cjwvc3ZnPg==");
+        --left-background-position: 6px center;
+        --right-background-position: -8px center;
+    }
+
+    @font-face {
+        font-family: 'Roboto';
+        src: url("Roboto-VariableFont_wdth,wght.ttf")
+    }
+
+    body {
+        font-family: Roboto, sans-serif;
+        font-weight: 500;
+        font-size: 14px;
+    }
+
+    table, th, td {
+        border: 1px solid var(--border-color);
+    }
+
+    table {
+        border-radius: 10px !important;
+        border-collapse: collapse;
+    }
+
+    th, td {
+        padding: 5px;
+        text-align: center;
+        background-repeat: no-repeat;
+        background-size: 16px 16px;
+        background-position: center;
+        /* IMPORTANT: confine pseudo-elements to each cell */
+        position: relative;
+        overflow: hidden;
+        box-sizing: border-box;
+    }
+
+    .yes {
+        background-color: white;
+    }
+
+    .no {
+        background-color: var(--no-background);
+        background-image: var(--no-background-image);
+    }
+
+    .maybe {
+        background-color: var(--maybe-background);
+        background-image: var(--maybe-background-image);
+    }
+
+
+    .second {
+        background-color: none;
+    }
+
+        .second::before,
+        .second::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 50%;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 16px 16px;
+        }
+        /* left half */
+        .second::before {
+            right: 0;
+            background-color: var(--no-background);
+            background-image: var(--no-background-image);
+            background-position: var(--right-background-position)
+        }
+        /* right half */
+        .second::after {
+            left: 0;
+            background-color: var(--yes-background); /* right color */
+            background-image: var(--yes-background-image);
+            background-position: var(--left-background-position)
+        }
+
+
+    .first {
+        background-color: none;
+    }
+
+        .first::before,
+        .first::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 50%;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 16px 16px;
+        }
+        /* left half */
+        .first::before {
+            left: 0;
+            background-color: var(--no-background); /* left color */
+            background-image: var(--no-background-image);
+            background-position: var(--left-background-position);
+        }
+        /* right half */
+        .first::after {
+            right: 0;
+            background-color: var(--yes-background); /* right color */
+            background-image: var(--yes-background-image);
+            background-position: var(--right-background-position);
+        }
+
+
+
+
+
+    .mfirst {
+        background-color: none;
+    }
+
+        .mfirst::before,
+        .mfirst::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 50%;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 16px 16px;
+        }
+        /* left half */
+        .mfirst::before {
+            left: 0;
+            background-color: var(--maybe-background);
+            background-image: var(--maybe-background-image);
+            background-position: var(--left-background-position);
+        }
+        /* right half */
+        .mfirst::after {
+            right: 0;
+            background-color: var(--yes-background); /* right color */
+            background-image: var(--yes-background-image);
+            background-position: var(--right-background-position);
+        }
+
+
+    .msecond {
+        background-color: none;
+    }
+
+        .msecond::before,
+        .msecond::after {
+            content: "";
+            position: absolute;
+            top: 0;
+            height: 100%;
+            width: 50%;
+            background-repeat: no-repeat;
+            background-position: center;
+            background-size: 16px 16px;
+        }
+        /* left half */
+        .msecond::before {
+            right: 0;
+            background-color: var(--maybe-background); /* left color */
+            background-image: var(--maybe-background-image);
+            background-position: var(--right-background-position);
+        }
+        /* right half */
+        .msecond::after {
+            left: 0;
+            background-color: var(--yes-background); /* right color */
+            background-image: var(--yes-background-image);
+            background-position: var(--left-background-position);
+        }
+
+    .timezone {
+        writing-mode: vertical-rl;
+    }
+
+    .first-column {
+        text-align: start;
+        padding: 9px 11px 9px 11px;
+    }
+
+    .schedule-header {
+        font-size: 24px;
+        font-weight: 500;
+        margin-bottom: 10px;
+    }
+
+    .updated-info {
+        font-size: 12px;
+        margin-top: 10px;
+        color: gray;
+    }
+
+    .legend tbody tr td {
+        padding-right: 15px;
+    }
+
+    .legend {
+        font-size: 12px;
+        font-weight: 300;
+        margin-top: 10px;
+    }
+
+        .legend table {
+            border-collapse: separate !important;
+            border: none !important;
+        }
+
+    .no-border {
+        border: none !important;
+    }
+
+
+    .container {
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .legend-icon {
+        width: 26px;
+        height: 34px;
+    }
+
+    #mainContainer {
+        padding: 20px;
+    }
+</style>
+<body id="body">
+    <div id="mainContainer" class="container" width="auto">
+        <div id="schedule-header" class="schedule-header">Графік відключень:</div>
+        <table>
+            <thead>
+                <tr id="header-row">
+                    <th class="first-column">Група 1.1</th>
+                    <th class="timezone">00-01</th>
+                    <th class="timezone">01-02</th>
+                    <th class="timezone">02-03</th>
+                    <th class="timezone">03-04</th>
+                    <th class="timezone">04-05</th>
+                    <th class="timezone">05-06</th>
+                    <th class="timezone">06-07</th>
+                    <th class="timezone">07-08</th>
+                    <th class="timezone">08-09</th>
+                    <th class="timezone">09-10</th>
+                    <th class="timezone">10-11</th>
+                    <th class="timezone">11-12</th>
+                    <th class="timezone">12-13</th>
+                    <th class="timezone">13-14</th>
+                    <th class="timezone">14-15</th>
+                    <th class="timezone">15-16</th>
+                    <th class="timezone">16-17</th>
+                    <th class="timezone">17-18</th>
+                    <th class="timezone">18-19</th>
+                    <th class="timezone">19-20</th>
+                    <th class="timezone">20-21</th>
+                    <th class="timezone">21-22</th>
+                    <th class="timezone">22-23</th>
+                    <th class="timezone">23-00</th>
+                </tr>
+            </thead>
+            <tbody id="schedule-body">
+                <tr>
+                    <td class="first-column">26.10.25</td>
+                    <td class="yes"></td>
+                    <td class=""></td>   
+                    <td class="no"></td>
+                    <td class=""></td>   
+                    <td class="mfirst"></td>
+                    <td class=""></td>   
+                    <td class="first"></td>
+                    <td class=""></td>   
+                    <td class="second"></td>
+                    <td class=""></td>   
+                    <td class="msecond"></td>
+                    <td class=""></td>   
+                    <td class="maybe"></td>     
+                    <td class=""></td>  
+                    <td class="yes"></td>
+                    <td class=""></td>   
+                    <td class="no"></td>
+                    <td class=""></td>   
+                    <td class="mfirst"></td>
+                    <td class=""></td>   
+                    <td class="first"></td>
+                    <td class=""></td>   
+                    <td class="second"></td>
+                    <td class=""></td>    
+                </tr>
+            </tbody>
+        </table>
+        <div id="legend-real" class="legend">
+            <table>
+                <tbody>
+                    <tr>
+                        <td class="yes legend-icon"></td>
+                        <td class="no-border">Світло є</td>
+                        <td class="no legend-icon"></td>
+                        <td class="no-border">Світла немає</td>
+                        <td class="first legend-icon"></td>
+                        <td class="no-border">Світла не буде перші 30 хв.</td>
+                        <td class="second legend-icon"></td>
+                        <td class="no-border">Світла не буде другі 30 хв.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="legend-planned" class="legend">
+            <table>
+                <tbody>
+                    <tr>
+                        <td class="yes legend-icon"></td>
+                        <td class="no-border">Світло є</td>
+                        <td class="maybe legend-icon"></td>
+                        <td class="no-border">Світло можливо буде</td>
+                        <td class="mfirst legend-icon"></td>
+                        <td class="no-border">Світло можливо не буде перші 30 хв.</td>
+                        <td class="msecond legend-icon"></td>
+                        <td class="no-border">Світло можливо не буде другі 30 хв.</td>
+                    </tr>
+                </tbody>
+            </table>
+        </div>
+        <div id="updated-info" class="updated-info">Оновлено: 26.10.25 10:59</div>
+    </div>
+</body>
+</html>

@@ -5,7 +5,7 @@ using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Database.Services;
 using TelegramMultiBot.Reminder;
 
-internal class JobManager  //: Manager<ReminderJob>, IDisposable
+public class JobManager  //: Manager<ReminderJob>, IDisposable
 {
     private readonly ILogger<JobManager> _logger;
     private readonly IReminderDataService _dbservice;
