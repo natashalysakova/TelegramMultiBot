@@ -1,17 +1,13 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using System.Timers;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
-using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.Interfaces;
-using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
@@ -87,7 +83,7 @@ internal class BotService(
 
             try
             {
-                var response = client.GetMeAsync(cancellationTokenSource.Token);
+                var response = client.GetMe(cancellationTokenSource.Token);
                 BotName = response.Result.Username;
 
                 logger.LogInformation("client connected");
@@ -323,7 +319,7 @@ internal class BotService(
 
             if (commands.Count == 0)
             {
-                await client.AnswerInlineQueryAsync(inlineQuery.Id, []);
+                await client.AnswerInlineQuery(inlineQuery.Id, []);
                 return;
             }
 
@@ -335,7 +331,7 @@ internal class BotService(
         catch (Exception ex)
         {
             logger.LogError(ex, "{message}", ex.Message);
-            await client.AnswerInlineQueryAsync(inlineQuery.Id, []);
+            await client.AnswerInlineQuery(inlineQuery.Id, []);
         }
     }
 
@@ -357,7 +353,7 @@ internal class BotService(
         catch (Exception ex)
         {
             logger.LogError(ex, "{message}", ex.Message);
-            await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message, true);
+            await client.AnswerCallbackQuery(callbackQuery.Id, "Error:" + ex.Message, true);
         }
     }
 

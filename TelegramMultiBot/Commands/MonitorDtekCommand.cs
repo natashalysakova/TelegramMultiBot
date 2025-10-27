@@ -1,12 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types;
-using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageCompare;
 
 namespace TelegramMultiBot.Commands

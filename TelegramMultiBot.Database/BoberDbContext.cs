@@ -2,7 +2,6 @@
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
-using System.Diagnostics;
 using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database

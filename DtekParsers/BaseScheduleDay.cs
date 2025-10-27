@@ -1,5 +1,4 @@
-﻿using System.Globalization;
-namespace DtekParsers;
+﻿namespace DtekParsers;
 
 public abstract class BaseScheduleDay
 {

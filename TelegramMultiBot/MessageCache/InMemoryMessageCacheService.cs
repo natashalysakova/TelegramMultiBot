@@ -1,7 +1,4 @@
-﻿using System.Collections.Generic;
-using System.Text;
-
-namespace TelegramMultiBot.MessageCache
+﻿namespace TelegramMultiBot.MessageCache
 {
     /// <summary>
     /// Сервис для хранения сообщений в памяти с ограничением по общему объему.

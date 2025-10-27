@@ -1,9 +1,7 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using AutoMapper;
 using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Database.Services;
-using TelegramMultiBot.Reminder;
 
 public class JobManager  //: Manager<ReminderJob>, IDisposable
 {

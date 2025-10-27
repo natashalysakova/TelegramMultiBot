@@ -1,10 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using TelegramMultiBot.Database.DTO;
-using TelegramMultiBot.Database.Models;
+﻿using TelegramMultiBot.Database.DTO;
 
 namespace TelegramMultiBot.Database.Interfaces
 {

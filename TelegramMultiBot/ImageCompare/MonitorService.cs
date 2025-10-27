@@ -1,16 +1,9 @@
-﻿using AngleSharp.Dom;
-using AngleSharp.Html.Parser;
+﻿using AngleSharp.Html.Parser;
 using DtekParsers;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
-using TelegramMultiBot.Database.Services;
 
 namespace TelegramMultiBot.ImageCompare
 {

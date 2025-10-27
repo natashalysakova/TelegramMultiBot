@@ -1,8 +1,5 @@
-﻿using Microsoft.Extensions.Configuration;
-using System.Text;
-using Telegram.Bot.Types;
+﻿using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGenerators;

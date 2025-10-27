@@ -1,5 +1,4 @@
 ﻿using Newtonsoft.Json.Linq;
-using System.Threading.Tasks;
 
 namespace DtekParsers;
 

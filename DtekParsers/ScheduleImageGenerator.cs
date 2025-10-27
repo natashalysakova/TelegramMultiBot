@@ -1,7 +1,6 @@
 ﻿
 using HtmlAgilityPack;
 using PuppeteerSharp;
-using System.Threading.Tasks;
 
 namespace DtekParsers;
 

@@ -54,7 +54,7 @@ namespace TelegramMultiBot.Commands
             {
                 var emojis = messageReaction.NewReaction.Where(x => x.Type == ReactionTypeKind.Emoji).Select(x => (ReactionTypeEmoji)x);
 
-                if (emojis.Any(x => x.Emoji == KnownReactionTypeEmoji.PileOfPoo))
+                if (emojis.Any(x => x.Emoji == ReactionEmoji.PileOfPoo))
                 {
                     await client.DeleteMessageAsync(info.chatId, info.messageId);
                     messageDatabaseService.DeleteMessage(info);
