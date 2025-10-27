@@ -7,6 +7,11 @@ namespace DtekParsers;
 
 public class ScheduleImageGenerator
 {
+    private const int BASE_WIDTH = 1000;
+    private const int ROW_HEIGHT = 35;
+    private const int SCALE_FACTOR = 2;
+    private const int HEADER_HEIGHT = 175;
+
     public static async Task<byte[]> GenerateRealScheduleSingleGroupImage(GroupSchedule groupSchedule)
     {
         var html = await GenerateScheduleBody(
@@ -84,7 +89,7 @@ public class ScheduleImageGenerator
 
             tableBody.AppendChild(dayRowNode);
         }
-        
+
         HtmlNode legendToRemove;
         if (schedule.Any(x => x.Items.Any(y => y.Value != ScheduleStatus.maybe)))
         {
@@ -116,14 +121,14 @@ public class ScheduleImageGenerator
 
                 await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions
                 {
-                    
+
                 });
 
                 await using var page = await browser.NewPageAsync();
                 var viewPortOptions = new ViewPortOptions
                 {
-                    Width = 1000,
-                    Height = (175 + (rowNumber * 35))*2,
+                    Width = BASE_WIDTH,
+                    Height = (HEADER_HEIGHT + (rowNumber * ROW_HEIGHT)) * SCALE_FACTOR,
                     DeviceScaleFactor = 1.5
                 };
 
