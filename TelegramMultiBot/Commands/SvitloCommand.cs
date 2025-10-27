@@ -47,7 +47,7 @@ namespace TelegramMultiBot.Commands
                 }
                 else
                 {
-                    subScriptionAction = InlineKeyboardButton.WithCallbackData("Підписатися ", callbackQuery.Data + "|sub");
+                    subScriptionAction = InlineKeyboardButton.WithCallbackData("Підписатися", callbackQuery.Data + "|sub");
                 }
 
                 var keyboard = new InlineKeyboardMarkup(new[]
