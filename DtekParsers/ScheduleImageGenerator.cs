@@ -55,7 +55,7 @@ public class ScheduleImageGenerator
             htmls.Add(html);
         }
 
-        var maxRows = schedule.RealSchedule.Count;
+        var maxRows = schedule.PlannedSchedule.Count;
         var images = await GetHtmlImage(htmls, maxRows);
         return images;
     }
