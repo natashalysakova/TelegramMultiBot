@@ -19,7 +19,7 @@ public abstract class BaseSchedule
 
 }
 
-// <Inheritdoc />
+/// <inheritdoc />
 public class RealSchedule : BaseSchedule
 {
     /// <summary>
