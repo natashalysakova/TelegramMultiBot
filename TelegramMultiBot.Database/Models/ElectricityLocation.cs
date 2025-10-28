@@ -9,7 +9,13 @@ namespace TelegramMultiBot.Database.Models
         public required string Url { get; set; }
         public required string Location { get; set; }
         public DateTime LastChecked { get; set; }
-        public DateTime LastUpdated { get => History.Max(x => x.Updated); }
+        public DateTime LastUpdated
+        {
+            get
+            {
+                return History.Any() ? History.Max(x => x.Updated) : DateTime.MinValue;
+            }
+        }
         public long LastScheduleDay { get => History.Max(x => x.ScheduleDay); }
 
         public virtual ICollection<ElectricityHistory> History { get; set; } = new List<ElectricityHistory>();  
