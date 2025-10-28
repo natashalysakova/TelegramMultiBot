@@ -12,8 +12,8 @@ using TelegramMultiBot.Database;
 namespace TelegramMultiBot.Database.Migrations
 {
     [DbContext(typeof(BoberDbContext))]
-    [Migration("20251028001814_AddElectricityHistory2")]
-    partial class AddElectricityHistory2
+    [Migration("20251028001814_AddElectricityHistory")]
+    partial class AddElectricityHistory
     {
         /// <inheritdoc />
         protected override void BuildTargetModel(ModelBuilder modelBuilder)

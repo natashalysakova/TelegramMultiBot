@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore.Migrations;
 namespace TelegramMultiBot.Database.Migrations
 {
     /// <inheritdoc />
-    public partial class AddElectricityHistory2 : Migration
+    public partial class AddElectricityHistory : Migration
     {
         /// <inheritdoc />
         protected override void Up(MigrationBuilder migrationBuilder)
