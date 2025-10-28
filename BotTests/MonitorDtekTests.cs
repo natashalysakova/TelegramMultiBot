@@ -72,7 +72,7 @@ public class  ImageGenerationTests
 
         var image = await ScheduleImageGenerator.GenerateRealScheduleSingleGroupImages(schedule);
 
-        SaveImages(folder, image);
+        SaveImages(folder, image.Select(x=>x.ImageData));
 
         Assert.AreEqual(12, image.Count());
     }
@@ -103,7 +103,7 @@ public class  ImageGenerationTests
 
         var image = await ScheduleImageGenerator.GenerateAllGroupsRealSchedule(schedule);
 
-        SaveImages(folder, image);
+        SaveImages(folder, image.Select(x => x.ImageData));
 
         Assert.AreEqual(2, image.Count());
     }
@@ -119,7 +119,7 @@ public class  ImageGenerationTests
 
         var image = await ScheduleImageGenerator.GeneratePlannedScheduleSingleGroupImages(schedule);
 
-        SaveImages(folder, image);
+        SaveImages(folder, image.Select(x => x.ImageData));
 
         Assert.AreEqual(12, image.Count());
     }

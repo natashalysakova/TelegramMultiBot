@@ -41,6 +41,7 @@ internal class Program
         var context = serviceProvider.GetRequiredService<BoberDbContext>();
         context.Database.Migrate();
 
+        context.Seed();
 
         SetDefaultSettings(context);
 

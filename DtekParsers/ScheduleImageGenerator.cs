@@ -1,6 +1,7 @@
 ﻿
 using HtmlAgilityPack;
 using PuppeteerSharp;
+using System.Collections;
 using System.Threading.Tasks;
 
 namespace DtekParsers;
@@ -12,9 +13,18 @@ public class ScheduleImageGenerator
     private const int SCALE_FACTOR = 2;
     private const int HEADER_HEIGHT = 175;
 
-    public static async Task<IEnumerable<byte[]>> GenerateRealScheduleSingleGroupImages(Schedule schedule)
+    public class ImageRenderRquqest
     {
-        var htmls = new List<string>();
+        public string? Group { get; set; }
+        public string HtmlContent { get; set; } = string.Empty;
+        public int RowNumber { get; set; }
+        public long Date { get; set; }
+        public bool Planned { get; internal set; }
+    }
+
+    public static async Task<IEnumerable<ImageGenerationResult>> GenerateRealScheduleSingleGroupImages(Schedule schedule)
+    {
+        var requests = new List<ImageRenderRquqest>();
         foreach (var group in schedule.Groups)
         {
             Dictionary<string, IEnumerable<LightStatus>> items = new();
@@ -28,17 +38,21 @@ public class ScheduleImageGenerator
                 schedule.TimeZones,
                 schedule.RealSchedule.Max(x=>x.Updated),
                 items);
-            htmls.Add(html);
+            requests.Add(new ImageRenderRquqest
+            {
+                Group = group.Id,
+                HtmlContent = html,
+                RowNumber = schedule.RealSchedule.Count,
+                Date = schedule.RealSchedule.Max(x => x.DateTimeStamp)
+            });
         }
-
-        var maxRows = schedule.RealSchedule.Count;
-        var images = await GetHtmlImage(htmls, maxRows);
+        var images = await GetHtmlImage(requests);
         return images;
     }
 
-    public static async Task<IEnumerable<byte[]>> GeneratePlannedScheduleSingleGroupImages(Schedule schedule)
+    public static async Task<IEnumerable<ImageGenerationResult>> GeneratePlannedScheduleSingleGroupImages(Schedule schedule)
     {
-        var htmls = new List<string>();
+        var requests = new List<ImageRenderRquqest>();
         foreach (var group in schedule.Groups)
         {
             Dictionary<string, IEnumerable<LightStatus>> items = new();
@@ -52,17 +66,23 @@ public class ScheduleImageGenerator
                 schedule.TimeZones,
                 schedule.PlannedSchedule.Max(x => x.Updated),
                 items);
-            htmls.Add(html);
+            requests.Add(new ImageRenderRquqest
+            {
+                Group = group.Id,
+                HtmlContent = html,
+                RowNumber = schedule.RealSchedule.Count,
+                Date = schedule.RealSchedule.Max(x => x.DateTimeStamp),
+                Planned = true
+            });
         }
 
-        var maxRows = schedule.PlannedSchedule.Count;
-        var images = await GetHtmlImage(htmls, maxRows);
+        var images = await GetHtmlImage(requests);
         return images;
     }
 
-    public static async Task<IEnumerable<byte[]>> GenerateAllGroupsRealSchedule(Schedule schedule)
+    public static async Task<IEnumerable<ImageGenerationResult>> GenerateAllGroupsRealSchedule(Schedule schedule)
     {
-        var htmls = new List<string>();
+        var requests = new List<ImageRenderRquqest>();
         foreach (var day in schedule.RealSchedule)
         {
             Dictionary<string, IEnumerable<LightStatus>> items = new();
@@ -76,14 +96,16 @@ public class ScheduleImageGenerator
                 schedule.TimeZones,
                 day.Updated,
                 items);
-            htmls.Add(html);
-
+            requests.Add(new ImageRenderRquqest
+            {
+                HtmlContent = html,
+                RowNumber = schedule.RealSchedule.Count,
+                Date = day.DateTimeStamp
+            });
         }
 
-        var maxRows = schedule.Groups.Count;
-        var images = await GetHtmlImage(htmls, maxRows);
+        var images = await GetHtmlImage(requests);
         return images;
-
     }
 
     private static async Task<string> GenerateScheduleBody(
@@ -141,7 +163,7 @@ public class ScheduleImageGenerator
         return doc.DocumentNode.OuterHtml;
     }
 
-    private static async Task<IEnumerable<byte[]>> GetHtmlImage(IEnumerable<string> html, int rowNumber)
+    private static async Task<List<ImageGenerationResult>> GetHtmlImage(List<ImageRenderRquqest> requests)
     {
         int retry = 0;
         var maxretry = 3;
@@ -158,6 +180,8 @@ public class ScheduleImageGenerator
                 });
 
                 await using var page = await browser.NewPageAsync();
+                var rowNumber = requests.Max(x => x.RowNumber);
+
                 var viewPortOptions = new ViewPortOptions
                 {
                     Width = BASE_WIDTH,
@@ -167,16 +191,22 @@ public class ScheduleImageGenerator
 
                 await page.SetViewportAsync(viewPortOptions);
 
-                var images = new List<byte[]>();
-                foreach (var part in html)
+                var images = new List<ImageGenerationResult>();
+                foreach (var renderRequest in requests)
                 {
-                    await page.SetContentAsync(part);
+                    await page.SetContentAsync(renderRequest.HtmlContent);
+
                     var selector = await page.WaitForSelectorAsync("#body");
-                    images.Add(await selector.ScreenshotDataAsync(new ElementScreenshotOptions
-                    {
-                        Type = ScreenshotType.Png,
-                        CaptureBeyondViewport = true,
-                    }));
+                    images.Add(new ImageGenerationResult() { 
+                        ImageData = await selector.ScreenshotDataAsync(new ElementScreenshotOptions
+                        {
+                            Type = ScreenshotType.Png,
+                            CaptureBeyondViewport = true,
+                        }),
+                        Group = renderRequest.Group,
+                        Date = renderRequest.Date,
+                        Planned = renderRequest.Planned
+                    });
                 }
 
                 return images;
@@ -191,4 +221,26 @@ public class ScheduleImageGenerator
 
         throw new Exception("Cannot make a screenshot of page");
     }
+
+    public static async Task<IEnumerable<ImageGenerationResult>> GenerateAllImages(Schedule schedule)
+    {
+        var allGroupsRealScheduleImages = await GenerateAllGroupsRealSchedule(schedule);
+        var singleGroupRealScheduleImages = await GenerateRealScheduleSingleGroupImages(schedule);
+        var singleGroupPlannedScheduleImages = await GeneratePlannedScheduleSingleGroupImages(schedule);
+
+        return allGroupsRealScheduleImages
+            .Concat(singleGroupRealScheduleImages)
+            .Concat(singleGroupPlannedScheduleImages);
+    }
+
+    
+}
+
+public class ImageGenerationResult
+{
+    public required byte[] ImageData { get; set; }
+    public string? Group { get; set; }
+
+    public long? Date { get; set; }
+    public bool Planned { get; internal set; }
 }

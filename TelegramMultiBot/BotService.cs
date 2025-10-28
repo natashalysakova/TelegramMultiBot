@@ -115,25 +115,25 @@ internal class BotService(
 
     }
 
-    private async void MonitorService_ReadyToSend(long chatId, List<(string localFilePath, string caption)> infos)
+    private async void MonitorService_ReadyToSend(SendInfo info)
     {
         var streams = new List<Stream>();
         try
         {
             List<IAlbumInputMedia> media = new List<IAlbumInputMedia>();
-            foreach (var info in infos)
+            foreach (var image in info.Filenames)
             {
-                logger.LogDebug("sending new schedule: {chatId} {message}", chatId, info.localFilePath);
+                logger.LogDebug("sending new schedule: {chatId} {message}", info.ChatId, image);
 
-                var stream = System.IO.File.OpenRead(info.localFilePath);
+                var stream = System.IO.File.OpenRead(image);
                 streams.Add(stream);
-                var filename = Path.GetFileName(info.localFilePath);
+                var filename = Path.GetFileName(image);
                 var photo = new InputMediaPhoto(stream);
-                photo.Caption = info.caption;
+                photo.Caption = info.Caption;
                 media.Add(photo);
             }
 
-            await client.SendMediaGroup(chatId, media);
+            await client.SendMediaGroup(info.ChatId, media, messageThreadId: info.MessageThreadId);
 
         }
         catch (Exception ex)
@@ -141,8 +141,8 @@ internal class BotService(
             logger.LogError(ex, "{message}", ex.Message);
             if (ex.Message.Contains("chat not found") || ex.Message.Contains("PEER_ID_INVALID") || ex.Message.Contains("bot was kicked from the group chat"))
             {
-                monitorService.DisableJob(chatId, ex.Message);
-                logger.LogWarning("Removing all jobs for {id}", chatId);
+                await monitorService.DisableJob(info.ChatId, ex.Message);
+                logger.LogWarning("Removing all jobs for {id}", info.ChatId);
             }
         }
         finally
@@ -357,7 +357,7 @@ internal class BotService(
         catch (Exception ex)
         {
             logger.LogError(ex, "{message}", ex.Message);
-            await client.AnswerCallbackQueryAsync(callbackQuery.Id, "Error:" + ex.Message, true);
+            await client.AnswerCallbackQuery(callbackQuery.Id, "Error:" + ex.Message, true);
         }
     }
 

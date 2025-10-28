@@ -2,7 +2,9 @@
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
+using System;
 using System.Diagnostics;
+using System.Xml.Linq;
 using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database
@@ -27,6 +29,41 @@ namespace TelegramMultiBot.Database
 
         public virtual DbSet<AssistantSubscriber> Assistants { get; set; }
         public virtual DbSet<ChatHistory> ChatHistory { get; set; }
+
+
+        public void Seed()
+        {
+            var locations = new ElectricityLocation[]
+            {
+                new ElectricityLocation
+                {
+                    Id = Guid.Parse("3309DEF8-F7AD-4474-B609-643086142802"),
+                    Url = "https://www.dtek-kem.com.ua/ua/shutdowns",
+                    Location = "kem",
+                },
+                new ElectricityLocation
+                {
+                    Id = Guid.Parse("57E6C175-11D0-4B8A-83B1-1FC4925A7B58"),
+                    Url = "https://www.dtek-krem.com.ua/ua/shutdowns",
+                    Location = "krem",
+                }
+            };
+
+            foreach (var location in locations)
+            {
+                var sameUrlDifferentId = this.ElectricityLocations.SingleOrDefault(x => x.Url == location.Url && x.Id != location.Id);
+                if (sameUrlDifferentId != null)
+                {
+                    this.ElectricityLocations.Remove(sameUrlDifferentId);
+                }
+
+                if (this.ElectricityLocations.Find(location.Id) == null)
+                {
+                    this.ElectricityLocations.Add(location);
+                }
+            }
+            SaveChanges();
+        }
     }
 
     public class BoberDbContextFactory : IDesignTimeDbContextFactory<BoberDbContext>

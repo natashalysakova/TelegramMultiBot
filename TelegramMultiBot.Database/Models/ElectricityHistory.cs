@@ -8,8 +8,11 @@ namespace TelegramMultiBot.Database.Models
         public Guid Id { get; set; }
         public DateTime Updated { get; set; }
         public long ScheduleDay { get; set; }
+        public required string ImagePath { get; set; }
+        public string? Group { get; set; }
 
         public Guid LocationId { get; set; }
         public virtual ElectricityLocation? Location { get; set; }
+
     }
 }

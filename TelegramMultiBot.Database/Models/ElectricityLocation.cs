@@ -21,6 +21,7 @@ namespace TelegramMultiBot.Database.Models
             get => History.Any() ? History.Max(x => x.ScheduleDay) : 0;
         }
 
-        public virtual ICollection<ElectricityHistory> History { get; set; } = new List<ElectricityHistory>();  
+        public virtual ICollection<ElectricityHistory> History { get; set; } = new List<ElectricityHistory>();
+        public virtual ICollection<MonitorJob> Jobs { get; set; } = new List<MonitorJob>();
     }
 }
