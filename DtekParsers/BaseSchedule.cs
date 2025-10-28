@@ -13,13 +13,13 @@ public abstract class BaseSchedule
     abstract public string DateHeader { get; }
 
     /// <summary>
-    /// Gets or sets the date and time when the scedule was last updated.
+    /// Gets or sets the date and time when the schedule was last updated.
     /// </summary>
     public DateTime Updated { get; set; }
 
 }
 
-// <Inheritdoc />
+/// <inheritdoc />
 public class RealSchedule : BaseSchedule
 {
     /// <summary>
