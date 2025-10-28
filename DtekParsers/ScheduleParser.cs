@@ -5,24 +5,7 @@ namespace DtekParsers;
 
 public class ScheduleParser
 {
-    public async Task<byte[]> GetRealSchedule(string group, string url)
-    {
-        var parsed = await Parse(url);
-
-        var groupSchedule = parsed.FirstOrDefault(x => x.Id == group);
-
-        if (groupSchedule == null)
-        {
-            throw new ParseException($"Group {group} not found in schedule");
-        }
-
-        var imageBytes = await ScheduleImageGenerator.GenerateRealScheduleSingleGroupImage(groupSchedule);
-
-        return imageBytes;
-    }
-
-
-    public async Task<List<GroupSchedule>> Parse(string url)
+    public async Task<Schedule> Parse(string url)
     {
         var html = await GetHtmlFromUrl(url);
 
@@ -31,21 +14,20 @@ public class ScheduleParser
         var realVariableJobject = GetJsonFromScriptVariables(html, "DisconSchedule.fact");
         var presetVariableJobject = GetJsonFromScriptVariables(html, "DisconSchedule.preset");
 
-        var timeZones = GetTimeZones(presetVariableJobject);
-        var groups = GetGroups(presetVariableJobject, location);
+        var schedule = new Schedule();
 
-        FillRealSchedule(groups, timeZones, realVariableJobject);
-        FillPlannedSchedule(groups, timeZones, presetVariableJobject);
+        schedule.TimeZones = GetTimeZones(presetVariableJobject);
+        schedule.Groups = GetGroups(presetVariableJobject, location);
+
+        FillRealSchedule(schedule, realVariableJobject);
+        FillPlannedSchedule(schedule, presetVariableJobject);
 
         var updatedFact = DateTime.ParseExact(realVariableJobject["update"].ToString(), "dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
 
         var udpatedPreset = DateTime.ParseExact(presetVariableJobject["updateFact"].ToString(), "dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
-        foreach (var group in groups)
-        {
-            group.Updated = updatedFact != DateTime.MinValue ? updatedFact : udpatedPreset;
-        }
 
-        return groups;
+
+        return schedule;
     }
 
     private string GetLocationByUrl(string url)
@@ -59,7 +41,7 @@ public class ScheduleParser
         return location;
     }
 
-    private void FillPlannedSchedule(List<GroupSchedule> groups, Dictionary<string, ScheduleTimeZone> timeZones, JObject presetVariableJobject)
+    private void FillPlannedSchedule(Schedule schedule, JObject presetVariableJobject)
     {
         if (presetVariableJobject is null)
         {
@@ -67,23 +49,21 @@ public class ScheduleParser
         }
 
         var groupsData = presetVariableJobject["data"]?.Children();
+        var updated = GetUpdateTime(presetVariableJobject, "updateFact");
 
-        foreach (JProperty group in groupsData)
+        for (int i = 0; i < 7; i++)
         {
-            foreach (JProperty day in group.Value)
+            schedule.PlannedSchedule.Add(new PlannedSchedule()
             {
-                var schedule = groups.First(x => x.Id == group.Name);
-
-                schedule.PlannedSchedule.Add(new ScheduleDay()
-                {
-                    DayNumber = int.Parse(day.Name),
-                    Items = GetScheduleStatuses(day.Value, timeZones),
-                    Group = schedule.GroupName,
-                });
-            }
+                DayNumber = i,
+                Statuses = GetScheduleStatuses(groupsData, i),
+                Updated = updated,
+            });
         }
     }
-    private void FillRealSchedule(List<GroupSchedule> groups, Dictionary<string, ScheduleTimeZone> timezones, JObject? factScheduleJson)
+
+
+    private void FillRealSchedule(Schedule schedule, JObject? factScheduleJson)
     {
         if (factScheduleJson is null)
         {
@@ -91,23 +71,27 @@ public class ScheduleParser
         }
 
         var daysNodes = factScheduleJson["data"]?.Children();
+        var updated = GetUpdateTime(factScheduleJson, "update");
 
         foreach (JProperty day in daysNodes)
         {
-            var groupShedules = day.First.Children();
             var dayTimestamp = long.Parse(day.Name);
-            foreach (JProperty group in groupShedules)
-            {
-                var schedule = groups.First(x => x.Id == group.Name);
+            var groupShedules = day.First.Children();
 
-                schedule.RealSchedule.Add(new RealScheduleDay()
-                {
-                    Date = UnixTimeStampToDateTime(dayTimestamp),
-                    Items = GetScheduleStatuses(group.Value, timezones),
-                    Group = schedule.GroupName,
-                });
-            }
+            schedule.RealSchedule.Add(new RealSchedule()
+            {
+                DateTimeStamp = dayTimestamp,
+                Date = UnixTimeStampToDateTime(dayTimestamp),
+                Statuses = GetScheduleStatuses(groupShedules),
+                Updated = updated,
+            });
         }
+    }
+
+    private static DateTime GetUpdateTime(JObject factScheduleJson, string nodeName)
+    {
+        var stringValue = factScheduleJson[nodeName]?.Value<string>();
+        return DateTime.ParseExact(stringValue, "dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
     }
 
     private static JObject GetJsonFromScriptVariables(string html, string variable)
@@ -120,21 +104,19 @@ public class ScheduleParser
         return JObject.Parse(groupsLine);
     }
 
-    private List<GroupSchedule> GetGroups(JObject presetJson, string location)
+    private List<ScheduleGroup> GetGroups(JObject presetJson, string location)
     {
 
-        var result = new List<GroupSchedule>();
+        var result = new List<ScheduleGroup>();
 
         var groupNodes = presetJson["sch_names"]?.Children();
 
         foreach (JProperty group in groupNodes)
         {
-            var groupSchedule = new GroupSchedule()
+            var groupSchedule = new ScheduleGroup()
             {
                 Id = group.Name,
-                GroupName = group.Value.ToString(),
-                Updated = DateTime.Now,
-                Location = location,
+                GroupName = group.Value.ToString()
             };
             result.Add(groupSchedule);
         }
@@ -143,22 +125,55 @@ public class ScheduleParser
     }
 
 
-    private Dictionary<ScheduleTimeZone, ScheduleStatus> GetScheduleStatuses(JToken? groupSchedule, Dictionary<string, ScheduleTimeZone> timezones)
+    private Dictionary<string, IEnumerable<LightStatus>> GetScheduleStatuses(IEnumerable<JToken> groupSchedule, int day)
     {
-        var result = new Dictionary<ScheduleTimeZone, ScheduleStatus>();
+        var result = new Dictionary<string, IEnumerable<LightStatus>>();
         foreach (JProperty item in groupSchedule)
         {
             var name = item.Name;
-            var value = Enum.Parse<ScheduleStatus>(item.Value.ToString());
-            result.Add(timezones[name], value);
+            var s1 = item.Value.Values().ElementAt(day);
+
+            List<LightStatus> statuses = new List<LightStatus>();
+            foreach (JProperty status in s1)
+            {
+                statuses.Add(new LightStatus()
+                {
+                    Id = int.Parse(status.Name),
+                    Status = Enum.Parse<ScheduleStatus>(status.Value.ToString()),
+                });
+            }
+            result.Add(name, statuses);
         }
 
         return result;
     }
 
-    private Dictionary<string, ScheduleTimeZone> GetTimeZones(JObject presetJson)
+    private Dictionary<string, IEnumerable<LightStatus>> GetScheduleStatuses(IEnumerable<JToken> groupSchedule)
     {
-        var result = new Dictionary<string, ScheduleTimeZone>();
+        var result = new Dictionary<string, IEnumerable<LightStatus>>();
+        foreach (JProperty item in groupSchedule)
+        {
+            var name = item.Name;
+            var statuses = new List<LightStatus>();
+            var s1 = item.Values();
+            for (int i = 0; i < s1.Count(); i++)
+            {
+                var status = s1.ElementAt(i) as JProperty;
+                statuses.Add(new LightStatus()
+                {
+                    Id = int.Parse(status.Name),
+                    Status = Enum.Parse<ScheduleStatus>(status.Value.ToString()),
+                });
+            }
+            result.Add(name, statuses);
+        }
+
+        return result;
+    }
+
+    private List<ScheduleTimeZone> GetTimeZones(JObject presetJson)
+    {
+        var result = new List<ScheduleTimeZone>();
 
         var timeZonesNodes = presetJson["time_zone"]?.Children();
 
@@ -190,7 +205,7 @@ public class ScheduleParser
                 Start = timeZone.Value[1]!.ToString(),
                 End = timeZone.Value[2]!.ToString(),
             };
-            result.Add(timeZone.Name, timeZoneObj);
+            result.Add(timeZoneObj);
         }
 
         return result;

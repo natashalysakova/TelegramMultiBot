@@ -1,6 +1,7 @@
 ﻿using AngleSharp.Dom;
 using AngleSharp.Html.Parser;
 using DtekParsers;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
 using System.Collections.Generic;
@@ -8,6 +9,7 @@ using System.Linq;
 using System.Text;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using Telegram.Bot.Types.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Database.Services;
@@ -49,14 +51,42 @@ namespace TelegramMultiBot.ImageCompare
 
                         bool isTheSame;
 
-                        List<GroupSchedule> schedule;
+                        Schedule schedule;
                         try
                         {
+                            var location = _dbservice.Locations.SingleOrDefault(x => x.Url == group.Key);
+                            if (location == null)
+                            {
+                                location = new ElectricityLocation() { Url = group.Key, Location = GetRegionFromUrl(group.Key) };
+                                _dbservice.AddLocation(location);
+                            }
+
+
                             schedule = await new ScheduleParser().Parse(group.Key);
+                            location.LastChecked = DateTime.Now;
 
-                            var updateTime = schedule.First().Updated;
+                            foreach (var day in schedule.RealSchedule)
+                            {
+                                var updated = day.Updated;
+                                var dayHistory = location.History.SingleOrDefault(x => x.ScheduleDay == day.DateTimeStamp && x.Updated == day.Updated);
+                                if(dayHistory == null)
+                                {
+                                    location.History.Add(new ElectricityHistory()
+                                    {
+                                        ScheduleDay = day.DateTimeStamp,
+                                        Updated = updated,
+                                    });
+                                }
+                            }
 
-                            isTheSame = group.All(x => x.LastScheduleUpdate == updateTime);
+                            _dbservice.SaveChanges();
+
+                            isTheSame = group.All(x => x.LastScheduleUpdate == location.LastUpdated);
+                            if(!isTheSame)
+                            {
+                                UpdateLastSendScheduleTime(group, location.LastUpdated);
+                            }
+
                         }
                         catch (KeyNotFoundException ex)
                         {
@@ -78,7 +108,6 @@ namespace TelegramMultiBot.ImageCompare
                             {
 
                                 var imagePathList = await GetImagePathList(group.Key, schedule);
-                                var updateTime = schedule.First().Updated;
 
                                 foreach (var job in group)
                                 {
@@ -90,9 +119,6 @@ namespace TelegramMultiBot.ImageCompare
                                             sendList[job.ChatId].Add((image, caption));
                                     }
                                 }
-
-                                UpdateLastSendScheduleTime(group, updateTime);
-
                             }
                             catch (Exception ex)
                             {
@@ -118,7 +144,7 @@ namespace TelegramMultiBot.ImageCompare
             }, token);
         }
 
-        private async Task<string[]> GetImagePathList(string url, List<GroupSchedule> schedule)
+        private async Task<string[]> GetImagePathList(string url, Schedule schedule)
         {
             var baseDirectory = "monitor";
 
@@ -137,9 +163,18 @@ namespace TelegramMultiBot.ImageCompare
             {
                 Directory.CreateDirectory(folder);
             }
+
+            var result = new List<string>();
+
             var imageBytes = await ScheduleImageGenerator.GenerateAllGroupsRealSchedule(schedule);
 
-            return [SaveFile(folder, imageBytes)];
+            foreach (var img in imageBytes)
+            {
+                var filePath = SaveFile(folder, img);
+                result.Add(filePath);
+            }
+
+            return result.ToArray();
         }
 
         private static string GetLocation(string url)
@@ -315,7 +350,7 @@ namespace TelegramMultiBot.ImageCompare
         {
             string url;
 
-            url = GetFromRegion(region);
+            url = GetUrlFromRegion(region);
 
             if (url == null)
             {
@@ -343,7 +378,7 @@ namespace TelegramMultiBot.ImageCompare
             return job.Id;
         }
 
-        private string? GetFromRegion(string region)
+        private string? GetUrlFromRegion(string region)
         {
             switch (region)
             {
@@ -353,14 +388,26 @@ namespace TelegramMultiBot.ImageCompare
                     return "https://www.dtek-kem.com.ua/ua/shutdowns";
                 default:
                     return null;
+            }
+        }
 
+        private string? GetRegionFromUrl(string url)
+        {
+            switch (url)
+            {
+                case "https://www.dtek-krem.com.ua/ua/shutdowns":
+                    return "krem";
+                case "https://www.dtek-kem.com.ua/ua/shutdowns":
+                    return "kem";
+                default:
+                    return null;
             }
         }
 
         internal bool SendExisiting(long chatId, string region)
         {
-            var job = _dbservice.Jobs.Where(x => x.Url == GetFromRegion(region)).FirstOrDefault();
-            if(job is null)
+            var job = _dbservice.Jobs.Where(x => x.Url == GetUrlFromRegion(region)).FirstOrDefault();
+            if (job is null)
             {
                 return false;
             }
@@ -435,7 +482,7 @@ namespace TelegramMultiBot.ImageCompare
 
         internal bool DisableJob(long chatId, string region, string reason)
         {
-            var url = GetFromRegion(region);
+            var url = GetUrlFromRegion(region);
 
             if (url == null)
                 return false;
@@ -474,7 +521,7 @@ namespace TelegramMultiBot.ImageCompare
 
         internal bool IsSubscribed(long id, string region)
         {
-            return _dbservice.Jobs.Any(x => x.ChatId == id && x.Url == GetFromRegion(region) && x.IsActive);
+            return _dbservice.Jobs.Any(x => x.ChatId == id && x.Url == GetUrlFromRegion(region) && x.IsActive);
         }
     }
 }

@@ -13,8 +13,13 @@ namespace TelegramMultiBot.Database.Interfaces
     {
         DbSet<MonitorJob> Jobs { get ; }
         public MonitorJob? this[int i] {  get; }
+
+        IQueryable<ElectricityLocation> Locations { get; }
+        public ElectricityLocation? this[string i] { get; }
+
         void SaveChanges();
         Task SaveChangesAsync();
+        void AddLocation(ElectricityLocation location);
         //int AddDtekJob(long chatId, string region);
         //void AddJob(long chatId, string url);
         //void DisableJob(MonitorJob activeJob, string reason);
@@ -28,6 +33,11 @@ namespace TelegramMultiBot.Database.Interfaces
     public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     {
         public DbSet<MonitorJob> Jobs { get => context.Monitor; }
+
+        public IQueryable<ElectricityLocation> Locations => context.ElectricityLocations.Include(x=>x.History);
+
+        public ElectricityLocation? this[string location] => context.ElectricityLocations.SingleOrDefault(x=>x.Location == location);
+
         public void SaveChanges()
         {
             context.SaveChanges();
@@ -43,13 +53,19 @@ namespace TelegramMultiBot.Database.Interfaces
             await context.SaveChangesAsync();
         }
 
+        public void AddLocation(ElectricityLocation location)
+        {
+            context.ElectricityLocations.Add(location);
+            context.SaveChanges();
+        }
+
         //public void DisableJob(MonitorJob activeJob, string reason)
         //{
         //    var job = context.Monitor.Where(x=>x.Id == activeJob.Id);
         //    DisableJobs(job, reason);
         //}
 
-        
+
 
         //public IEnumerable<MonitorJob> GetActiveJobs()
         //{

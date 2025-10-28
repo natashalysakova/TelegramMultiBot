@@ -9,7 +9,7 @@ namespace TelegramMultiBot.Database
 {
     public class BoberDbContext : DbContext
     {
-        public BoberDbContext(DbContextOptions options) : base(options) 
+        public BoberDbContext(DbContextOptions options) : base(options)
         {
         }
         public virtual DbSet<ImageJob> Jobs { get; set; }
@@ -22,6 +22,8 @@ namespace TelegramMultiBot.Database
 
         public virtual DbSet<ReminderJob> Reminders { get; set; }
         public virtual DbSet<MonitorJob> Monitor { get; set; }
+        public virtual DbSet<ElectricityLocation> ElectricityLocations { get; set; }
+        public virtual DbSet<ElectricityHistory> ElectricityHistory { get; set; }
 
         public virtual DbSet<AssistantSubscriber> Assistants { get; set; }
         public virtual DbSet<ChatHistory> ChatHistory { get; set; }
