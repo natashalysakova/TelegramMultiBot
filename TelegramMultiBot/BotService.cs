@@ -1,17 +1,14 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using System.Timers;
 using Telegram.Bot;
 using Telegram.Bot.Polling;
-using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using TelegramMultiBot;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.Interfaces;
-using TelegramMultiBot.Configuration;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
@@ -29,23 +26,21 @@ internal class BotService(
     ISqlConfiguationService configuration,
     MonitorService monitorService,
     IAssistantDataService assistantDataService,
-    IMessageCacheService messageCacheService)
+    IMessageCacheService messageCacheService) : BackgroundService
 {
     public static string? BotName;
     private System.Timers.Timer? _timer;
-    CancellationTokenSource cancellationTokenSource;
-    CancellationTokenSource managerCancellationTokenSource;
 
-    public void Run()
+
+    protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        managerCancellationTokenSource = new CancellationTokenSource();
-        jobManager.Run(managerCancellationTokenSource.Token);
+        jobManager.Run(stoppingToken);
         jobManager.ReadyToSend += JobManager_ReadyToSend;
 
-        monitorService.Run(managerCancellationTokenSource.Token);
+        monitorService.Run(stoppingToken);
         monitorService.ReadyToSend += MonitorService_ReadyToSend;
 
-        imageGenearatorQueue.Run(managerCancellationTokenSource.Token);
+        imageGenearatorQueue.Run(stoppingToken);
         imageGenearatorQueue.JobFinished += ImageGenearatorQueue_JobFinished;
         imageGenearatorQueue.JobFailed += ImageGenearatorQueue_JobFailed;
         imageGenearatorQueue.JobInQueue += ImageGenearatorQueue_JobInQueue;
@@ -83,15 +78,13 @@ internal class BotService(
 
         do
         {
-            cancellationTokenSource = new CancellationTokenSource();
-
             try
             {
-                var response = client.GetMeAsync(cancellationTokenSource.Token);
-                BotName = response.Result.Username;
+                var response = await client.GetMe(stoppingToken);
+                BotName = response.Username;
 
                 logger.LogInformation("client connected");
-                while (!cancellationTokenSource.IsCancellationRequested)
+                while (!stoppingToken.IsCancellationRequested)
                 {
                     Thread.Sleep(1000);
                 }
@@ -106,7 +99,7 @@ internal class BotService(
                 Thread.Sleep(30000);
             }
 
-        } while (!managerCancellationTokenSource.IsCancellationRequested);
+        } while (!stoppingToken.IsCancellationRequested);
 
         //jobManager.Dispose();
         _timer.Stop();
@@ -121,7 +114,7 @@ internal class BotService(
         try
         {
             List<IAlbumInputMedia> media = new List<IAlbumInputMedia>();
-            foreach (var image in info.Filenames)
+            foreach (var image in info.Filenames.Take(10))
             {
                 logger.LogDebug("sending new schedule: {chatId} {message}", info.ChatId, image);
 
@@ -133,8 +126,10 @@ internal class BotService(
                 media.Add(photo);
             }
 
-            await client.SendMediaGroup(info.ChatId, media, messageThreadId: info.MessageThreadId);
-
+            if (media.Count > 0)
+            {
+                await client.SendMediaGroup(info.ChatId, media, messageThreadId: info.MessageThreadId);
+            }
         }
         catch (Exception ex)
         {
@@ -246,7 +241,7 @@ internal class BotService(
 
         if (exception.Message.Contains("Bad Gateway") || exception.Message.Contains("Exception during making request"))
         {
-            cancellationTokenSource.Cancel();
+
         }
 
         return Task.CompletedTask;
@@ -494,4 +489,5 @@ internal class BotService(
 
         assistantDataService.SaveToHistory(record);
     }
+
 }

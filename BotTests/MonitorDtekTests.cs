@@ -45,17 +45,6 @@ public class MonitorDtekTests
         }
 
     }
-    private static MonitorService CreateService()
-    {
-        var logger = LoggerFactory.Create(builder => builder.AddConsole()).CreateLogger<MonitorService>();
-        var options = new DbContextOptionsBuilder<BoberDbContext>()
-            .UseInMemoryDatabase(databaseName: "TestDatabase")
-            .Options;
-        var context = new BoberDbContext(options);
-        var database = new MonitorDataService(context);
-
-        return new MonitorService(logger, database);
-    }
 }
 
 [TestClass]

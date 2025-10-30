@@ -2,9 +2,6 @@
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
-using System;
-using System.Diagnostics;
-using System.Xml.Linq;
 using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database
@@ -26,6 +23,7 @@ namespace TelegramMultiBot.Database
         public virtual DbSet<MonitorJob> Monitor { get; set; }
         public virtual DbSet<ElectricityLocation> ElectricityLocations { get; set; }
         public virtual DbSet<ElectricityHistory> ElectricityHistory { get; set; }
+        public virtual DbSet<ElectricityGroup> ElectricityGroups { get; set; }
 
         public virtual DbSet<AssistantSubscriber> Assistants { get; set; }
         public virtual DbSet<ChatHistory> ChatHistory { get; set; }
@@ -39,13 +37,13 @@ namespace TelegramMultiBot.Database
                 {
                     Id = Guid.Parse("3309DEF8-F7AD-4474-B609-643086142802"),
                     Url = "https://www.dtek-kem.com.ua/ua/shutdowns",
-                    Location = "kem",
+                    Region = "kem",
                 },
                 new ElectricityLocation
                 {
                     Id = Guid.Parse("57E6C175-11D0-4B8A-83B1-1FC4925A7B58"),
                     Url = "https://www.dtek-krem.com.ua/ua/shutdowns",
-                    Location = "krem",
+                    Region = "krem",
                 }
             };
 

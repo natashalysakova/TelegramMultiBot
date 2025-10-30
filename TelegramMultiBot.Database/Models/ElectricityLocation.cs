@@ -7,7 +7,7 @@ namespace TelegramMultiBot.Database.Models
         [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
         public Guid Id { get; set; }
         public required string Url { get; set; }
-        public required string Location { get; set; }
+        public required string Region { get; set; }
         public DateTime LastChecked { get; set; }
         public DateTime LastUpdated
         {

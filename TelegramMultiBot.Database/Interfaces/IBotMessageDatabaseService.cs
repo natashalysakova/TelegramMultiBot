@@ -1,6 +1,4 @@
-﻿using System.Data;
-
-namespace TelegramMultiBot.Database.Interfaces
+﻿namespace TelegramMultiBot.Database.Interfaces
 {
     public interface IBotMessageDatabaseService
     {

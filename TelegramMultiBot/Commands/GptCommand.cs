@@ -1,5 +1,4 @@
 ﻿using Microsoft.Extensions.Logging;
-using System.Threading;
 using Telegram.Bot.Types;
 using TelegramMultiBot.AiAssistant;
 using TelegramMultiBot.Database.Interfaces;

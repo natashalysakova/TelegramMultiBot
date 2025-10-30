@@ -1,12 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types;
-using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageCompare;
 
 namespace TelegramMultiBot.Commands
@@ -82,7 +75,7 @@ namespace TelegramMultiBot.Commands
                     logger.LogError(ex, "{message}", ex.Message);
                     if (ex.Message.Contains("chat not found") || ex.Message.Contains("PEER_ID_INVALID") || ex.Message.Contains("bot was kicked from the group chat"))
                     {
-                        await  monitorService.DisableJob(message.Chat.Id, ex.Message);
+                        await monitorService.DisableJob(message.Chat.Id, ex.Message);
                         logger.LogWarning("Removing all jobs for {id}", message.Chat.Id);
                     }
                 }
@@ -131,15 +124,15 @@ namespace TelegramMultiBot.Commands
 
                 var region = command[1].Split('-', StringSplitOptions.RemoveEmptyEntries).Last();
 
-                var jobAdded = await monitorService.AddDtekJob(chatId, region, messageThreadId);
+                var jobAdded = await monitorService.AddDtekJob(chatId, messageThreadId, region, null);
 
-                if (jobAdded == -1)
+                if (jobAdded == Guid.Empty)
                 {
                     await client.SendMessageAsync(message.Chat, "Упс, Така задача вже є, або регіон не підтримується. " + supportedRegions);
                 }
                 else
                 {
-                    if (! await monitorService.SendExisiting(jobAdded))
+                    if (!await monitorService.SendExisiting(jobAdded))
                     {
                         await client.SendMessageAsync(message.Chat, "Задача додана. Актуального графіку наразі нема.");
                     }
@@ -183,7 +176,7 @@ namespace TelegramMultiBot.Commands
 
                 var region = command[1].Split('-', StringSplitOptions.RemoveEmptyEntries).Last();
 
-                if (await monitorService.DisableJob(chatId, region, "user request"))
+                if (await monitorService.DisableJob(chatId, region, null, "user request"))
                 {
                     await client.SendMessageAsync(message.Chat, "Задача видалена");
                 }

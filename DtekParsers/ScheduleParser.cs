@@ -1,5 +1,5 @@
 ﻿using Newtonsoft.Json.Linq;
-using System.Threading.Tasks;
+using System.Text;
 
 namespace DtekParsers;
 
@@ -17,7 +17,8 @@ public class ScheduleParser
         var schedule = new Schedule();
 
         schedule.TimeZones = GetTimeZones(presetVariableJobject);
-        schedule.Groups = GetGroups(presetVariableJobject, location);
+        schedule.Groups = GetGroups(presetVariableJobject);
+        schedule.Location = location;
 
         FillRealSchedule(schedule, realVariableJobject);
         FillPlannedSchedule(schedule, presetVariableJobject);
@@ -26,8 +27,32 @@ public class ScheduleParser
 
         var udpatedPreset = DateTime.ParseExact(presetVariableJobject["updateFact"].ToString(), "dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
 
+        foreach (var group in schedule.Groups)
+        {
+            group.DataSnapshot = GenerateGroupDataSnapshot(schedule.RealSchedule, group.Id);
+        }
 
         return schedule;
+    }
+
+    private string? GenerateGroupDataSnapshot(List<RealSchedule> realSchedule, string groupCode)
+    {
+        var builder = new StringBuilder();
+
+        foreach (var day in realSchedule)
+        {
+            builder.Append($"{day.DateTimeStamp}");
+            var groupSchedule = day.Statuses[groupCode];
+            if(groupSchedule is not null)
+            {
+                foreach (var status in groupSchedule)
+                {
+                    builder.Append($"|{status.Id}:{(int)status.Status}");
+                }
+            }
+        }
+
+        return builder.ToString();
     }
 
     private string GetLocationByUrl(string url)
@@ -104,7 +129,7 @@ public class ScheduleParser
         return JObject.Parse(groupsLine);
     }
 
-    private List<ScheduleGroup> GetGroups(JObject presetJson, string location)
+    private List<ScheduleGroup> GetGroups(JObject presetJson)
     {
 
         var result = new List<ScheduleGroup>();
@@ -116,7 +141,8 @@ public class ScheduleParser
             var groupSchedule = new ScheduleGroup()
             {
                 Id = group.Name,
-                GroupName = group.Value.ToString()
+                GroupName = group.Value.ToString(),
+                DataSnapshot = string.Empty,
             };
             result.Add(groupSchedule);
         }

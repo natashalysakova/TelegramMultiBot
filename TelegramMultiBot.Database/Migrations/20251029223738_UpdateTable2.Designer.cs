@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TelegramMultiBot.Database;
 
@@ -11,9 +12,11 @@ using TelegramMultiBot.Database;
 namespace TelegramMultiBot.Database.Migrations
 {
     [DbContext(typeof(BoberDbContext))]
-    partial class BoberDbContextModelSnapshot : ModelSnapshot
+    [Migration("20251029223738_UpdateTable2")]
+    partial class UpdateTable2
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -151,9 +154,6 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Property<string>("ImagePath")
                         .IsRequired()
                         .HasColumnType("longtext");
-
-                    b.Property<int>("JobType")
-                        .HasColumnType("int");
 
                     b.Property<Guid>("LocationId")
                         .HasColumnType("char(36)");
@@ -382,16 +382,10 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Property<DateTime?>("LastScheduleUpdate")
                         .HasColumnType("datetime(6)");
 
-                    b.Property<string>("LastSentGroupSnapsot")
-                        .HasColumnType("longtext");
-
                     b.Property<Guid>("LocationId")
                         .HasColumnType("char(36)");
 
                     b.Property<int?>("MessageThreadId")
-                        .HasColumnType("int");
-
-                    b.Property<int>("Type")
                         .HasColumnType("int");
 
                     b.HasKey("Id");

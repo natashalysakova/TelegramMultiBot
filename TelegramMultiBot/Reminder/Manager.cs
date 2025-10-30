@@ -1,10 +1,4 @@
-﻿using AutoMapper;
-using Microsoft.Extensions.Logging;
-using Newtonsoft.Json;
-using System.Net.Http.Headers;
-using TelegramMultiBot.Database;
-
-namespace TelegramMultiBot.Reminder
+﻿namespace TelegramMultiBot.Reminder
 {
     //internal abstract class Manager<T>(ILogger<Manager<T>> logger, BoberDbContext dbContext, IMapper mapper)
     //{

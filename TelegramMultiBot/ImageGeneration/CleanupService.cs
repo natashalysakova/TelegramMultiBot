@@ -1,6 +1,4 @@
-﻿using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Logging;
-using TelegramMultiBot.Configuration;
+﻿using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.ImageGenerators

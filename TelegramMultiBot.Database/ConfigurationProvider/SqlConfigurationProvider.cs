@@ -1,6 +1,4 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using Microsoft.Extensions.Configuration;
-
 //public class SqlConfigurationProvider : ConfigurationProvider, IDisposable
 //{
 //    private readonly Timer? _refreshTimer = null;

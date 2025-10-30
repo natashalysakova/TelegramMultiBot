@@ -1,11 +1,4 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
-using System.Xml.Linq;
-using TelegramMultiBot.Database.Models;
-using static System.Net.Mime.MediaTypeNames;
+﻿using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database.Services
 {

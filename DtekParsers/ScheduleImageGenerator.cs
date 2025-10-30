@@ -1,8 +1,6 @@
 ﻿
 using HtmlAgilityPack;
 using PuppeteerSharp;
-using System.Collections;
-using System.Threading.Tasks;
 
 namespace DtekParsers;
 
@@ -43,7 +41,7 @@ public class ScheduleImageGenerator
                 Group = group.Id,
                 HtmlContent = html,
                 RowNumber = schedule.RealSchedule.Count,
-                Date = schedule.RealSchedule.Max(x => x.DateTimeStamp)
+                Date = schedule.RealSchedule.Max(x => x.DateTimeStamp),
             });
         }
         var images = await GetHtmlImage(requests);
@@ -96,6 +94,7 @@ public class ScheduleImageGenerator
                 schedule.TimeZones,
                 day.Updated,
                 items);
+
             requests.Add(new ImageRenderRquqest
             {
                 HtmlContent = html,
@@ -112,12 +111,12 @@ public class ScheduleImageGenerator
         string title,
         List<ScheduleTimeZone> timeZones,
         DateTime updated,
-        Dictionary<string,
-        IEnumerable<LightStatus>> schedule)
+        Dictionary<string, IEnumerable<LightStatus>> schedule)
     {
         var doc = new HtmlDocument();
 
         doc.Load("Templates/template.html");
+
 
         var titleNode = doc.GetElementbyId("schedule-header");
         titleNode.InnerHtml = title;
@@ -230,7 +229,8 @@ public class ScheduleImageGenerator
 
         return allGroupsRealScheduleImages
             .Concat(singleGroupRealScheduleImages)
-            .Concat(singleGroupPlannedScheduleImages);
+            .Concat(singleGroupPlannedScheduleImages)
+            ;
     }
 
     
