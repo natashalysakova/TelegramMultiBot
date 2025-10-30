@@ -158,7 +158,7 @@ namespace TelegramMultiBot.BackgroundServies
             }
         }
 
-        private ElectricityJobType GetJobType(ImageGenerationResult image)
+        private ElectricityJobType GetJobType(ImageGenerationModel image)
         {
             if (image.Planned)
             {
@@ -175,7 +175,7 @@ namespace TelegramMultiBot.BackgroundServies
         }
 
         const string baseDirectory = "monitor";
-        private static string SaveFile(string region, DateTime updated, ImageGenerationResult image)
+        private static string SaveFile(string region, DateTime updated, ImageGenerationModel image)
         {
             var folder = Path.Combine(baseDirectory, region);
             string subfolder = GeSubFolder(image);
@@ -218,20 +218,13 @@ namespace TelegramMultiBot.BackgroundServies
             return Regex.Replace(filename, $"[{Regex.Escape(invalidCharsPattern)}]", "_");
         }
 
-        private static string GeSubFolder(ImageGenerationResult image)
+        private static string GeSubFolder(ImageGenerationModel image)
         {
-            string subfolder = "unknown";
             if (!string.IsNullOrWhiteSpace(image.Group))
             {
-                subfolder = image.Group;
+                return image.Group;
             }
-            else if (image.Date != null)
-            {
-                subfolder = image.Date.Value.ToString();
-            }
-            return subfolder;
+            return string.Empty;
         }
-
-
     }
 }

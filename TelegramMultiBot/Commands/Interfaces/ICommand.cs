@@ -5,6 +5,7 @@ namespace TelegramMultiBot.Commands.Interfaces
     internal interface ICommand
     {
         string Command { get; }
+        string Description { get; }
 
         bool CanHandle(Message message);
 
@@ -18,5 +19,6 @@ namespace TelegramMultiBot.Commands.Interfaces
         bool CanHandleInlineQuery { get; }
         bool CanHandleCallback { get; }
         bool CanHandleMessageReaction { get; }
+        bool IsPublic { get; }
     }
 }

@@ -150,7 +150,8 @@ internal class Program
             _ = builder.AddConsole();
         };
         _ = serviceCollection.AddLogging(builder);
-        var logger = LoggerFactory.Create(builder).CreateLogger<Program>();
+        var loggerFactory = LoggerFactory.Create(builder);
+        var logger = loggerFactory.CreateLogger<Program>();
 
         string? connectionString = configuration.GetConnectionString("db");
         var serverVersion = GetServerVersion(connectionString, logger);
@@ -200,7 +201,7 @@ internal class Program
         var cfg = new MapperConfiguration(c =>
         {
             c.AddMaps(typeof(ImageJobProfile));
-        });
+        }, loggerFactory);
         cfg.AssertConfigurationIsValid();
         _ = serviceCollection.AddTransient(x => { return cfg.CreateMapper(); });
 

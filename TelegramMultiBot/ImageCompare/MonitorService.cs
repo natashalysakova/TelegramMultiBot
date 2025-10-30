@@ -63,18 +63,9 @@ namespace TelegramMultiBot.ImageCompare
 
                         await dbservice.Update(job);
 
-                        string caption = $"Оновлений графік {GetLocationByUrl(job.Location.Region)} станом на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
                         try
                         {
-                            var imagePathList = await dbservice.GetImagesForJob(job.Id);
-                            sendList.Add(new SendInfo()
-                            {
-                                ChatId = job.ChatId,
-                                Filenames = imagePathList.ToList(),
-                                Caption = caption,
-                                MessageThreadId = job.MessageThreadId,
-                            });
-
+                            await SendExisiting(job.Id);
                         }
                         catch (Exception ex)
                         {
@@ -92,11 +83,6 @@ namespace TelegramMultiBot.ImageCompare
                 {
                     _logger.LogError("{key} job error: {message}", job.Id, ex.Message);
                 }
-            }
-
-            foreach (var item in sendList)
-            {
-                ReadyToSend?.Invoke(item);
             }
         }
 
@@ -252,7 +238,7 @@ namespace TelegramMultiBot.ImageCompare
 
             var info = await GetInfo(job);
 
-            if (info == default)
+            if (info == default || !info.Filenames.Any())
                 return false;
 
             job.LastScheduleUpdate = job.Location.LastUpdated;

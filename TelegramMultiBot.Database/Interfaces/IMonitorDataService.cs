@@ -1,5 +1,9 @@
 ﻿using Microsoft.EntityFrameworkCore;
+using Microsoft.VisualBasic;
+using System.Collections.ObjectModel;
+using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database.Interfaces
@@ -50,43 +54,7 @@ namespace TelegramMultiBot.Database.Interfaces
                 .Where(x => x.IsActive).ToListAsync();
         }
 
-        public async Task<IEnumerable<string>> GetImagesForJob(Guid id)
-        {
-            var job = await GetJobsInternal(id).FirstOrDefaultAsync();
-            var todayUnixTime = new DateTimeOffset(DateTime.Today).ToUnixTimeSeconds();
 
-            if (job.Group != null)
-            {
-                var groupImage = job.Location.History
-                    .Where(x => x.GroupId == job.GroupId && x.JobType == job.Type && x.ScheduleDay >= todayUnixTime)
-                    .Select(x=>x.ImagePath).ToList();
-
-                if (groupImage != null)
-                    return groupImage;
-
-                return Array.Empty<string>();
-            }
-            else
-            {
-                var locationImageGroups = job.Location.History
-                    .Where(x => x.ScheduleDay != null && x.ScheduleDay >= todayUnixTime)
-                    .GroupBy(x => x.ScheduleDay);
-
-                var images = new List<string>();
-                foreach (var group in locationImageGroups)
-                {
-                    var image = group.OrderByDescending(x => x.Updated)
-                        .FirstOrDefault();
-
-                    if (image != null)
-                    {
-                        images.Add(image.ImagePath);
-                    }
-                }
-
-                return images;
-            }
-        }
 
         public async Task<MonitorJob?> GetJobBySubscriptionParameters(long chatId, string region, string? group)
         {
@@ -113,8 +81,8 @@ namespace TelegramMultiBot.Database.Interfaces
             {
                 jobs = jobs.AsNoTracking();
             }
-                
-            if(id.HasValue)
+
+            if (id.HasValue)
             {
                 jobs = jobs.Where(x => x.Id == id.Value);
             }
@@ -135,7 +103,10 @@ namespace TelegramMultiBot.Database.Interfaces
 
             await DisableJobs(jobs, reason);
         }
-
+        private async Task DisableJob(MonitorJob job, string reason)
+        {
+            await DisableJobs([job], reason);
+        }
         private async Task DisableJobs(IEnumerable<MonitorJob> jobs, string reason)
         {
             foreach (var job in jobs)
@@ -150,41 +121,26 @@ namespace TelegramMultiBot.Database.Interfaces
         public async Task<IEnumerable<MonitorJob>> GetActiveJobs(long chatId)
         {
             return await GetJobsInternal()
-                .Where(x => x.IsActive  && x.ChatId == chatId).ToListAsync();
+                .Where(x => x.IsActive && x.ChatId == chatId).ToListAsync();
         }
 
         public async Task<Dictionary<string, bool>> GetSubscriptionList(long chatId, string region)
         {
             var groupList = await context.ElectricityGroups.Select(x => x.GroupCode).ToListAsync();
-            var subscriptions = await GetJobsInternal().Where(x=>x.ChatId == chatId && x.Location.Region == region && x.IsActive).Select(x=>x.Group).ToListAsync();
+            var subscriptions = await GetJobsInternal().Where(x => x.ChatId == chatId && x.Location.Region == region && x.IsActive).Select(x => x.Group).ToListAsync();
 
             var result = new Dictionary<string, bool>();
             foreach (var group in groupList)
             {
-                result[group] = subscriptions.Any(x=>x?.GroupCode == group);
+                result[group] = subscriptions.Any(x => x?.GroupCode == group);
             }
 
-            result["all"] = subscriptions.Any(x=> x is null);
+            result["all"] = subscriptions.Any(x => x is null);
 
             return result;
         }
 
-        public async Task<IEnumerable<string>> GetCurrentScheduleImagesForRegion(string region)
-        {
-            var location = await context.ElectricityLocations
-                .Include(x => x.History)
-                .FirstOrDefaultAsync(x => x.Region == region);
 
-            var todayUnixTime = new DateTimeOffset(DateTime.Today).ToUnixTimeSeconds();
-
-            var latestImages = location.History
-                .Where(x => x.ScheduleDay != 0 && x.ScheduleDay >= todayUnixTime && x.Group is null)
-                .OrderByDescending(x => x.Updated)
-                .Select(x => x.ImagePath);
-
-
-            return latestImages;
-        }
 
         public async Task<MonitorJob?> GetJobById(Guid jobAdded)
         {
@@ -233,21 +189,87 @@ namespace TelegramMultiBot.Database.Interfaces
             return await context.ElectricityGroups.SingleOrDefaultAsync(x => x.GroupCode == code && x.LocationRegion == region);
         }
 
+        public async Task<IEnumerable<string>> GetCurrentScheduleImagesForRegion(string region)
+        {
+            var location = await context.ElectricityLocations
+                .Include(x => x.History)
+                .FirstOrDefaultAsync(x => x.Region == region);
+
+            if (location == null)
+                return Array.Empty<string>();
+
+            return GetLatestFromHistory(ElectricityJobType.AllGroups, location.History);
+        }
+
         public async Task<IEnumerable<string>> GetCurrentScheduleImagesForGroupRegion(string group, string region, ElectricityJobType jobType)
         {
             var groupDb = await context.ElectricityGroups
-                .Include(x=>x.History)
+                .Include(x => x.History)
                 .FirstOrDefaultAsync(x => x.GroupCode == group && x.LocationRegion == region);
 
+            return GetLatestFromHistory(jobType, groupDb.History);
+        }
+
+        public async Task<IEnumerable<string>> GetImagesForJob(Guid id)
+        {
+            var job = await GetJobsInternal(id).FirstOrDefaultAsync();
             var todayUnixTime = new DateTimeOffset(DateTime.Today).ToUnixTimeSeconds();
 
-            var latestImages = groupDb.History
-                .Where(x => x.ScheduleDay != 0 && x.ScheduleDay >= todayUnixTime && x.JobType == jobType)
-                .OrderByDescending(x => x.Updated)
-                .Select(x => x.ImagePath);
+            ICollection<ElectricityHistory> history;
 
-            return latestImages;
+            switch (job.Type)
+            {
+                case ElectricityJobType.AllGroups:
+                    history = job.Location.History;
+                    break;
+                case ElectricityJobType.SingleGroupPlan:
+                case ElectricityJobType.SingleGroup:
 
+                    if (job.GroupId is null)
+                    {
+                        await DisableJob(job, "GroupId missing for job type + " + job.Type);
+                        return Enumerable.Empty<string>();
+                    }
+
+                    history = job.Group.History;
+                    break;
+                default:
+                    return Enumerable.Empty<string>();
+            }
+
+            return GetLatestFromHistory(job.Type, history);
+
+        }
+
+        private static IEnumerable<string> GetLatestFromHistory(ElectricityJobType jobType, ICollection<ElectricityHistory> history)
+        {
+            var todayUnixTime = new DateTimeOffset(DateTime.Today).ToUnixTimeSeconds();
+            var toSend = new List<string>();
+
+            var filteredHistory = history
+                .Where(x => x.JobType == jobType);
+
+
+            if (jobType == ElectricityJobType.SingleGroupPlan)
+            {
+                toSend.AddRange(filteredHistory.Select(x => x.ImagePath).Distinct());
+            }
+            else
+            {
+                filteredHistory = filteredHistory
+                    .Where(x => x.ScheduleDay >= todayUnixTime);
+
+                foreach (var day in filteredHistory.GroupBy(x => x.ScheduleDay))
+                {
+                    var latestImage = day.OrderByDescending(x => x.Updated).FirstOrDefault();
+                    if (latestImage != null)
+                    {
+                        toSend.Add(latestImage.ImagePath);
+                    }
+                }
+            }
+
+            return toSend.Distinct();
         }
 
         public async Task DeleteOldHistory(DateTime cutoffDate)

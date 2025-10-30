@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.Logging;
+﻿using AutoMapper;
+using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Commands.Interfaces;
@@ -7,7 +8,7 @@ using TelegramMultiBot.ImageCompare;
 namespace TelegramMultiBot.Commands
 {
 
-    [ServiceKey("svitlo")]
+    [ServiceKey("svitlo", "Бобер-Електрик")]
     internal class SvitloCommand(TelegramClientWrapper client, MonitorService monitorService, ILogger<SvitloCommand> logger) : BaseCommand, ICallbackHandler
     {
         private string supportedRegions = "регіони що підтримуються: krem - Київська область, kem - м. Київ";

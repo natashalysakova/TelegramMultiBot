@@ -4,7 +4,7 @@ using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("buttons")]
+    [ServiceKey("buttons", "Показати кнопки для згенерованого зображення")]
     internal class ButtonsCommand(TelegramClientWrapper client, IImageDatabaseService databaseService) : BaseCommand
     {
         public async override Task Handle(Message message)

@@ -7,7 +7,7 @@ using TelegramMultiBot.ImageGenerators;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("queue")]
+    [ServiceKey("queue", "Черга генерації", false)]
     internal class QueueCommand(TelegramClientWrapper client, ILogger<QueueCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IImageDatabaseService databaseService) : BaseCommand, ICallbackHandler
     {
         public async override Task Handle(Message message)

@@ -3,7 +3,7 @@ using Telegram.Bot.Types.Enums;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("edit")]
+    [ServiceKey("edit", "Хз шо це, не пам'ятаю", false)]
     internal class EditCommand(TelegramClientWrapper client, DialogManager dialogManager) : BaseCommand
     {
         public override bool CanHandle(Message message)

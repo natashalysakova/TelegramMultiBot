@@ -6,7 +6,7 @@ using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("summarize")]
+    [ServiceKey("summarize", "ШІ підсумовує що читав останім часом в чаті")]
     internal class SummarizeCommand(IAssistantDataService assistantDataService, TelegramClientWrapper clientWrapper, AiHelper summarizeAiHelper, ILogger<SummarizeCommand> logger) : BaseCommand
     {
         public override async Task Handle(Message message)

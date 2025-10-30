@@ -8,7 +8,7 @@ using TelegramMultiBot.Properties;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("reminder")]
+    [ServiceKey("reminder", "Бобер-Нагадувач")]
     internal class ReminderCommand(TelegramClientWrapper client, ILogger<ReminderCommand> logger, DialogManager dialogManager, JobManager jobManager) : BaseCommand, ICallbackHandler
     {
         public override async Task Handle(Message message)
