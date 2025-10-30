@@ -83,7 +83,7 @@ public class ScheduleImageGenerator
 
     public static async Task<IEnumerable<ImageGenerationModel>> GenerateAllGroupsRealSchedule(Schedule schedule)
     {
-        var statuses = new Dictionary<string,Dictionary<string, IEnumerable<LightStatus>>>();
+        var statuses = new Dictionary<string, Dictionary<string, IEnumerable<LightStatus>>>();
         foreach (var day in schedule.RealSchedule.OrderBy(x=>x.DateTimeStamp))
         {
             Dictionary<string, IEnumerable<LightStatus>> items = new();
