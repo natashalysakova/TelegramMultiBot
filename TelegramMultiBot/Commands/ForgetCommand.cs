@@ -6,7 +6,7 @@ using TelegramMultiBot.MessageCache;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("forget")]
+    [ServiceKey("forget", "ШІ асистент забуває контекст цього чату")]
     internal class ForgetCommand(
         IAssistantDataService assistantDataService,
         TelegramClientWrapper clientWrapper,

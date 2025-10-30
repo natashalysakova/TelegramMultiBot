@@ -84,6 +84,14 @@ internal class BotService(
                 BotName = response.Username;
 
                 logger.LogInformation("client connected");
+
+                var commandList = GetCommandList();
+                await client.SetMyCommands(commandList, new BotCommandScopeAllGroupChats(), cancellationToken: stoppingToken);
+                await client.SetMyCommands(commandList, new BotCommandScopeAllPrivateChats(), cancellationToken: stoppingToken);
+                await client.SetMyCommands(commandList, new BotCommandScopeAllChatAdministrators(), cancellationToken: stoppingToken);
+
+                logger.LogInformation("Commands list set");
+
                 while (!stoppingToken.IsCancellationRequested)
                 {
                     Thread.Sleep(1000);
@@ -108,6 +116,23 @@ internal class BotService(
 
     }
 
+    private IEnumerable<BotCommand> GetCommandList()
+    {
+        var commands = serviceProvider.GetServices<ICommand>();
+
+        List<BotCommand> commandList = new List<BotCommand>();
+        foreach (var command in commands.Where(x => x.IsPublic))
+        {
+            var commandText = ("/" + command.Command);
+            commandList.Add(new BotCommand()
+            {
+                Command = commandText.Length > 32 ? commandText.Substring(0, 32) : commandText,
+                Description = command.Description.Length > 256 ? command.Description.Substring(0, 256) : command.Description
+            });
+        }
+        return commandList;
+    }
+
     private async void MonitorService_ReadyToSend(SendInfo info)
     {
         var streams = new List<Stream>();
@@ -130,6 +155,10 @@ internal class BotService(
             {
                 await client.SendMediaGroup(info.ChatId, media, messageThreadId: info.MessageThreadId);
             }
+            else
+            {
+                await client.SendMessage(info.ChatId, "Не маю графіків. Сподваюся расія розпалась :3", messageThreadId: info.MessageThreadId);
+            }
         }
         catch (Exception ex)
         {
@@ -148,10 +177,7 @@ internal class BotService(
                 stream.Dispose();
             }
         }
-
     }
-
-
 
     private async void ImageGenearatorQueue_JobInQueue(JobInfo info)
     {
@@ -318,7 +344,7 @@ internal class BotService(
 
             if (commands.Count == 0)
             {
-                await client.AnswerInlineQueryAsync(inlineQuery.Id, []);
+                await client.AnswerInlineQuery(inlineQuery.Id, []);
                 return;
             }
 
@@ -330,7 +356,7 @@ internal class BotService(
         catch (Exception ex)
         {
             logger.LogError(ex, "{message}", ex.Message);
-            await client.AnswerInlineQueryAsync(inlineQuery.Id, []);
+            await client.AnswerInlineQuery(inlineQuery.Id, []);
         }
     }
 

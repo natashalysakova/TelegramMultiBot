@@ -6,7 +6,7 @@ using TelegramMultiBot.ImageGenerators;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("help")]
+    [ServiceKey("help", "Допомога")]
     internal class HelpCommand(TelegramClientWrapper client, ISqlConfiguationService configuration) : BaseCommand
     {
         public override async Task Handle(Message message)

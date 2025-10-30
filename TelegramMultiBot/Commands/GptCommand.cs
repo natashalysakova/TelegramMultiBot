@@ -6,7 +6,7 @@ using TelegramMultiBot.MessageCache;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("gpt")]
+    [ServiceKey("gpt", "Задати питання ШІ")]
     internal class GptCommand(
         IAssistantDataService assistantDataService,
         TelegramClientWrapper clientWrapper,

@@ -4,7 +4,7 @@ using TelegramMultiBot.ImageGenerators;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("status")]
+    [ServiceKey("status", "Статус доступних генераторів")]
     internal class StatusCommand(TelegramClientWrapper client, IServiceProvider serviceProvider) : BaseCommand
     {
         public override async Task Handle(Message message)

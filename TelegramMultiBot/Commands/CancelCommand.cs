@@ -2,7 +2,7 @@
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("cancel")]
+    [ServiceKey("cancel", "Зупинити поточний діалог")]
     internal class CancelCommand(TelegramClientWrapper client, DialogManager dialogManager) : BaseCommand
     {
         public override async Task Handle(Message message)

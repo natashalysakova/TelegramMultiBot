@@ -25,6 +25,37 @@ namespace TelegramMultiBot.Commands
             }
         }
 
+        public string Description
+        {
+            get
+            {
+                var type = GetType();
+
+                var attribute = type.GetAttributeValue(
+                    (ServiceKeyAttribute att) =>
+                    {
+                        return att.Description;
+    
+                    });
+                return attribute ?? throw new InvalidOperationException("Cannot find command");
+            }
+        }
+
+        public bool IsPublic
+        {
+            get
+            {
+                var type = GetType();
+
+                var attribute = type.GetAttributeValue(
+                    (ServiceKeyAttribute att) =>
+                    {
+                        return att.IsPublic;
+
+                    });
+                return attribute;
+            }
+        }
 
         public virtual bool CanHandle(Message message)
         {
@@ -91,12 +122,22 @@ namespace TelegramMultiBot.Commands
         }
     }
 
-    [System.AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
-    internal sealed class ServiceKeyAttribute(string positionalString) : Attribute
+    [AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+    internal sealed class ServiceKeyAttribute(string command, string description, bool isPublic = true) : Attribute
     {
         public string Command
         {
-            get { return positionalString; }
+            get => command;
+        }
+
+        public string Description 
+        {
+            get => description;
+        }
+
+        public bool IsPublic
+        {
+            get => isPublic;
         }
     }
 }

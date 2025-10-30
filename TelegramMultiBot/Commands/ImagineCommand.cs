@@ -17,7 +17,7 @@ using TelegramMultiBot.ImageGenerators;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("imagine")]
+    [ServiceKey("imagine", "Бобер-художник")]
     internal class ImagineCommand(TelegramClientWrapper client, ISqlConfiguationService configuration, IConfiguration appSettings, ILogger<ImagineCommand> logger, ImageGenearatorQueue imageGenearatorQueue, IImageDatabaseService databaseService) : BaseCommand, ICallbackHandler, IInlineQueryHandler
     {
         private static string imagineCommand = "imagine";

@@ -3,7 +3,7 @@ using TelegramMultiBot.Database.Interfaces;
 
 namespace TelegramMultiBot.Commands
 {
-    [ServiceKey("assistant")]
+    [ServiceKey("assistant", "Вкл/викл ШІ асистента")]
     internal class AssistantCommand(IAssistantDataService assistantDataService, TelegramClientWrapper clientWrapper) : BaseCommand
     {
         public override async Task Handle(Message message)
