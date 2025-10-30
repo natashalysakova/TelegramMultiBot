@@ -1,7 +1,6 @@
 ﻿
 using HtmlAgilityPack;
 using PuppeteerSharp;
-using System.Threading.Tasks;
 
 namespace DtekParsers;
 
@@ -12,50 +11,112 @@ public class ScheduleImageGenerator
     private const int SCALE_FACTOR = 2;
     private const int HEADER_HEIGHT = 175;
 
-    public static async Task<byte[]> GenerateRealScheduleSingleGroupImage(GroupSchedule groupSchedule)
+    public class ImageRenderRquqest
     {
-        var html = await GenerateScheduleBody(
-            $"Графік відключень {groupSchedule.Location} {groupSchedule.GroupName}",
-            groupSchedule.RealSchedule.First().Items.Keys.ToList(),
-            groupSchedule.Updated,
-            groupSchedule.RealSchedule.Cast<BaseScheduleDay>().ToList());
-
-        var images = await GetHtmlImage([html], groupSchedule.RealSchedule.Count);
-        return images.First();
+        public string? Group { get; set; }
+        public string HtmlContent { get; set; } = string.Empty;
+        public int RowNumber { get; set; }
+        public long Date { get; set; }
+        public bool Planned { get; internal set; }
     }
 
-    public static async Task<byte[]> GeneratePlannedScheduleSingleGroup(GroupSchedule groupSchedule)
+    public static async Task<IEnumerable<ImageGenerationResult>> GenerateRealScheduleSingleGroupImages(Schedule schedule)
     {
-        var html = await GenerateScheduleBody(
-            $"Графік можливих відключень {groupSchedule.Location} {groupSchedule.GroupName}",
-            groupSchedule.PlannedSchedule.First().Items.Keys.ToList(),
-            groupSchedule.Updated,
-            groupSchedule.PlannedSchedule.Cast<BaseScheduleDay>().ToList());
+        var requests = new List<ImageRenderRquqest>();
+        foreach (var group in schedule.Groups)
+        {
+            Dictionary<string, IEnumerable<LightStatus>> items = new();
+            foreach (var day in schedule.RealSchedule)
+            {
+                items.Add(day.DateHeader, day.Statuses[group.Id]);
+            }
 
-        var images = await GetHtmlImage([html], groupSchedule.PlannedSchedule.Count);
-        return images.First();
-
+            var html = await GenerateScheduleBody(
+                $"Графік відключень {schedule.Location} {group.GroupName}",
+                schedule.TimeZones,
+                schedule.RealSchedule.Max(x=>x.Updated),
+                items);
+            requests.Add(new ImageRenderRquqest
+            {
+                Group = group.Id,
+                HtmlContent = html,
+                RowNumber = schedule.RealSchedule.Count,
+                Date = schedule.RealSchedule.Max(x => x.DateTimeStamp),
+            });
+        }
+        var images = await GetHtmlImage(requests);
+        return images;
     }
 
-    public static async Task<byte[]> GenerateAllGroupsRealSchedule(List<GroupSchedule> groupSchedule)
+    public static async Task<IEnumerable<ImageGenerationResult>> GeneratePlannedScheduleSingleGroupImages(Schedule schedule)
     {
-        var group = groupSchedule.First();
+        var requests = new List<ImageRenderRquqest>();
+        foreach (var group in schedule.Groups)
+        {
+            Dictionary<string, IEnumerable<LightStatus>> items = new();
+            foreach (var day in schedule.PlannedSchedule)
+            {
+                items.Add(day.DateHeader, day.Statuses[group.Id]);
+            }
 
-        var html = await GenerateScheduleBody(
-            $"Графік відключень {group.RealSchedule.First().DateHeader} {groupSchedule.First().Location}",
-            group.RealSchedule.First().Items.Keys.ToList(),
-            groupSchedule.Max(x => x.Updated),
-            groupSchedule.Select(x => x.RealSchedule.First()).Cast<BaseScheduleDay>().ToList(), true);
+            var html = await GenerateScheduleBody(
+                $"Графік можливих відключень {schedule.Location} {group.GroupName}",
+                schedule.TimeZones,
+                schedule.PlannedSchedule.Max(x => x.Updated),
+                items);
+            requests.Add(new ImageRenderRquqest
+            {
+                Group = group.Id,
+                HtmlContent = html,
+                RowNumber = schedule.RealSchedule.Count,
+                Date = schedule.RealSchedule.Max(x => x.DateTimeStamp),
+                Planned = true
+            });
+        }
 
-        var images = await GetHtmlImage([html], groupSchedule.Count);
-        return images.First();
+        var images = await GetHtmlImage(requests);
+        return images;
     }
 
-    private static async Task<string> GenerateScheduleBody(string title, List<ScheduleTimeZone> timeZones, DateTime updated, List<BaseScheduleDay> schedule, bool useGroupHeader = false)
+    public static async Task<IEnumerable<ImageGenerationResult>> GenerateAllGroupsRealSchedule(Schedule schedule)
+    {
+        var requests = new List<ImageRenderRquqest>();
+        foreach (var day in schedule.RealSchedule)
+        {
+            Dictionary<string, IEnumerable<LightStatus>> items = new();
+            foreach (var group in schedule.Groups)
+            {
+                items.Add(group.GroupName, day.Statuses[group.Id]);
+            }
+
+            var html = await GenerateScheduleBody(
+                $"Графік відключень {day.DateHeader} {schedule.Location}",
+                schedule.TimeZones,
+                day.Updated,
+                items);
+
+            requests.Add(new ImageRenderRquqest
+            {
+                HtmlContent = html,
+                RowNumber = schedule.RealSchedule.Count,
+                Date = day.DateTimeStamp
+            });
+        }
+
+        var images = await GetHtmlImage(requests);
+        return images;
+    }
+
+    private static async Task<string> GenerateScheduleBody(
+        string title,
+        List<ScheduleTimeZone> timeZones,
+        DateTime updated,
+        Dictionary<string, IEnumerable<LightStatus>> schedule)
     {
         var doc = new HtmlDocument();
 
         doc.Load("Templates/template.html");
+
 
         var titleNode = doc.GetElementbyId("schedule-header");
         titleNode.InnerHtml = title;
@@ -73,25 +134,18 @@ public class ScheduleImageGenerator
         foreach (var line in schedule)
         {
             var dayRowNode = HtmlNode.CreateNode("<tr></tr>");
-            if (useGroupHeader)
-            {
-                dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{line.Group}</td>"));
-            }
-            else
-            {
-                dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{line.DateHeader}</td>"));
-            }
+            dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{line.Key}</td>"));
 
-            foreach (var item in line.Items.OrderBy(x => int.Parse(x.Key.Id)))
+            foreach (var item in line.Value.OrderBy(x => x.Id))
             {
-                dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"{item.Value}\"></td>"));
+                dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"{item.Status}\"></td>"));
             }
 
             tableBody.AppendChild(dayRowNode);
         }
 
         HtmlNode legendToRemove;
-        if (schedule.Any(x => x.Items.Any(y => y.Value != ScheduleStatus.maybe)))
+        if (schedule.Any(x => x.Value.Any(y => y.Status != ScheduleStatus.maybe)))
         {
             legendToRemove = doc.GetElementbyId("legend-planned");
         }
@@ -108,7 +162,7 @@ public class ScheduleImageGenerator
         return doc.DocumentNode.OuterHtml;
     }
 
-    private static async Task<IEnumerable<byte[]>> GetHtmlImage(string[] html, int rowNumber)
+    private static async Task<List<ImageGenerationResult>> GetHtmlImage(List<ImageRenderRquqest> requests)
     {
         int retry = 0;
         var maxretry = 3;
@@ -129,6 +183,8 @@ public class ScheduleImageGenerator
                 });
 
                 await using var page = await browser.NewPageAsync();
+                var rowNumber = requests.Max(x => x.RowNumber);
+
                 var viewPortOptions = new ViewPortOptions
                 {
                     Width = BASE_WIDTH,
@@ -138,16 +194,22 @@ public class ScheduleImageGenerator
 
                 await page.SetViewportAsync(viewPortOptions);
 
-                var images = new List<byte[]>();
-                foreach (var part in html)
+                var images = new List<ImageGenerationResult>();
+                foreach (var renderRequest in requests)
                 {
-                    await page.SetContentAsync(part);
+                    await page.SetContentAsync(renderRequest.HtmlContent);
+
                     var selector = await page.WaitForSelectorAsync("#body");
-                    images.Add(await selector.ScreenshotDataAsync(new ElementScreenshotOptions
-                    {
-                        Type = ScreenshotType.Png,
-                        CaptureBeyondViewport = true,
-                    }));
+                    images.Add(new ImageGenerationResult() { 
+                        ImageData = await selector.ScreenshotDataAsync(new ElementScreenshotOptions
+                        {
+                            Type = ScreenshotType.Png,
+                            CaptureBeyondViewport = true,
+                        }),
+                        Group = renderRequest.Group,
+                        Date = renderRequest.Date,
+                        Planned = renderRequest.Planned
+                    });
                 }
 
                 return images;
@@ -162,4 +224,27 @@ public class ScheduleImageGenerator
 
         throw new Exception("Cannot make a screenshot of page");
     }
+
+    public static async Task<IEnumerable<ImageGenerationResult>> GenerateAllImages(Schedule schedule)
+    {
+        var allGroupsRealScheduleImages = await GenerateAllGroupsRealSchedule(schedule);
+        var singleGroupRealScheduleImages = await GenerateRealScheduleSingleGroupImages(schedule);
+        var singleGroupPlannedScheduleImages = await GeneratePlannedScheduleSingleGroupImages(schedule);
+
+        return allGroupsRealScheduleImages
+            .Concat(singleGroupRealScheduleImages)
+            .Concat(singleGroupPlannedScheduleImages)
+            ;
+    }
+
+    
+}
+
+public class ImageGenerationResult
+{
+    public required byte[] ImageData { get; set; }
+    public string? Group { get; set; }
+
+    public long? Date { get; set; }
+    public bool Planned { get; internal set; }
 }

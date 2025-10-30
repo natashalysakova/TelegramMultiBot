@@ -3,12 +3,13 @@ using AutoMapper;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Microsoft.Extensions.Primitives;
-using MySqlConnector;
+using System;
 using Telegram.Bot;
 using TelegramMultiBot;
 using TelegramMultiBot.AiAssistant;
+using TelegramMultiBot.BackgroundServies;
 using TelegramMultiBot.Commands;
 using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Database;
@@ -34,26 +35,42 @@ internal class Program
         //    return;
         //}
 
+
+        var host = new HostBuilder()
+          .ConfigureHostConfiguration(configHost => {
+          })
+          .ConfigureServices((hostContext, services) => {
+              services.AddHostedService<DtekSiteParser>();
+              services.AddHostedService<BotService>();
+              RegisterServices(services, args);
+          })
+         .UseConsoleLifetime()
+         .Build();
+
+        //run the host
+
+
         var environment = Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT");
         Console.WriteLine("Welcome to Bober Bot " + environment);
-        ServiceProvider serviceProvider = RegisterServices(args);
 
-        var context = serviceProvider.GetRequiredService<BoberDbContext>();
-        context.Database.Migrate();
-
-
-        SetDefaultSettings(context);
-
-        if (!context.Models.Any())
+        using (var scope = host.Services.CreateScope())
         {
-            AddModels(context);
+            var serviceProvider = scope.ServiceProvider;
+            var context = serviceProvider.GetRequiredService<BoberDbContext>();
+            context.Database.Migrate();
+
+            context.Seed();
+
+            SetDefaultSettings(context);
+
+            if (!context.Models.Any())
+            {
+                AddModels(context);
+            }
         }
+        
 
-        var x = 1.0 / -0.0;
-
-        var bot = serviceProvider.GetRequiredService<BotService>();
-        bot.Run();
-
+        host.Run();
 
     }
 
@@ -120,14 +137,11 @@ internal class Program
         context.SaveChanges();
     }
 
-    private static ServiceProvider RegisterServices(string[] args)
+    private static ServiceProvider RegisterServices(IServiceCollection serviceCollection, string[] args)
     {
         IConfiguration configuration = SetupConfiguration(args);
-        var serviceCollection = new ServiceCollection();
+
         _ = serviceCollection.AddSingleton(configuration);
-
-
-
 
         Action<ILoggingBuilder> builder = (builder) =>
         {
@@ -137,7 +151,6 @@ internal class Program
         };
         _ = serviceCollection.AddLogging(builder);
         var logger = LoggerFactory.Create(builder).CreateLogger<Program>();
-
 
         string? connectionString = configuration.GetConnectionString("db");
         var serverVersion = GetServerVersion(connectionString, logger);

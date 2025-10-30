@@ -1,5 +1,4 @@
 using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
 using MySqlConnector;
 using TelegramMultiBot.Database;
 
@@ -31,6 +30,12 @@ internal class Program
             _ = options.UseMySql(connectionString, serverVersion);
             _ = options.LogTo(Console.WriteLine, LogLevel.Warning);
         });
+
+        //builder.Services.AddDbContextFactory<BoberDbContext>(options =>
+        //{
+        //    _ = options.UseMySql(connectionString, serverVersion);
+        //    _ = options.LogTo(Console.WriteLine, LogLevel.Warning);
+        //});
 
         var app = builder.Build();
 

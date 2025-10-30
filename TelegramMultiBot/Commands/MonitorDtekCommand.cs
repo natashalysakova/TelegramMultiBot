@@ -1,12 +1,5 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types;
-using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageCompare;
 
 namespace TelegramMultiBot.Commands
@@ -38,7 +31,7 @@ namespace TelegramMultiBot.Commands
 
             if (command.Length == 1)
             {
-                var activeJobs = monitorService.GetActiveJobs(message.Chat.Id);
+                var activeJobs = await monitorService.GetActiveJobs(message.Chat.Id);
                 if (activeJobs.Count() == 0)
                 {
                     await client.SendMessageAsync(message.Chat, "Нема активних завдань", messageThreadId: message.MessageThreadId);
@@ -50,18 +43,20 @@ namespace TelegramMultiBot.Commands
                 foreach (var job in activeJobs)
                 {
 
-                    var info = monitorService.GetInfo(job.Id);
+                    var info = await monitorService.GetInfo(job);
                     if (info == default)
                         continue;
 
-                    logger.LogDebug("activeJob {id} - {file} - {caption}", job.Id, info.filename, info.caption);
-                    var stream = System.IO.File.OpenRead(info.filename);
-                    streams.Add(stream);
-                    var filename = Path.GetFileName(info.filename);
-                    var photo = new InputMediaPhoto(InputFile.FromStream(stream, filename));
-                    photo.Caption = info.caption;
-                    media.Add(photo);
-
+                    foreach (var image in info.Filenames)
+                    {
+                        logger.LogDebug("activeJob {id} - {file} - {caption}", job.Id, image, info.Caption);
+                        var stream = System.IO.File.OpenRead(image);
+                        streams.Add(stream);
+                        var filename = Path.GetFileName(image);
+                        var photo = new InputMediaPhoto(InputFile.FromStream(stream, filename));
+                        photo.Caption = info.Caption;
+                        media.Add(photo);
+                    }
                 }
 
                 if (media.Count() == 0)
@@ -80,7 +75,7 @@ namespace TelegramMultiBot.Commands
                     logger.LogError(ex, "{message}", ex.Message);
                     if (ex.Message.Contains("chat not found") || ex.Message.Contains("PEER_ID_INVALID") || ex.Message.Contains("bot was kicked from the group chat"))
                     {
-                        monitorService.DisableJob(message.Chat.Id, ex.Message);
+                        await monitorService.DisableJob(message.Chat.Id, ex.Message);
                         logger.LogWarning("Removing all jobs for {id}", message.Chat.Id);
                     }
                 }
@@ -101,6 +96,7 @@ namespace TelegramMultiBot.Commands
                 }
 
                 long chatId;
+                int? messageThreadId = null;
 
                 if (command.Length == 3)
                 {
@@ -120,6 +116,7 @@ namespace TelegramMultiBot.Commands
                     else
                     {
                         chatId = message.Chat.Id;
+                        messageThreadId = message.MessageThreadId;
                     }
                 }
 
@@ -127,15 +124,15 @@ namespace TelegramMultiBot.Commands
 
                 var region = command[1].Split('-', StringSplitOptions.RemoveEmptyEntries).Last();
 
-                var jobAdded = monitorService.AddDtekJob(chatId, region);
+                var jobAdded = await monitorService.AddDtekJob(chatId, messageThreadId, region, null);
 
-                if (jobAdded == -1)
+                if (jobAdded == Guid.Empty)
                 {
                     await client.SendMessageAsync(message.Chat, "Упс, Така задача вже є, або регіон не підтримується. " + supportedRegions);
                 }
                 else
                 {
-                    if (!monitorService.SendExisiting(jobAdded))
+                    if (!await monitorService.SendExisiting(jobAdded))
                     {
                         await client.SendMessageAsync(message.Chat, "Задача додана. Актуального графіку наразі нема.");
                     }
@@ -179,7 +176,7 @@ namespace TelegramMultiBot.Commands
 
                 var region = command[1].Split('-', StringSplitOptions.RemoveEmptyEntries).Last();
 
-                if (monitorService.DisableJob(chatId, region, "user request"))
+                if (await monitorService.DisableJob(chatId, region, null, "user request"))
                 {
                     await client.SendMessageAsync(message.Chat, "Задача видалена");
                 }
@@ -220,7 +217,7 @@ namespace TelegramMultiBot.Commands
                 }
 
 
-                var jobs = monitorService.GetActiveJobs(chatId);
+                var jobs = await monitorService.GetActiveJobs(chatId);
 
                 if (!jobs.Any())
                 {
@@ -228,7 +225,7 @@ namespace TelegramMultiBot.Commands
                     return;
                 }
 
-                var responce = string.Join(", ", jobs.Select(x => $"Перевіряємо {x.Url} Наступний запуск: {x.NextRun}"));
+                var responce = string.Join(", ", jobs.Select(x => $"Перевіряємо {x.Location.Url}"));
                 await client.SendMessageAsync(message.Chat, responce);
             }
         }

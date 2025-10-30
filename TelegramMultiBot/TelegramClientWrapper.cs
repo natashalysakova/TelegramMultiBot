@@ -1,8 +1,4 @@
-﻿using AngleSharp.Io;
-using System.Runtime.InteropServices.Marshalling;
-using System.Threading;
-using Telegram.Bot;
-using Telegram.Bot.Polling;
+﻿using Telegram.Bot;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
@@ -10,7 +6,6 @@ using Telegram.Bot.Types.InlineQueryResults;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
-using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot
 {

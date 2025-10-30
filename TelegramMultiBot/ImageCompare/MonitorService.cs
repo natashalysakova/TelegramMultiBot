@@ -1,148 +1,140 @@
-﻿using AngleSharp.Dom;
-using AngleSharp.Html.Parser;
-using DtekParsers;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
-using TelegramMultiBot.Database.Services;
 
 namespace TelegramMultiBot.ImageCompare
 {
     public class MonitorService
     {
         private readonly ILogger<MonitorService> _logger;
-        private readonly IMonitorDataService _dbservice;
-        CancellationToken _cancellationToken;
+        private readonly IServiceProvider _serviceProvider;
+        private readonly IMonitorDataService _dataService;
 
-        public event Action<long, List<(string filename, string caption)>> ReadyToSend = delegate { };
+        public event Action<SendInfo> ReadyToSend = delegate { };
 
-        public MonitorService(ILogger<MonitorService> logger, IMonitorDataService dbservice)
+        public MonitorService(ILogger<MonitorService> logger, IServiceProvider serviceProvider, IMonitorDataService dataService)
         {
             _logger = logger;
-            _dbservice = dbservice;
+            _serviceProvider = serviceProvider;
+            _dataService = dataService;
         }
         public void Run(CancellationToken token)
         {
-            _cancellationToken = token;
             _ = Task.Run(async () =>
             {
-                while (!_cancellationToken.IsCancellationRequested)
+                while (!token.IsCancellationRequested)
                 {
-                    var datetime = DateTime.Now;
-                    _logger.LogTrace("checking at {date}", datetime);
-                    var activeJobs = _dbservice.Jobs.Where(x => x.IsActive).GroupBy(x => x.Url);
-                    var sendList = new Dictionary<long, List<(string file, string caption)>>();
-                    foreach (var group in activeJobs)
+                    try
                     {
-                        var hasToBeRun = group.Any(x => x.NextRun < datetime);
-
-                        if (!hasToBeRun)
-                        {
-                            continue;
-                        }
-
-                        bool isTheSame;
-
-                        List<GroupSchedule> schedule;
-                        try
-                        {
-                            schedule = await new ScheduleParser().Parse(group.Key);
-
-                            var updateTime = schedule.First().Updated;
-
-                            isTheSame = group.All(x => x.LastScheduleUpdate == updateTime);
-                        }
-                        catch (KeyNotFoundException ex)
-                        {
-                            _logger.LogError("fetching {key} failed: {message}", group.Key, ex.Message);
-                            UpdateNextRun(group, 10);
-                            continue;
-                        }
-                        catch (Exception ex)
-                        {
-                            _logger.LogError("{key} error: {message}", group.Key, ex.Message);
-                            continue;
-                        }
-
-                        if (!isTheSame && schedule != null)
-                        {
-                            string caption = $"Оновлений графік {GetLocation(group.Key)} станом на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
-
-                            try
-                            {
-
-                                var imagePathList = await GetImagePathList(group.Key, schedule);
-                                var updateTime = schedule.First().Updated;
-
-                                foreach (var job in group)
-                                {
-                                    foreach (var image in imagePathList)
-                                    {
-                                        if (!sendList.ContainsKey(job.ChatId))
-                                            sendList.Add(job.ChatId, new List<(string file, string caption)>() { (image, caption) });
-                                        else
-                                            sendList[job.ChatId].Add((image, caption));
-                                    }
-                                }
-
-                                UpdateLastSendScheduleTime(group, updateTime);
-
-                            }
-                            catch (Exception ex)
-                            {
-                                _logger.LogError(ex.Message);
-                                continue;
-                            }
-                        }
-                        else
-                        {
-                            _logger.LogTrace("{key} was not updated", group.Key);
-                        }
-                        UpdateNextRun(group, 30);
+                        await CheckForUpdates();
                     }
-
-                    foreach (var item in sendList)
+                    catch (Exception ex)
                     {
-                        ReadyToSend?.Invoke(item.Key, item.Value);
+                        _logger.LogError(ex, "Error occurred while checking for updates: {message}", ex.Message);
                     }
-
-
                     await Task.Delay(TimeSpan.FromSeconds(30));
                 }
+
             }, token);
         }
 
-        private async Task<string[]> GetImagePathList(string url, List<GroupSchedule> schedule)
+        private async Task CheckForUpdates()
         {
-            var baseDirectory = "monitor";
+            using var scope = _serviceProvider.CreateScope();
+            var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-            var folder = Path.Combine(baseDirectory, "url_" + ConvertUrlToValidFilename(url));
-
-
-            if (Directory.Exists(folder))
+            var activeJobs = await dbservice.GetActiveJobs();
+            var sendList = new List<SendInfo>();
+            foreach (var job in activeJobs)
             {
-                var files = Directory.EnumerateFiles(folder);
-                foreach (var file in files)
+                try
                 {
-                    File.Delete(file);
+                    bool sendUpdate = DecideIfSendUpdate(job);
+
+                    if (sendUpdate)
+                    {
+                        job.LastScheduleUpdate = job.Location.LastUpdated;
+
+                        if (job.Group != null)
+                        {
+                            job.LastSentGroupSnapsot = job.Group.DataSnapshot;
+                        }
+
+                        await dbservice.Update(job);
+
+                        string caption = $"Оновлений графік {GetLocationByUrl(job.Location.Region)} станом на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+                        try
+                        {
+                            var imagePathList = await dbservice.GetImagesForJob(job.Id);
+                            sendList.Add(new SendInfo()
+                            {
+                                ChatId = job.ChatId,
+                                Filenames = imagePathList.ToList(),
+                                Caption = caption,
+                                MessageThreadId = job.MessageThreadId,
+                            });
+
+                        }
+                        catch (Exception ex)
+                        {
+                            _logger.LogError(ex.Message);
+                            continue;
+                        }
+                    }
+                    else
+                    {
+                        _logger.LogTrace("{key} was not updated", job.Id);
+                    }
+
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError("{key} job error: {message}", job.Id, ex.Message);
                 }
             }
-            else
-            {
-                Directory.CreateDirectory(folder);
-            }
-            var imageBytes = await ScheduleImageGenerator.GenerateAllGroupsRealSchedule(schedule);
 
-            return [SaveFile(folder, imageBytes)];
+            foreach (var item in sendList)
+            {
+                ReadyToSend?.Invoke(item);
+            }
         }
 
-        private static string GetLocation(string url)
+        private bool DecideIfSendUpdate(MonitorJob job)
+        {
+            // Check if schedule has been updated since last send
+            bool hasScheduleUpdate = job.LastScheduleUpdate != job.Location.LastUpdated;
+
+            // For non-group jobs, send if schedule updated
+            if (!job.GroupId.HasValue)
+            {
+                return hasScheduleUpdate;
+            }
+
+            // For group jobs, also check if group data changed
+            bool hasGroupDataChange = HasGroupDataChanged(job);
+
+            return hasScheduleUpdate && hasGroupDataChange;
+        }
+
+        private static bool HasGroupDataChanged(MonitorJob job)
+        {
+            if (job.Group == null)
+            {
+                return false;
+            }
+
+            // New snapshot available when previously none existed
+            if (job.LastSentGroupSnapsot is null && job.Group.DataSnapshot is not null)
+            {
+                return true;
+            }
+
+            // Snapshot content has changed
+            return job.LastSentGroupSnapsot != job.Group.DataSnapshot;
+        }
+
+        private static string GetLocationByUrl(string url)
         {
             switch (url)
             {
@@ -155,326 +147,164 @@ namespace TelegramMultiBot.ImageCompare
             }
         }
 
-        private bool Compare(string url, out IList<string> localFilePath)
-        {
-            var baseDirectory = "monitor";
-
-            var folder = Path.Combine(baseDirectory, "url_" + ConvertUrlToValidFilename(url));
-            var imgUrls = GetUrlFromHtml(url);
-            localFilePath = new List<string>();
-
-
-            if (Directory.Exists(folder) && Directory.EnumerateFiles(folder).Any())
-            {
-                var lastFiles = Directory.EnumerateFiles(folder).Order().TakeLast(imgUrls.Count());
-
-                foreach (var imgUrl in imgUrls)
-                {
-                    var isFound = false;
-                    byte[] img = GetBytes(imgUrl);
-
-                    for (int i = 0; i < lastFiles.Count(); i++)
-                    {
-                        var img2 = File.ReadAllBytes(lastFiles.ElementAt(i));
-
-                        if (ImageComparator.Compare(img, img2))
-                        {
-                            isFound = true;
-                        }
-                    }
-
-                    if (!isFound)
-                    {
-                        localFilePath.Add(SaveFile(imgUrl, folder, img));
-                    }
-                }
-
-                if (localFilePath.Count == 0)
-                {
-                    return true;
-                }
-                else
-                {
-                    return false;
-                }
-            }
-            else
-            {
-                if (!Directory.Exists(folder))
-                {
-                    Directory.CreateDirectory(folder);
-                }
-
-                foreach (var imgUrl in imgUrls)
-                {
-                    byte[] img = GetBytes(imgUrl);
-
-                    localFilePath.Add(SaveFile(imgUrl, folder, img));
-                }
-
-                return false;
-            }
-        }
-
-        static string ConvertUrlToValidFilename(string url)
-        {
-            // Convert the URL to a file-safe format
-            string filename = url
-                .Replace("https://", "") // Remove protocol part
-                .Replace("http://", "")  // Remove protocol part
-                .Replace("/", "_")       // Replace slashes with underscores
-                .Replace(":", "_")       // Replace colons with underscores
-                .Replace("?", "_")       // Replace question marks with underscores
-                .Replace("&", "_")       // Replace ampersands with underscores
-                .Replace("=", "_")       // Replace equal signs with underscores
-                .Replace(" ", "_");      // Replace spaces with underscores
-
-            filename = RemoveInvalidFilenameChars(filename);
-            filename = filename.Length > 128 ? filename.Substring(0, 128) : filename;
-
-            return filename;
-        }
-
-        static string RemoveInvalidFilenameChars(string filename)
-        {
-            string invalidCharsPattern = new string(Path.GetInvalidFileNameChars());
-            return Regex.Replace(filename, $"[{Regex.Escape(invalidCharsPattern)}]", "_");
-        }
-
-        private static byte[] GetBytes(string url)
-        {
-            HttpClient client = new HttpClient();
-            var task = client.GetByteArrayAsync(url);
-            task.Wait();
-            return task.Result;
-        }
-
-        private static IEnumerable<string> GetUrlFromHtml(string url)
-        {
-            HttpClient client = new HttpClient();
-
-            var htmltask = client.GetStringAsync(url);
-            htmltask.Wait();
-            var urlToUse = ParsePage(htmltask.Result);
-
-            Uri uri = new Uri(url);
-
-            return urlToUse.Select(x => $"{uri.Scheme}://{uri.Host}{x}");
-        }
-
-
-        private static IEnumerable<string?>? ParsePage(string html)
-        {
-            var document = new HtmlParser().ParseDocument(html);
-
-            var url = document.QuerySelectorAll("div > figure > picture > img");
-
-            if (url is null || !url.Any())
-            {
-                //var filename = "failure_" + DateTime.Now.ToString("yyyyMMddHHmmss") + ".html";
-                //File.WriteAllText(filename, html);
-                throw new KeyNotFoundException("cannot find url.");
-            }
-
-            //foreach (var images in url)
-            //{
-            //    var path = images.GetAttribute("src");
-            //    yield return path;
-            //}
-
-            return url?.Select(x => x.GetAttribute("src"));
-
-        }
-
-        private static string SaveFile(string folder, byte[] bytes)
-        {
-            var extention = ".png";
-            var filename = DateTime.Now.ToString("yyyyMMddHHmmssfff") + extention;
-            var filePath = Path.Combine(folder, filename);
-            File.WriteAllBytes(filePath, bytes);
-            Console.WriteLine(Path.GetFullPath(filePath));
-            return filePath;
-        }
-
-        private static string SaveFile(string url, string folder, byte[] bytes)
-        {
-            var extention = new FileInfo(url).Extension;
-            if (string.IsNullOrEmpty(extention))
-            {
-                extention = ".jpg";
-            }
-            var filename = DateTime.Now.ToString("yyyyMMddHHmmssfff") + extention;
-            var filePath = Path.Combine(folder, filename);
-            File.WriteAllBytes(filePath, bytes);
-            Console.WriteLine(Path.GetFullPath(filePath));
-            return filePath;
-        }
-
-
-        internal int AddDtekJob(long chatId, string region)
-        {
-            string url;
-
-            url = GetFromRegion(region);
-
-            if (url == null)
-            {
-                return -1;
-            }
-
-            var existing = _dbservice.Jobs.SingleOrDefault(x => x.ChatId == chatId && x.Url == url);
-
-            if (existing != null && existing.IsActive)
-            {
-                return -1;
-            }
-            else if (existing != null && existing.IsActive == false)
-            {
-                existing.IsActive = true;
-                existing.DeactivationReason = null;
-                _dbservice.SaveChanges();
-                return existing.Id;
-            }
-
-
-            var job = new MonitorJob() { ChatId = chatId, Url = url, IsDtekJob = true, NextRun = DateTime.Now };
-            _dbservice.Jobs.Add(job);
-            _dbservice.SaveChanges();
-            return job.Id;
-        }
-
-        private string? GetFromRegion(string region)
+        private static string GetLocationByRegion(string region)
         {
             switch (region)
             {
                 case "krem":
-                    return "https://www.dtek-krem.com.ua/ua/shutdowns";
+                    return "для Київської області";
                 case "kem":
-                    return "https://www.dtek-kem.com.ua/ua/shutdowns";
+                    return "для м.Київ";
                 default:
-                    return null;
-
+                    return string.Empty;
             }
         }
 
-        internal bool SendExisiting(long chatId, string region)
+        internal async Task<Guid> AddDtekJob(long chatId, int? messageThreadId, string region, string? group)
         {
-            var job = _dbservice.Jobs.Where(x => x.Url == GetFromRegion(region)).FirstOrDefault();
-            if(job is null)
+            var existing = await _dataService.GetJobBySubscriptionParameters(chatId, region, group);
+
+            if (existing != null && existing.IsActive)
+            {
+                return existing.Id;
+            }
+            else if (existing != null && existing.IsActive == false)
+            {
+                await _dataService.ReactivateJob(existing.Id, messageThreadId);
+                return existing.Id;
+            }
+
+
+            var location = await _dataService.GetLocationByRegion(region);
+
+            if (location == null)
+            {
+                return Guid.Empty;
+            }
+
+            ElectricityGroup? dbGroup = default;
+
+            if (!string.IsNullOrEmpty(group))
+            {
+                dbGroup = await _dataService.GetGroupByCodeAndLocationRegion(region, group);
+            }
+
+            var job = new MonitorJob()
+            {
+                ChatId = chatId,
+                LocationId = location.Id,
+                IsDtekJob = true,
+                MessageThreadId = messageThreadId,
+                GroupId = dbGroup?.Id,
+                Type = dbGroup is null ? ElectricityJobType.AllGroups : ElectricityJobType.SingleGroup,
+            };
+            await _dataService.Add(job);
+            return job.Id;
+        }
+
+        public async Task<bool> SendExisiting(long chatId, string region, int? messageThreadId)
+        {
+
+            var existingInfo = await _dataService.GetCurrentScheduleImagesForRegion(region);
+
+            string caption = $"Актуальний графік {GetLocationByRegion(region)} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+
+            var info = new SendInfo()
+            {
+                ChatId = chatId,
+                Filenames = existingInfo.ToList(),
+                Caption = caption,
+                MessageThreadId = messageThreadId,
+            };
+
+            ReadyToSend?.Invoke(info);
+            return true;
+        }
+
+        public async Task<bool> SendExisiting(long chatId, string region, string group, ElectricityJobType jobType, int? messageThreadId)
+        {
+
+            var existingInfo = await _dataService.GetCurrentScheduleImagesForGroupRegion(group, region, jobType);
+            var groupFromDb = await _dataService.GetGroupByCodeAndLocationRegion(region, group);
+            string groupName = groupFromDb?.GroupName ?? "";
+
+            string caption = $"Актуальний графік {GetLocationByRegion(region)} {groupName} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+
+            var info = new SendInfo()
+            {
+                ChatId = chatId,
+                Filenames = existingInfo.ToList(),
+                Caption = caption,
+                MessageThreadId = messageThreadId,
+            };
+
+            ReadyToSend?.Invoke(info);
+            return true;
+        }
+
+        public async Task<bool> SendExisiting(Guid jobAdded)
+        {
+            var job = await _dataService.GetJobById(jobAdded);
+            if (job is null)
             {
                 return false;
             }
 
-            var info = GetInfo(job.Id);
+            var info = await GetInfo(job);
 
             if (info == default)
                 return false;
 
-            ReadyToSend?.Invoke(chatId, new List<(string filename, string caption)>() { (info.filename, info.caption) });
+            job.LastScheduleUpdate = job.Location.LastUpdated;
+            await _dataService.Update(job);
+
+            ReadyToSend?.Invoke(info);
             return true;
         }
 
-        internal bool SendExisiting(int jobAdded)
+        internal async Task<SendInfo> GetInfo(MonitorJob job)
         {
-            var info = GetInfo(jobAdded);
+            var images = await _dataService.GetImagesForJob(job.Id);
 
-            if (info == default)
-                return false;
+            string caption = $"Актуальний графік {GetLocationByUrl(job.Location.Url)} {job.Group?.GroupName ?? ""} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
 
-            ReadyToSend?.Invoke(info.chatId, new List<(string filename, string caption)>() { (info.filename, info.caption) });
+            return new SendInfo()
+            {
+                ChatId = job.ChatId,
+                Filenames = images.ToList(),
+                Caption = caption,
+                MessageThreadId = job.MessageThreadId,
+            };
+        }
+
+        internal async Task<bool> DisableJob(long chatId, string region, string? group, string reason)
+        {
+            await _dataService.DisableJobs(chatId, region, group, reason);
             return true;
         }
 
-        internal (string filename, string caption, long chatId) GetInfo(int jobId)
+        public async Task DisableJob(long chatId, string reason)
         {
-            var job = _dbservice[jobId];
-            if (job == null)
-                return default;
-
-            var baseDirectory = "monitor";
-            var folder = Path.Combine(baseDirectory, "url_" + ConvertUrlToValidFilename(job.Url));
-            _logger.LogDebug(folder);
-            if (Directory.Exists(folder))
-            {
-                var files = Directory.EnumerateFiles(folder);
-
-                _logger.LogDebug(string.Join(',', files));
-
-                if (files.Any())
-                {
-                    var fileToSend = files.Order().Last();
-                    string caption = $"Актуальний графік {GetLocation(job.Url)} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
-                    return new() { filename = fileToSend, caption = caption, chatId = job.ChatId };
-                }
-            }
-            return default;
-        }
-
-        public void UpdateNextRun(IGrouping<string, MonitorJob> jobs, int minutes)
-        {
-            foreach (var job in jobs)
-            {
-                job.NextRun = DateTime.Now.AddMinutes(minutes);
-            }
-
-            _dbservice.SaveChanges();
-        }
-
-        public void UpdateLastSendScheduleTime(IGrouping<string, MonitorJob> jobs, DateTime updateTime)
-        {
-            foreach (var job in jobs)
-            {
-                job.LastScheduleUpdate = updateTime;
-            }
-
-            _dbservice.SaveChanges();
+            await _dataService.DisableJobs(chatId, reason);
         }
 
 
-
-
-        internal bool DisableJob(long chatId, string region, string reason)
+        internal async Task<IEnumerable<MonitorJob>> GetActiveJobs(long chatId)
         {
-            var url = GetFromRegion(region);
-
-            if (url == null)
-                return false;
-
-            var jobs = _dbservice.Jobs.Where(x => x.ChatId == chatId && x.Url == url);
-            DisableJobs(jobs, reason);
-            return true;
+            return await _dataService.GetActiveJobs(chatId);
         }
 
-        public void DisableJob(long chatId, string reason)
+        internal async Task<Dictionary<string, bool>> IsSubscribed(long chatId, string region)
         {
-            var jobs = _dbservice.Jobs.Where(x => x.ChatId == chatId);
-            DisableJobs(jobs, reason);
+            return await _dataService.GetSubscriptionList(chatId, region);
         }
+    }
 
-        private void DisableJobs(IEnumerable<MonitorJob> jobs, string reason)
-        {
-            foreach (var job in jobs)
-            {
-                job.IsActive = false;
-                job.DeactivationReason = reason;
-            }
-
-            _dbservice.SaveChanges();
-        }
-
-        internal IEnumerable<MonitorJob> GetJobs(long chatId)
-        {
-            return _dbservice.Jobs.Where(x => x.ChatId == chatId);
-        }
-
-        internal IEnumerable<MonitorJob> GetActiveJobs(long chatId)
-        {
-            return _dbservice.Jobs.Where(x => x.ChatId == chatId && x.IsActive);
-        }
-
-        internal bool IsSubscribed(long id, string region)
-        {
-            return _dbservice.Jobs.Any(x => x.ChatId == id && x.Url == GetFromRegion(region) && x.IsActive);
-        }
+    public class SendInfo
+    {
+        public List<string> Filenames { get; set; } = new List<string>();
+        public string Caption { get; set; }
+        public long ChatId { get; set; }
+        public int? MessageThreadId { get; set; }
     }
 }

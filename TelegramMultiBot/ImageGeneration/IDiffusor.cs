@@ -1,6 +1,4 @@
-﻿using System.Diagnostics;
-using TelegramMultiBot.Database.DTO;
-using TelegramMultiBot.Database.Enums;
+﻿using TelegramMultiBot.Database.DTO;
 
 namespace TelegramMultiBot.ImageGenerators
 {

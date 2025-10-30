@@ -1,9 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Text;
 using System.Threading.Tasks;
 using TelegramMultiBot.Database.Models;
 
@@ -11,31 +6,37 @@ namespace TelegramMultiBot.Database.Interfaces
 {
     public interface IMonitorDataService
     {
-        DbSet<MonitorJob> Jobs { get ; }
-        public MonitorJob? this[int i] {  get; }
-        void SaveChanges();
-        Task SaveChangesAsync();
-        //int AddDtekJob(long chatId, string region);
-        //void AddJob(long chatId, string url);
-        //void DisableJob(MonitorJob activeJob, string reason);
-        //void DisableJob(long chatId, string reason);
-        //IEnumerable<MonitorJob> GetActiveJobs();
-        //IEnumerable<MonitorJob> GetJobs(long chatId);
-        //void UpdateNextRun(MonitorJob activeJob, int minutes);
-        //void UpdateNextRun(IGrouping<string, MonitorJob> jobs, int minutes);
+        Task<IEnumerable<ElectricityLocation>> GetLocations();
+        Task<ElectricityLocation?> GetLocationByRegion(string region);
+
+        Task<IEnumerable<MonitorJob>> GetActiveJobs();
+        Task<MonitorJob?> GetJobBySubscriptionParameters(long chatId, string region, string? group);
+        Task<MonitorJob?> GetJobById(Guid jobAdded);
+        Task<IEnumerable<MonitorJob>> GetJobByChatId(long chatId);
+        Task<IEnumerable<MonitorJob>> GetActiveJobs(long chatId);
+        Task DisableJobs(long chatId, string reason);
+        Task DisableJobs(long chatId, string region, string? group, string reason);
+        Task ReactivateJob(Guid id, int? messageThreadId);
+
+        Task<IEnumerable<string>> GetImagesForJob(Guid id);
+        Task<IEnumerable<string>> GetCurrentScheduleImagesForRegion(string region);
+        Task<IEnumerable<string>> GetCurrentScheduleImagesForGroupRegion(string group, string region, ElectricityJobType jobType);
+        Task<Dictionary<string, bool>> GetSubscriptionList(long chatId, string region);
+
+        Task<IEnumerable<ElectricityGroup>> GetAllGroups();
+        Task<ElectricityGroup?> GetGroupByCodeAndLocationRegion(string region, string code);
+
+        Task<int> Add<T>(T entity) where T : class;
+        Task Update<T>(T entity) where T : class;
+        Task DeleteOldHistory(DateTime cutoffDate);
+        Task<IEnumerable<string>> GetAllHistoryImagePaths();
     }
 
     public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     {
-        public DbSet<MonitorJob> Jobs { get => context.Monitor; }
-        public void SaveChanges()
+        public async Task<IEnumerable<ElectricityLocation>> GetLocations()
         {
-            context.SaveChanges();
-        }
-
-        public MonitorJob? this[int i]
-        {
-            get { return context.Monitor.Find(i); }
+            return await context.ElectricityLocations.Include(x => x.History).ToListAsync();
         }
 
         public async Task SaveChangesAsync()
@@ -43,35 +44,223 @@ namespace TelegramMultiBot.Database.Interfaces
             await context.SaveChangesAsync();
         }
 
-        //public void DisableJob(MonitorJob activeJob, string reason)
-        //{
-        //    var job = context.Monitor.Where(x=>x.Id == activeJob.Id);
-        //    DisableJobs(job, reason);
-        //}
+        public async Task<IEnumerable<MonitorJob>> GetActiveJobs()
+        {
+            return await GetJobsInternal()
+                .Where(x => x.IsActive).ToListAsync();
+        }
 
-        
+        public async Task<IEnumerable<string>> GetImagesForJob(Guid id)
+        {
+            var job = await GetJobsInternal(id).FirstOrDefaultAsync();
+            var todayUnixTime = new DateTimeOffset(DateTime.Today).ToUnixTimeSeconds();
 
-        //public IEnumerable<MonitorJob> GetActiveJobs()
-        //{
-        //    var datetime = DateTime.Now;
+            if (job.Group != null)
+            {
+                var groupImage = job.Location.History
+                    .Where(x => x.GroupId == job.GroupId && x.JobType == job.Type && x.ScheduleDay >= todayUnixTime)
+                    .Select(x=>x.ImagePath).ToList();
 
-        //    return context.Monitor.Where(x => x.IsActive);
-        //}
+                if (groupImage != null)
+                    return groupImage;
 
-        //public void AddJob(long chatId, string url)
-        //{
-        //    var job = new MonitorJob() { ChatId = chatId, Url = url, NextRun = DateTime.Now };
-        //    context.Monitor.Add(job);
-        //    context.SaveChanges();
-        //}
+                return Array.Empty<string>();
+            }
+            else
+            {
+                var locationImageGroups = job.Location.History
+                    .Where(x => x.ScheduleDay != null && x.ScheduleDay >= todayUnixTime)
+                    .GroupBy(x => x.ScheduleDay);
 
-        //public IEnumerable<MonitorJob> GetJobs(long chatId)
-        //{
-        //    return context.Monitor.Where(x=>x.ChatId == chatId).ToList();
-        //}
+                var images = new List<string>();
+                foreach (var group in locationImageGroups)
+                {
+                    var image = group.OrderByDescending(x => x.Updated)
+                        .FirstOrDefault();
+
+                    if (image != null)
+                    {
+                        images.Add(image.ImagePath);
+                    }
+                }
+
+                return images;
+            }
+        }
+
+        public async Task<MonitorJob?> GetJobBySubscriptionParameters(long chatId, string region, string? group)
+        {
+            return await GetJobsInternal()
+                .Where(x => x.ChatId == chatId && x.Location.Region == region && x.Group.GroupCode == group)
+                .FirstOrDefaultAsync();
+        }
+
+        public async Task<IEnumerable<MonitorJob>> GetJobByChatId(long chatId)
+        {
+            return await GetJobsInternal()
+                .Where(x => x.ChatId == chatId).ToListAsync();
+        }
+
+        private IQueryable<MonitorJob> GetJobsInternal(Guid? id = default, bool disableTracking = true)
+        {
+            var jobs = context.Monitor
+                .Include(x => x.Location)
+                    .ThenInclude(x => x.History)
+                        .ThenInclude(x => x.Group)
+                .Include(x => x.Group).AsQueryable();
+
+            if (disableTracking)
+            {
+                jobs = jobs.AsNoTracking();
+            }
+                
+            if(id.HasValue)
+            {
+                jobs = jobs.Where(x => x.Id == id.Value);
+            }
+
+            return jobs;
+        }
+
+        public async Task DisableJobs(long chatId, string reason)
+        {
+            var jobs = context.Monitor.Where(x => x.ChatId == chatId);
+
+            await DisableJobs(jobs, reason);
+        }
+
+        public async Task DisableJobs(long chatId, string region, string? group, string reason)
+        {
+            var jobs = GetJobsInternal(disableTracking: false).Where(x => x.ChatId == chatId && x.Location.Region == region && x.Group.GroupCode == group);
+
+            await DisableJobs(jobs, reason);
+        }
+
+        private async Task DisableJobs(IEnumerable<MonitorJob> jobs, string reason)
+        {
+            foreach (var job in jobs)
+            {
+                job.IsActive = false;
+                job.DeactivationReason = reason;
+            }
+
+            await SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<MonitorJob>> GetActiveJobs(long chatId)
+        {
+            return await GetJobsInternal()
+                .Where(x => x.IsActive  && x.ChatId == chatId).ToListAsync();
+        }
+
+        public async Task<Dictionary<string, bool>> GetSubscriptionList(long chatId, string region)
+        {
+            var groupList = await context.ElectricityGroups.Select(x => x.GroupCode).ToListAsync();
+            var subscriptions = await GetJobsInternal().Where(x=>x.ChatId == chatId && x.Location.Region == region && x.IsActive).Select(x=>x.Group).ToListAsync();
+
+            var result = new Dictionary<string, bool>();
+            foreach (var group in groupList)
+            {
+                result[group] = subscriptions.Any(x=>x?.GroupCode == group);
+            }
+
+            result["all"] = subscriptions.Any(x=> x is null);
+
+            return result;
+        }
+
+        public async Task<IEnumerable<string>> GetCurrentScheduleImagesForRegion(string region)
+        {
+            var location = await context.ElectricityLocations
+                .Include(x => x.History)
+                .FirstOrDefaultAsync(x => x.Region == region);
+
+            var todayUnixTime = new DateTimeOffset(DateTime.Today).ToUnixTimeSeconds();
+
+            var latestImages = location.History
+                .Where(x => x.ScheduleDay != 0 && x.ScheduleDay >= todayUnixTime && x.Group is null)
+                .OrderByDescending(x => x.Updated)
+                .Select(x => x.ImagePath);
 
 
+            return latestImages;
+        }
+
+        public async Task<MonitorJob?> GetJobById(Guid jobAdded)
+        {
+            return await context.Monitor
+                .Include(x => x.Location)
+                    .ThenInclude(x => x.History)
+                .FirstOrDefaultAsync(x => x.Id == jobAdded);
+        }
+
+        public async Task<ElectricityLocation?> GetLocationByRegion(string region)
+        {
+            return await context.ElectricityLocations
+                .Include(x => x.History)
+                .FirstOrDefaultAsync(x => x.Region == region);
+        }
+
+        public async Task ReactivateJob(Guid id, int? messageThreadId)
+        {
+            var job = context.Monitor.Find(id);
+            job.IsActive = true;
+            job.DeactivationReason = null;
+            job.MessageThreadId = messageThreadId;
+            await context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<ElectricityGroup>> GetAllGroups()
+        {
+            return await context.ElectricityGroups.AsNoTracking().ToListAsync();
+        }
 
 
+        public async Task Update<T>(T entity) where T : class
+        {
+            context.Entry(entity).State = EntityState.Modified;
+            await context.SaveChangesAsync();
+        }
+
+        public Task<int> Add<T>(T entity) where T : class
+        {
+            context.Add(entity);
+            return context.SaveChangesAsync();
+        }
+
+        public async Task<ElectricityGroup?> GetGroupByCodeAndLocationRegion(string region, string code)
+        {
+            return await context.ElectricityGroups.SingleOrDefaultAsync(x => x.GroupCode == code && x.LocationRegion == region);
+        }
+
+        public async Task<IEnumerable<string>> GetCurrentScheduleImagesForGroupRegion(string group, string region, ElectricityJobType jobType)
+        {
+            var groupDb = await context.ElectricityGroups
+                .Include(x=>x.History)
+                .FirstOrDefaultAsync(x => x.GroupCode == group && x.LocationRegion == region);
+
+            var todayUnixTime = new DateTimeOffset(DateTime.Today).ToUnixTimeSeconds();
+
+            var latestImages = groupDb.History
+                .Where(x => x.ScheduleDay != 0 && x.ScheduleDay >= todayUnixTime && x.JobType == jobType)
+                .OrderByDescending(x => x.Updated)
+                .Select(x => x.ImagePath);
+
+            return latestImages;
+
+        }
+
+        public async Task DeleteOldHistory(DateTime cutoffDate)
+        {
+            var toDelete = context.ElectricityHistory
+                .Where(x => x.Updated < cutoffDate);
+            context.ElectricityHistory.RemoveRange(toDelete);
+            await context.SaveChangesAsync();
+        }
+
+        public async Task<IEnumerable<string>> GetAllHistoryImagePaths()
+        {
+            return await context.ElectricityHistory.Select(x => x.ImagePath).ToListAsync();
+        }
     }
 }

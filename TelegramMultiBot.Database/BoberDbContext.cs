@@ -2,14 +2,13 @@
 using Microsoft.EntityFrameworkCore.Design;
 using Microsoft.Extensions.Configuration;
 using MySqlConnector;
-using System.Diagnostics;
 using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database
 {
     public class BoberDbContext : DbContext
     {
-        public BoberDbContext(DbContextOptions options) : base(options) 
+        public BoberDbContext(DbContextOptions options) : base(options)
         {
         }
         public virtual DbSet<ImageJob> Jobs { get; set; }
@@ -22,9 +21,47 @@ namespace TelegramMultiBot.Database
 
         public virtual DbSet<ReminderJob> Reminders { get; set; }
         public virtual DbSet<MonitorJob> Monitor { get; set; }
+        public virtual DbSet<ElectricityLocation> ElectricityLocations { get; set; }
+        public virtual DbSet<ElectricityHistory> ElectricityHistory { get; set; }
+        public virtual DbSet<ElectricityGroup> ElectricityGroups { get; set; }
 
         public virtual DbSet<AssistantSubscriber> Assistants { get; set; }
         public virtual DbSet<ChatHistory> ChatHistory { get; set; }
+
+
+        public void Seed()
+        {
+            var locations = new ElectricityLocation[]
+            {
+                new ElectricityLocation
+                {
+                    Id = Guid.Parse("3309DEF8-F7AD-4474-B609-643086142802"),
+                    Url = "https://www.dtek-kem.com.ua/ua/shutdowns",
+                    Region = "kem",
+                },
+                new ElectricityLocation
+                {
+                    Id = Guid.Parse("57E6C175-11D0-4B8A-83B1-1FC4925A7B58"),
+                    Url = "https://www.dtek-krem.com.ua/ua/shutdowns",
+                    Region = "krem",
+                }
+            };
+
+            foreach (var location in locations)
+            {
+                var sameUrlDifferentId = this.ElectricityLocations.SingleOrDefault(x => x.Url == location.Url && x.Id != location.Id);
+                if (sameUrlDifferentId != null)
+                {
+                    this.ElectricityLocations.Remove(sameUrlDifferentId);
+                }
+
+                if (this.ElectricityLocations.Find(location.Id) == null)
+                {
+                    this.ElectricityLocations.Add(location);
+                }
+            }
+            SaveChanges();
+        }
     }
 
     public class BoberDbContextFactory : IDesignTimeDbContextFactory<BoberDbContext>
