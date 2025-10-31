@@ -53,7 +53,7 @@ internal class GptCommand(
             }
             catch (Exception ex)
             {
-                if (ex.Message.Contains("No route to host") || ex.Message.Contains("No connection could be made"))
+                if (ex.Message.Contains("No route to host") || ex.Message.Contains("No connection could be made") || ex.Message.Contains("Connection refused"))
                 {
                     await clientWrapper.SendMessageAsync(message.Chat, phrasesService.GetRandomServiceUnavailablePhrase(), messageThreadId: message.MessageThreadId);
                 }

@@ -3,7 +3,7 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Database.Interfaces;
-using TelegramMultiBot.ImageGenerators;
+using TelegramMultiBot.ImageGeneration;
 
 namespace TelegramMultiBot.Commands;
 

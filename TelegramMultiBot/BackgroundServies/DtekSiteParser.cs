@@ -2,6 +2,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TelegramMultiBot.Database.Interfaces;
@@ -37,13 +38,13 @@ public class DtekSiteParser : BackgroundService
                 var scope = _serviceProvider.CreateScope();
                 var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-                var datetime = DateTime.Now;
-                _logger.LogTrace("checking at {date}", datetime);
+                _logger.LogTrace("checking all locations at {date}", DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss.fff"));
 
                 var locations = await dbservice.GetLocations();
 
                 foreach (var location in locations)
                 {
+                    _logger.LogTrace("Parsing site for location {region}", location.Region);
                     try
                     {
                         await ParseSite(dbservice, location);
@@ -62,16 +63,26 @@ public class DtekSiteParser : BackgroundService
                 _logger.LogError(ex, "Error occurred while execution. Delay {delay} seconds: {message}", newDelay, ex.Message);
                 delay = newDelay;
             }
+            finally
+            {
+                _logger.LogTrace("checking all locations ended");
+            }
 
             try
             {
-                DoCleanup();
+                _logger.LogTrace("Starting cleanup process");
+                await DoCleanup();
             }
             catch (Exception ex)
             {
                 _logger.LogError("Error during cleanup: {message}", ex.Message);
             }
+            finally
+            {
+                _logger.LogTrace("Cleanup ended");
+            }
 
+            _logger.LogTrace("Waiting for {delay} seconds before next check", delay);
             await Task.Delay(TimeSpan.FromSeconds(delay));
         }
     }
@@ -107,11 +118,11 @@ public class DtekSiteParser : BackgroundService
 
         location.LastChecked = DateTime.Now;
 
-        var scheduleUpdateDate = schedule.RealSchedule.Max(x => x.Updated);
+        var scheduleUpdateDate = schedule.Updated;
 
         if (location.LastUpdated == scheduleUpdateDate)
         {
-            _logger.LogTrace("location {location} was not updated", location.Region);
+            _logger.LogTrace("location {location} was not updated. Last update at {date}", location.Region, location.LastUpdated);
             return;
         }
 
@@ -153,14 +164,14 @@ public class DtekSiteParser : BackgroundService
                 LocationId = location.Id,
                 ScheduleDay = image.Date.HasValue ? image.Date.Value : 0,
                 JobType = GetJobType(image)
-
             });
+
         }
     }
 
     private ElectricityJobType GetJobType(ImageGenerationModel image)
     {
-        if (image.Planned)
+        if (image.IsPlanned)
         {
             return ElectricityJobType.SingleGroupPlan;
         }
@@ -175,7 +186,7 @@ public class DtekSiteParser : BackgroundService
     }
 
     const string baseDirectory = "monitor";
-    private static string SaveFile(string region, DateTime updated, ImageGenerationModel image)
+    private string SaveFile(string region, DateTime updated, ImageGenerationModel image)
     {
         var folder = Path.Combine(baseDirectory, region);
         string subfolder = GeSubFolder(image);
@@ -185,11 +196,11 @@ public class DtekSiteParser : BackgroundService
             Directory.CreateDirectory(folder);
         }
         var extention = "png";
-        var prefix = image.Planned ? "p_" : "";
+        var prefix = image.IsPlanned ? "p_" : "";
         var filename = $"{prefix}{updated.Ticks}.{extention}";
         var filePath = Path.Combine(folder, filename);
         File.WriteAllBytes(filePath, image.ImageData);
-        Console.WriteLine(Path.GetFullPath(filePath));
+        _logger.LogTrace("Saving image {date} {group} {file}", image.Date, image.Group, filePath);
         return filePath;
     }
 

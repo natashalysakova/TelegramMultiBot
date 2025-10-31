@@ -1,7 +1,7 @@
 ﻿using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Database.Interfaces;
 
-namespace TelegramMultiBot.ImageGenerators;
+namespace TelegramMultiBot.ImageGeneration;
 
 internal class CleanupService(IImageDatabaseService databaseService, TelegramClientWrapper client, ISqlConfiguationService configuration, IBotMessageDatabaseService botMessageService, IAssistantDataService assistantDataService, ILogger<CleanupService> logger)
 {

@@ -9,10 +9,9 @@ using System.Text;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
-using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 
-namespace TelegramMultiBot.ImageGenerators.ComfyUI;
+namespace TelegramMultiBot.ImageGeneration.ComfyUI;
 
 internal class ComfyUI : Diffusor
 {
@@ -514,7 +513,7 @@ internal class ComfyUI : Diffusor
                     if (obj.data.value == obj.data.max)
                     {
                         tile += 1;
-                        var progress = (i * fraction) + fraction;
+                        var progress = i * fraction + fraction;
 
                         _logger.LogDebug("{0} Progress: {1}", jobId, progress);
                         _databaseService.PostProgress(job.Id, progress, "working");
@@ -529,9 +528,9 @@ internal class ComfyUI : Diffusor
                             await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
                         }
                     }
-                    else if ((DateTime.Now - lastUpdate) > TimeSpan.FromSeconds(1))
+                    else if (DateTime.Now - lastUpdate > TimeSpan.FromSeconds(1))
                     {
-                        var progress = (1.0 / obj.data.max * obj.data.value) * fraction + (i * fraction);
+                        var progress = 1.0 / obj.data.max * obj.data.value * fraction + i * fraction;
 
                         if (progress > lastProgress)
                         {
@@ -578,7 +577,7 @@ internal class ComfyUI : Diffusor
                 var fileName = $"{job.Id}_{i}_{j}_{job.Type}.png";
                 var filePath = Path.Combine(directory, fileName);
 
-                System.IO.File.WriteAllBytes(filePath, img);
+                File.WriteAllBytes(filePath, img);
                 //File.WriteAllText(filePath + ".txt", info.infotexts[j]);
 
                 //inputMedia.Add(filePath);

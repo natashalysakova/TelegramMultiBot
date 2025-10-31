@@ -1,4 +1,5 @@
 ﻿using AutoMapper;
+using DtekParsers;
 using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
@@ -96,7 +97,7 @@ internal class SvitloCommand(TelegramClientWrapper client, MonitorService monito
             keyboard.AddNewRow(buttons.ToArray());
 
 
-            await client.SendMessageAsync(callbackQuery.Message.Chat.Id, $"Графіки {GetLocation(region)}", keyboard, messageThreadId: callbackQuery.Message?.MessageThreadId);
+            await client.SendMessageAsync(callbackQuery.Message.Chat.Id, $"Графіки {LocationNameUtility.GetLocationByRegion(region)}", keyboard, messageThreadId: callbackQuery.Message?.MessageThreadId);
         }
         else if (data.Length == 3)
         {
@@ -115,12 +116,12 @@ internal class SvitloCommand(TelegramClientWrapper client, MonitorService monito
                         break;
                     }
 
-                    await client.SendMessageAsync(callbackQuery.Message.Chat.Id, $"Підписка на {GetLocation(region)} успішно оформлена!", messageThreadId: callbackQuery.Message?.MessageThreadId);
+                    await client.SendMessageAsync(callbackQuery.Message.Chat.Id, $"Підписка на {LocationNameUtility.GetLocationByRegion(region)} успішно оформлена!", messageThreadId: callbackQuery.Message?.MessageThreadId);
                     await monitorService.SendExisiting(id);
                     break;
                 case "unsub":
                     await monitorService.DisableJob(callbackQuery.Message.Chat.Id, region, null, "svitlo user action");
-                    await client.SendMessageAsync(callbackQuery.Message.Chat.Id, $"Підписка на {GetLocation(region)} успішно видалена!", messageThreadId: callbackQuery.Message?.MessageThreadId);
+                    await client.SendMessageAsync(callbackQuery.Message.Chat.Id, $"Підписка на {LocationNameUtility.GetLocationByRegion(region)} успішно видалена!", messageThreadId: callbackQuery.Message?.MessageThreadId);
                     break;
                 default: 
                     if (action.StartsWith("sub_"))
@@ -171,17 +172,5 @@ internal class SvitloCommand(TelegramClientWrapper client, MonitorService monito
         }
 
         await client.AnswerCallbackQueryAsync(callbackQuery.Id);
-    }
-    private static string GetLocation(string region)
-    {
-        switch (region)
-        {
-            case "krem":
-                return "для Київської області";
-            case "kem":
-                return "для м.Київ";
-            default:
-                return string.Empty;
-        }
     }
 }

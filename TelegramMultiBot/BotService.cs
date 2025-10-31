@@ -13,7 +13,7 @@ using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.ImageCompare;
-using TelegramMultiBot.ImageGenerators;
+using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.MessageCache;
 
 internal class BotService(

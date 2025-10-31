@@ -7,8 +7,9 @@ using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration;
+using TelegramMultiBot.ImageGeneration.Automatic1111;
+using TelegramMultiBot.ImageGeneration.Automatic1111.Api;
 using TelegramMultiBot.ImageGeneration.Exceptions;
-using TelegramMultiBot.ImageGenerators.Automatic1111.Api;
 
 namespace TelegramMultiBot.ImageGenerators.Automatic1111;
 

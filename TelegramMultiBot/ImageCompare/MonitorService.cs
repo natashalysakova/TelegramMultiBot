@@ -1,4 +1,5 @@
-﻿using Microsoft.Extensions.DependencyInjection;
+﻿using DtekParsers;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
@@ -45,13 +46,14 @@ public class MonitorService
         var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
         var activeJobs = await dbservice.GetActiveJobs();
+        _logger.LogTrace("Found {count} active jobs to check for updates", activeJobs.Count());
         var sendList = new List<SendInfo>();
         foreach (var job in activeJobs)
         {
             try
             {
                 bool sendUpdate = DecideIfSendUpdate(job);
-
+                _logger.LogTrace("Job {key} send update decision: {decision}", job.Id, sendUpdate);
                 if (sendUpdate)
                 {
                     job.LastScheduleUpdate = job.Location.LastUpdated;
@@ -75,7 +77,7 @@ public class MonitorService
                 }
                 else
                 {
-                    _logger.LogTrace("{key} was not updated", job.Id);
+                    _logger.LogTrace("Job {key} was not updated", job.Id);
                 }
 
             }
@@ -86,7 +88,7 @@ public class MonitorService
         }
     }
 
-    private bool DecideIfSendUpdate(MonitorJob job)
+    private static bool DecideIfSendUpdate(MonitorJob job)
     {
         // Check if schedule has been updated since last send
         bool hasScheduleUpdate = job.LastScheduleUpdate != job.Location.LastUpdated;
@@ -120,7 +122,7 @@ public class MonitorService
         return job.LastSentGroupSnapsot != job.Group.DataSnapshot;
     }
 
-    
+
 
     internal async Task<Guid> AddDtekJob(long chatId, int? messageThreadId, string region, string? group)
     {
@@ -166,10 +168,10 @@ public class MonitorService
 
     public async Task<bool> SendExisiting(long chatId, string region, int? messageThreadId)
     {
-
+        _logger.LogTrace("Preparing to send existing schedule for region {region} to chat {chatId}", region, chatId);
         var existingInfo = await _dataService.GetCurrentScheduleImagesForRegion(region);
 
-        string caption = $"Актуальний графік {GetLocationByRegion(region)} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+        string caption = $"Актуальний графік {LocationNameUtility.GetLocationByRegion(region)} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
 
         var info = new SendInfo()
         {
@@ -178,6 +180,8 @@ public class MonitorService
             Caption = caption,
             MessageThreadId = messageThreadId,
         };
+
+        _logger.LogTrace("Sending existing schedule for region {region} to chat {chatId} with {count} files", region, chatId, info.Filenames.Count());
 
         ReadyToSend?.Invoke(info);
         return true;
@@ -190,7 +194,7 @@ public class MonitorService
         var groupFromDb = await _dataService.GetGroupByCodeAndLocationRegion(region, group);
         string groupName = groupFromDb?.GroupName ?? "";
 
-        string caption = $"Актуальний графік {GetLocationByRegion(region)} {groupName} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+        string caption = $"Актуальний графік {LocationNameUtility.GetLocationByRegion(region)} {groupName} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
 
         var info = new SendInfo()
         {
@@ -228,7 +232,7 @@ public class MonitorService
     {
         var images = await _dataService.GetImagesForJob(job.Id);
 
-        string caption = $"Актуальний графік {GetLocationByUrl(job.Location.Region)} {job.Group?.GroupName ?? ""} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
+        string caption = $"Актуальний графік {LocationNameUtility.GetLocationByRegion(job.Location.Region)} {job.Group?.GroupName ?? ""} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
 
         return new SendInfo()
         {
@@ -260,12 +264,4 @@ public class MonitorService
     {
         return await _dataService.GetSubscriptionList(chatId, region);
     }
-}
-
-public class SendInfo
-{
-    public List<string> Filenames { get; set; } = new List<string>();
-    public string Caption { get; set; }
-    public long ChatId { get; set; }
-    public int? MessageThreadId { get; set; }
 }

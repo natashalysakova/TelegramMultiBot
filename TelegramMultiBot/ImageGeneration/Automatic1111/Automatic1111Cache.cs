@@ -1,6 +1,7 @@
 ﻿using Newtonsoft.Json;
+using TelegramMultiBot.ImageGenerators.Automatic1111;
 
-namespace TelegramMultiBot.ImageGenerators.Automatic1111;
+namespace TelegramMultiBot.ImageGeneration.Automatic1111;
 
 public class Automatic1111Cache
 {

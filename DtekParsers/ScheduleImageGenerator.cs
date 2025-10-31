@@ -1,6 +1,8 @@
 ﻿
 using HtmlAgilityPack;
+using Microsoft.Extensions.Logging;
 using PuppeteerSharp;
+using System;
 
 namespace DtekParsers;
 
@@ -13,67 +15,52 @@ public class ScheduleImageGenerator
 
     public static async Task<IEnumerable<ImageGenerationModel>> GenerateRealScheduleSingleGroupImages(Schedule schedule)
     {
-        var requests = new List<ImageGenerationModel>();
-        foreach (var group in schedule.Groups)
-        {
-            var statuses = new Dictionary<string, Dictionary<string, IEnumerable<LightStatus>>>();
-            Dictionary<string, IEnumerable<LightStatus>> items = new();
-            foreach (var day in schedule.RealSchedule)
-            {
-                items.Add(day.DateHeader, day.Statuses[group.Id]);
-            }
-
-            statuses[group.GroupName] = items;
-
-            var html = await GenerateScheduleBody(
-                $"Графік відключень {schedule.Location} {group.GroupName}",
-                schedule.TimeZones,
-                schedule.RealSchedule.Max(x => x.Updated),
-                statuses);
-
-            foreach (var day in schedule.RealSchedule)
-            {
-                requests.Add(new ImageGenerationModel
-                {
-                    Group = group.Id,
-                    HtmlContent = html,
-                    RowNumber = schedule.RealSchedule.Count,
-                    Date = day.DateTimeStamp,
-                });
-            }
-
-        }
-        var images = await GetHtmlImage(requests);
-        return images;
+        return await GenerateSingleGroupImages(
+            $"Графік відключень {schedule.Location}",
+            schedule.Groups,
+            schedule.TimeZones.OrderBy(x => x.Id).Select(x => x.Short),
+            schedule.RealSchedule);
     }
 
     public static async Task<IEnumerable<ImageGenerationModel>> GeneratePlannedScheduleSingleGroupImages(Schedule schedule)
     {
+        return await GenerateSingleGroupImages(
+            $"Графік можливих відключень {schedule.Location}",
+            schedule.Groups,
+            schedule.TimeZones.OrderBy(x => x.Id).Select(x => x.Short),
+            schedule.PlannedSchedule);
+    }
+
+    public static async Task<IEnumerable<ImageGenerationModel>> GenerateSingleGroupImages(
+        string title,
+        IEnumerable<ScheduleGroup> groups,
+        IEnumerable<string> timeZones,
+        IEnumerable<BaseSchedule> days)
+    {
         var requests = new List<ImageGenerationModel>();
-        foreach (var group in schedule.Groups)
+        foreach (var group in groups)
         {
-            var statuses = new Dictionary<string, Dictionary<string, IEnumerable<LightStatus>>>();
-
-            Dictionary<string, IEnumerable<LightStatus>> items = new();
-            foreach (var day in schedule.PlannedSchedule)
+            var printTable = new PrintTable
             {
-                items.Add(day.DateHeader, day.Statuses[group.Id]);
-            }
+                Header = group.GroupName,
+                TimeZones = timeZones,
+                Updated = days.Max(x => x.Updated),
+                Rows = days.Select(day => new PrintRow
+                {
+                    Header = day.DateHeader,
+                    Statuses = day.Statuses[group.Id],
+                    DateHeader = day.DateHeader
+                })
+            };
 
-            statuses[group.GroupName] = items;
-
-            var html = await GenerateScheduleBody(
-                $"Графік можливих відключень {schedule.Location} {group.GroupName}",
-                schedule.TimeZones,
-                schedule.PlannedSchedule.Max(x => x.Updated),
-                statuses);
+            var html = await GenerateScheduleBody($"{title}", [printTable]);
 
             requests.Add(new ImageGenerationModel
             {
                 Group = group.Id,
                 HtmlContent = html,
-                RowNumber = schedule.RealSchedule.Count,
-                Planned = true
+                RowNumber = days.Count(),
+                IsPlanned = true
             });
         }
 
@@ -83,27 +70,30 @@ public class ScheduleImageGenerator
 
     public static async Task<IEnumerable<ImageGenerationModel>> GenerateAllGroupsRealSchedule(Schedule schedule)
     {
-        var statuses = new Dictionary<string,Dictionary<string, IEnumerable<LightStatus>>>();
-        foreach (var day in schedule.RealSchedule.OrderBy(x=>x.DateTimeStamp))
+        var tables = new List<PrintTable>();
+        foreach (var day in schedule.RealSchedule.OrderBy(x => x.DateTimeStamp))
         {
-            Dictionary<string, IEnumerable<LightStatus>> items = new();
-            foreach (var group in schedule.Groups)
+            var printTable = new PrintTable
             {
-                items.Add(group.GroupName, day.Statuses[group.Id]);
-            }
-            statuses[day.DateHeader] = items;
+                Header = day.DateHeader,
+                TimeZones = schedule.TimeZones.OrderBy(x => x.Id).Select(x => x.Short),
+                Updated = day.Updated,
+                Rows = schedule.Groups.Select(group => new PrintRow
+                {
+                    Header = group.GroupName,
+                    Statuses = day.Statuses[group.Id],
+                    DateHeader = day.DateHeader
+                })
+            };
+            tables.Add(printTable);
         }
 
-        var html = await GenerateScheduleBody(
-            $"Графік відключень {schedule.Location}",
-            schedule.TimeZones,
-            schedule.RealSchedule.Max(x=> x.Updated),
-            statuses);
+        var html = await GenerateScheduleBody($"Графік відключень {schedule.Location}", tables);
 
         List<ImageGenerationModel> requests = new();
         foreach (var day in schedule.RealSchedule)
         {
-            requests.Add( new ImageGenerationModel
+            requests.Add(new ImageGenerationModel
             {
                 HtmlContent = html,
                 RowNumber = schedule.RealSchedule.Count,
@@ -117,25 +107,28 @@ public class ScheduleImageGenerator
 
     private static async Task<string> GenerateScheduleBody(
         string title,
-        List<ScheduleTimeZone> timeZones,
-        DateTime updated,
-        Dictionary<string, Dictionary<string, IEnumerable<LightStatus>>> scheduleList)
+        IEnumerable<PrintTable> tables)
     {
         var doc = new HtmlDocument();
 
         doc.Load("Templates/template.html");
-      
+
         var titleNode = doc.GetElementbyId("schedule-header");
         titleNode.InnerHtml = title;
 
         var container = doc.GetElementbyId("tables");
         //var templateNode = doc.GetElementbyId("table-template");
 
-        foreach (var schedule in scheduleList)
+        foreach (var table in tables)
         {
+
+
             var currentTable = HtmlNode.CreateNode("" +
                 "<table class=\"schedule-table\">" +
                 "  <thead>" +
+                "    <tr id=\"date-row\">" +
+                "       <th class=\"table-header\" colspan=\"" + (table.TimeZones.Count() + 1) + "\">" + table.Header + "</th>" +
+                "    </tr>" +
                 "    <tr id=\"header-row\">" +
                 "    </tr>" +
                 "  </thead>" +
@@ -143,24 +136,32 @@ public class ScheduleImageGenerator
                 "  </tbody>" +
                 "</table>");
 
-            currentTable.Id = string.Empty;
-
             var headerRow = currentTable.SelectSingleNode("//thead/tr[@id='header-row']");
             headerRow.ChildNodes.Clear();
-            headerRow.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column-date\">{schedule.Key}</td>"));
-            foreach (var timezone in timeZones)
+
+            if (table.Total == 0)
             {
-                headerRow.AppendChild(HtmlNode.CreateNode($"<th class=\"timezone\">{timezone.Short}</th>"));
+                var noOutagePlannedNode = HtmlNode.CreateNode($"<th class=\"table-header\">Станом на {table.Updated.ToString("dd.MM.yyyy HH:mm")} відключень не планується</th>");
+                headerRow.PrependChild(noOutagePlannedNode);
+                container.AppendChild(currentTable);
+                continue;
+            }
+
+
+            headerRow.AppendChild(HtmlNode.CreateNode($"<th class=\"first-column-date\">Часові проміжки</th>"));
+            foreach (var timezone in table.TimeZones)
+            {
+                headerRow.AppendChild(HtmlNode.CreateNode($"<th class=\"timezone\">{timezone}</th>"));
             }
 
             var tableBody = currentTable.SelectSingleNode("//tbody[@id='schedule-body']");
             tableBody.ChildNodes.Clear();
-            foreach (var line in schedule.Value)
+            foreach (var row in table.Rows)
             {
                 var dayRowNode = HtmlNode.CreateNode("<tr></tr>");
-                dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{line.Key}</td>"));
+                dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"first-column\">{row.Header}</td>"));
 
-                foreach (var item in line.Value.OrderBy(x => x.Id))
+                foreach (var item in row.Statuses)
                 {
                     dayRowNode.AppendChild(HtmlNode.CreateNode($"<td class=\"{item.Status}\"></td>"));
                 }
@@ -173,19 +174,22 @@ public class ScheduleImageGenerator
 
         //templateNode.Remove();
 
-        HtmlNode legendToRemove;
-        if (scheduleList.SelectMany(y=> y.Value.SelectMany(x => x.Value)).Any(y => y.Status == ScheduleStatus.maybe))
+        if (tables.All(x=>x.Total == 0))
         {
-            legendToRemove = doc.GetElementbyId("legend-real");
+            doc.GetElementbyId("legend-planned").Remove();
+            doc.GetElementbyId("legend-real").Remove();
         }
-        else
+        else if (tables.All(x => !x.IsPlanned))
         {
-            legendToRemove = doc.GetElementbyId("legend-planned");
+            doc.GetElementbyId("legend-planned").Remove();
         }
-        legendToRemove.Remove();
+        else if (tables.All(x => x.IsPlanned))
+        {
+            doc.GetElementbyId("legend-real").Remove();
+        } 
 
         var updatedInfo = doc.GetElementbyId("updated-info");
-        updatedInfo.InnerHtml = $"Оновлено: {updated.ToString("dd.MM.yyyy HH:mm")}";
+        updatedInfo.InnerHtml = $"Оновлено: {tables.Max(x => x.Updated).ToString("dd.MM.yyyy HH:mm")}";
 
         //var fileName = $"{groupName}_{updated.ToString("ddMMyyyyHHmmss")}_{name_suffix}.html";
         return doc.DocumentNode.OuterHtml;
@@ -196,7 +200,7 @@ public class ScheduleImageGenerator
         int retry = 0;
         var maxretry = 3;
 
-        if(requests.Count == 0)
+        if (requests.Count == 0)
         {
             return new List<ImageGenerationModel>();
         }
@@ -258,20 +262,6 @@ public class ScheduleImageGenerator
 
         return allGroupsRealScheduleImages
             .Concat(singleGroupRealScheduleImages)
-            .Concat(singleGroupPlannedScheduleImages)
-            ;
+            .Concat(singleGroupPlannedScheduleImages);
     }
-
-    
-}
-
-public class ImageGenerationModel
-{
-    public byte[] ImageData { get; set; }
-    public string? Group { get; set; }
-
-    public long? Date { get; set; }
-    public bool Planned { get; internal set; }
-    public int RowNumber { get; internal set; }
-    public string HtmlContent { get; internal set; }
 }

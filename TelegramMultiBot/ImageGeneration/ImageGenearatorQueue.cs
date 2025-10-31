@@ -3,9 +3,8 @@ using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration.Exceptions;
-using TelegramMultiBot.ImageGenerators.Automatic1111;
 
-namespace TelegramMultiBot.ImageGenerators;
+namespace TelegramMultiBot.ImageGeneration;
 
 internal class ImageGenearatorQueue
 {

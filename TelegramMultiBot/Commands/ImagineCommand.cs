@@ -12,8 +12,8 @@ using TelegramMultiBot.Commands.Interfaces;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.ImageGeneration.Exceptions;
-using TelegramMultiBot.ImageGenerators;
 
 namespace TelegramMultiBot.Commands;
 

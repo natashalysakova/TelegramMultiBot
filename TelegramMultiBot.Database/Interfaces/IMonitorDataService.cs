@@ -75,7 +75,8 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
             .Include(x => x.Location)
                 .ThenInclude(x => x.History)
                     .ThenInclude(x => x.Group)
-            .Include(x => x.Group).AsQueryable();
+            .Include(x => x.Group)
+            .AsQueryable();
 
         if (disableTracking)
         {
@@ -252,7 +253,7 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
 
         if (jobType == ElectricityJobType.SingleGroupPlan)
         {
-            toSend.AddRange(filteredHistory.Select(x => x.ImagePath).Distinct());
+            toSend.AddRange(filteredHistory.Where(x=>x.Updated == filteredHistory.Max(x=>x.Updated)).Select(x=>x.ImagePath).Distinct());
         }
         else
         {

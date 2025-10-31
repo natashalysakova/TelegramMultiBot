@@ -1,4 +1,4 @@
-﻿namespace TelegramMultiBot.ImageGenerators.Automatic1111.Api;
+﻿namespace TelegramMultiBot.ImageGeneration.Automatic1111.Api;
 
 public class ProgressResponse
 {

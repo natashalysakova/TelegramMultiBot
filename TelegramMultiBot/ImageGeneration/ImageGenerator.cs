@@ -3,7 +3,7 @@ using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGeneration.Exceptions;
 
-namespace TelegramMultiBot.ImageGenerators.Automatic1111;
+namespace TelegramMultiBot.ImageGeneration;
 
 internal class ImageGenerator
 {

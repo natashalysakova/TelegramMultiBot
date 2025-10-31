@@ -1,5 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
-namespace TelegramMultiBot;
+namespace TelegramMultiBot.Reminder;
 
 public static class CronUtil
 {

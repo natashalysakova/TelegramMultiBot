@@ -2,7 +2,7 @@
 using Telegram.Bot.Types.Enums;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
-using TelegramMultiBot.ImageGenerators;
+using TelegramMultiBot.ImageGeneration;
 
 namespace TelegramMultiBot.Commands;
 

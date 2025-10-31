@@ -49,12 +49,6 @@ public class BoberDbContext : DbContext
 
         foreach (var location in locations)
         {
-            var sameUrlDifferentId = this.ElectricityLocations.SingleOrDefault(x => x.Url == location.Url && x.Id != location.Id);
-            if (sameUrlDifferentId != null)
-            {
-                this.ElectricityLocations.Remove(sameUrlDifferentId);
-            }
-
             if (this.ElectricityLocations.Find(location.Id) == null)
             {
                 this.ElectricityLocations.Add(location);

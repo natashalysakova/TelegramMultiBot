@@ -4,7 +4,7 @@ using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 
-namespace TelegramMultiBot.ImageGenerators;
+namespace TelegramMultiBot.ImageGeneration;
 
 public abstract class Diffusor(ILogger<Diffusor> logger, ISqlConfiguationService configuration) : IDiffusor
 {

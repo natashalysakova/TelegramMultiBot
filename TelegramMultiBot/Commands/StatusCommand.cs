@@ -1,6 +1,6 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Telegram.Bot.Types;
-using TelegramMultiBot.ImageGenerators;
+using TelegramMultiBot.ImageGeneration;
 
 namespace TelegramMultiBot.Commands;
 

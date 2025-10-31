@@ -20,8 +20,7 @@ using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Database.Profiles;
 using TelegramMultiBot.Database.Services;
 using TelegramMultiBot.ImageCompare;
-using TelegramMultiBot.ImageGenerators;
-using TelegramMultiBot.ImageGenerators.Automatic1111;
+using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.MessageCache;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 

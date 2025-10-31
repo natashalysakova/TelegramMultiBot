@@ -9,7 +9,7 @@ public class ScheduleParser
     {
         var html = await GetHtmlFromUrl(url);
 
-        var location = GetLocationByUrl(url);
+        var location = LocationNameUtility.GetLocationByUrl(url);
 
         var realVariableJobject = GetJsonFromScriptVariables(html, "DisconSchedule.fact");
         var presetVariableJobject = GetJsonFromScriptVariables(html, "DisconSchedule.preset");
@@ -19,6 +19,8 @@ public class ScheduleParser
         schedule.TimeZones = GetTimeZones(presetVariableJobject);
         schedule.Groups = GetGroups(presetVariableJobject);
         schedule.Location = location;
+        schedule.Updated = GetUpdateTime(realVariableJobject, "updateFact");
+
 
         FillRealSchedule(schedule, realVariableJobject);
         FillPlannedSchedule(schedule, presetVariableJobject);
@@ -42,28 +44,21 @@ public class ScheduleParser
         foreach (var day in realSchedule)
         {
             builder.Append($"{day.DateTimeStamp}");
-            var groupSchedule = day.Statuses[groupCode];
-            if(groupSchedule is not null)
+
+            if (day.Statuses.ContainsKey(groupCode))
             {
-                foreach (var status in groupSchedule)
+                var groupSchedule = day.Statuses[groupCode];
+                if (groupSchedule is not null)
                 {
-                    builder.Append($"|{status.Id}:{(int)status.Status}");
+                    foreach (var status in groupSchedule)
+                    {
+                        builder.Append($"|{status.Id}:{(int)status.Status}");
+                    }
                 }
             }
         }
 
         return builder.ToString();
-    }
-
-    private string GetLocationByUrl(string url)
-    {
-        var location = url switch
-        {
-            "https://www.dtek-kem.com.ua/ua/shutdowns" => "м.Київ",
-            "https://www.dtek-krem.com.ua/ua/shutdowns" => "Київська область",
-            _ => throw new NotImplementedException(),
-        };
-        return location;
     }
 
     private void FillPlannedSchedule(Schedule schedule, JObject presetVariableJobject)
@@ -226,7 +221,7 @@ public class ScheduleParser
 
             var timeZoneObj = new ScheduleTimeZone()
             {
-                Id = timeZone.Name,
+                Id = int.Parse(timeZone.Name),
                 Short = timeZone.Value[0]!.ToString(),
                 Start = timeZone.Value[1]!.ToString(),
                 End = timeZone.Value[2]!.ToString(),

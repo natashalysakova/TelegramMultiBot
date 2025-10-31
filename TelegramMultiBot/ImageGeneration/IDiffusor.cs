@@ -1,6 +1,6 @@
 ﻿using TelegramMultiBot.Database.DTO;
 
-namespace TelegramMultiBot.ImageGenerators;
+namespace TelegramMultiBot.ImageGeneration;
 
 internal interface IDiffusor
 {
