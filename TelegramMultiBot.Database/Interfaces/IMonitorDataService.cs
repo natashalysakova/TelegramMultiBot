@@ -31,6 +31,7 @@ public interface IMonitorDataService
     Task Update<T>(T entity) where T : class;
     Task DeleteOldHistory(DateTime cutoffDate);
     Task<IEnumerable<string>> GetAllHistoryImagePaths();
+    Task DeleteHistoryWithMissingFiles(IEnumerable<string> missingFiles);
 }
 
 public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -281,5 +282,14 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     public async Task<IEnumerable<string>> GetAllHistoryImagePaths()
     {
         return await context.ElectricityHistory.Select(x => x.ImagePath).ToListAsync();
+    }
+
+    public async Task DeleteHistoryWithMissingFiles(IEnumerable<string> missingFiles)
+    {
+        var recordsToDelete = context.ElectricityHistory
+            .Where(x => missingFiles.Contains(x.ImagePath));
+
+        context.ElectricityHistory.RemoveRange(recordsToDelete);
+        await context.SaveChangesAsync();
     }
 }

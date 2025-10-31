@@ -19,7 +19,6 @@ public class ScheduleParser
         schedule.TimeZones = GetTimeZones(presetVariableJobject);
         schedule.Groups = GetGroups(presetVariableJobject);
         schedule.Location = location;
-        schedule.Updated = GetUpdateTime(realVariableJobject, "updateFact");
 
 
         FillRealSchedule(schedule, realVariableJobject);
@@ -28,6 +27,8 @@ public class ScheduleParser
         var updatedFact = DateTime.ParseExact(realVariableJobject["update"].ToString(), "dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
 
         var udpatedPreset = DateTime.ParseExact(presetVariableJobject["updateFact"].ToString(), "dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
+
+        schedule.Updated = updatedFact >= udpatedPreset ? updatedFact : udpatedPreset;
 
         foreach (var group in schedule.Groups)
         {
