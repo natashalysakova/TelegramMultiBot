@@ -1,23 +1,22 @@
-﻿namespace TelegramMultiBot.ImageCompare
-{
-    internal static class ImageComparator
-    {      
+﻿namespace TelegramMultiBot.ImageCompare;
 
-        public static bool Compare(byte[] imageOne, byte[] imageTwo)
+internal static class ImageComparator
+{      
+
+    public static bool Compare(byte[] imageOne, byte[] imageTwo)
+    {
+        if (imageOne == null || imageTwo == null)
+            return false;
+
+        if(imageOne.Length != imageTwo.Length)
+            return false;
+
+        for (int i = 0; i < imageOne.Length; i++)
         {
-            if (imageOne == null || imageTwo == null)
+            if(imageOne[i] != imageTwo[i])
                 return false;
-
-            if(imageOne.Length != imageTwo.Length)
-                return false;
-
-            for (int i = 0; i < imageOne.Length; i++)
-            {
-                if(imageOne[i] != imageTwo[i])
-                    return false;
-            }
-
-            return true;
         }
+
+        return true;
     }
 }

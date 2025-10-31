@@ -1,73 +1,72 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using System.Text;
 
-namespace TelegramMultiBot.Commands.CallbackDataTypes
+namespace TelegramMultiBot.Commands.CallbackDataTypes;
+
+public abstract class CallbackData<T> where T : struct
 {
-    public abstract class CallbackData<T> where T : struct
+    public string JobId { get; set; }
+    public string Command { get; set; }
+    public T JobType { get; set; }
+
+    private object?[] _parameters;
+    protected object?[] Parameters { get => _parameters; }
+
+    protected CallbackData()
     {
-        public string JobId { get; set; }
-        public string Command { get; set; }
-        public T JobType { get; set; }
+        _parameters = [];
+        JobId = string.Empty;
+        Command = "unknown";
+    }
 
-        private object?[] _parameters;
-        protected object?[] Parameters { get => _parameters; }
+    protected void FillBaseFromString(string? data)
+    {
+        ArgumentNullException.ThrowIfNull(data);
 
-        protected CallbackData()
+        if (!data.Any(x => x == '|'))
         {
-            _parameters = [];
-            JobId = string.Empty;
-            Command = "unknown";
+            throw new ArgumentException("Invalid data", nameof(data));
         }
 
-        protected void FillBaseFromString(string? data)
+        var info = data.Split('|', StringSplitOptions.RemoveEmptyEntries);
+        Command = info[0];
+        JobType = Enum.Parse<T>(info[1]);
+        if (info.Length > 2)
         {
-            ArgumentNullException.ThrowIfNull(data);
-
-            if (!data.Any(x => x == '|'))
-            {
-                throw new ArgumentException("Invalid data", nameof(data));
-            }
-
-            var info = data.Split('|', StringSplitOptions.RemoveEmptyEntries);
-            Command = info[0];
-            JobType = Enum.Parse<T>(info[1]);
-            if (info.Length > 2)
-            {
-                JobId = info[2];
-            }
-
-            if (info.Length > 3)
-            {
-                _parameters = info[3..info.Length];
-            }
+            JobId = info[2];
         }
 
-        public CallbackData(string command, T type, string id, params object?[] parameters)
+        if (info.Length > 3)
         {
-            Command = command;
-            JobType = type;
-            JobId = id;
-            _parameters = parameters;
+            _parameters = info[3..info.Length];
         }
+    }
 
-        public static implicit operator string(CallbackData<T> data)
-        {
-            return data.ToString();
-        }
+    public CallbackData(string command, T type, string id, params object?[] parameters)
+    {
+        Command = command;
+        JobType = type;
+        JobId = id;
+        _parameters = parameters;
+    }
 
-        public override string ToString()
+    public static implicit operator string(CallbackData<T> data)
+    {
+        return data.ToString();
+    }
+
+    public override string ToString()
+    {
+        var stringBuilder = new StringBuilder($"{Command}|{JobType}");
+        if (JobId != null)
         {
-            var stringBuilder = new StringBuilder($"{Command}|{JobType}");
-            if (JobId != null)
-            {
-                _ = stringBuilder.Append("|" + JobId);
-            }
-            if (_parameters != null)
-            {
-                _ = stringBuilder.Append('|');
-                _ = stringBuilder.Append(string.Join("|", _parameters));
-            }
-            return stringBuilder.ToString();
+            _ = stringBuilder.Append("|" + JobId);
         }
+        if (_parameters != null)
+        {
+            _ = stringBuilder.Append('|');
+            _ = stringBuilder.Append(string.Join("|", _parameters));
+        }
+        return stringBuilder.ToString();
     }
 }

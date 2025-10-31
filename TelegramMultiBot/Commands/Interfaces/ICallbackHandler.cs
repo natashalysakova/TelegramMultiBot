@@ -1,9 +1,8 @@
 ﻿using Telegram.Bot.Types;
 
-namespace TelegramMultiBot.Commands.Interfaces
+namespace TelegramMultiBot.Commands.Interfaces;
+
+internal interface ICallbackHandler
 {
-    internal interface ICallbackHandler
-    {
-        Task HandleCallback(CallbackQuery callbackQuery);
-    }
+    Task HandleCallback(CallbackQuery callbackQuery);
 }

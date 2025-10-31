@@ -19,29 +19,33 @@ public class MonitorDtekTests
         var html = await parser.GetHtmlFromUrl("https://www.dtek-krem.com.ua/ua/shutdowns");
 
         Assert.IsNotNull(html);
-        Assert.IsTrue(html.Contains("DisconSchedule.fact"));
-        Assert.IsTrue(html.Contains("DisconSchedule.preset"));
+        Assert.Contains("DisconSchedule.fact", html);
+        Assert.Contains("DisconSchedule.preset", html);
     }
 
     [TestMethod]
-    public async Task PageParsed()
+    [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns")]
+    [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns")]
+    [DataRow("https://www.dtek-oem.com.ua/ua/shutdowns")]
+
+    public async Task PageParsed(string url)
     {
         var parser = new ScheduleParser();
 
-        var schedule = await parser.Parse("https://www.dtek-krem.com.ua/ua/shutdowns");
+        var schedule = await parser.Parse(url);
 
         Assert.IsNotNull(schedule);
-        Assert.IsTrue(schedule.Groups.Count == 12);
-        Assert.IsTrue(schedule.TimeZones.Count == 24);
-        Assert.IsTrue(schedule.PlannedSchedule.Count == 7);
+        Assert.IsNotEmpty(schedule.Groups);
+        Assert.HasCount(24, schedule.TimeZones);
+        Assert.HasCount(7, schedule.PlannedSchedule);
         foreach (var item in schedule.PlannedSchedule)
         {
-            Assert.IsTrue(item.Statuses.Count == 12);
+            Assert.HasCount(12, item.Statuses);
         }
-        Assert.IsTrue(schedule.RealSchedule.Count == 2);
+        Assert.HasCount(2, schedule.RealSchedule);
         foreach (var item in schedule.RealSchedule)
         {
-            Assert.IsTrue(item.Statuses.Count == 12);
+            Assert.HasCount(12, item.Statuses);
         }
 
     }

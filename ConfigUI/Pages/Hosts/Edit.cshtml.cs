@@ -3,69 +3,68 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using TelegramMultiBot.Database.Models;
 
-namespace ConfigUI.Pages.Hosts
-{
-    public class EditModel : PageModel
-    {
-        private readonly TelegramMultiBot.Database.BoberDbContext _context;
+namespace ConfigUI.Pages.Hosts;
 
-        public EditModel(TelegramMultiBot.Database.BoberDbContext context)
+public class EditModel : PageModel
+{
+    private readonly TelegramMultiBot.Database.BoberDbContext _context;
+
+    public EditModel(TelegramMultiBot.Database.BoberDbContext context)
+    {
+        _context = context;
+    }
+
+    [BindProperty]
+    public TelegramMultiBot.Database.Models.Host Host { get; set; } = default!;
+
+    public async Task<IActionResult> OnGetAsync(string address, int port)
+    {
+        if (address == null || port == 0)
         {
-            _context = context;
+            return NotFound();
         }
 
-        [BindProperty]
-        public TelegramMultiBot.Database.Models.Host Host { get; set; } = default!;
-
-        public async Task<IActionResult> OnGetAsync(string address, int port)
+        var host =  await _context.Hosts.FindAsync(address, port);
+        if (host == null)
         {
-            if (address == null || port == 0)
-            {
-                return NotFound();
-            }
+            return NotFound();
+        }
+        Host = host;
+        return Page();
+    }
 
-            var host =  await _context.Hosts.FindAsync(address, port);
-            if (host == null)
-            {
-                return NotFound();
-            }
-            Host = host;
+    // To protect from overposting attacks, enable the specific properties you want to bind to.
+    // For more details, see https://aka.ms/RazorPagesCRUD.
+    public async Task<IActionResult> OnPostAsync()
+    {
+        if (!ModelState.IsValid)
+        {
             return Page();
         }
 
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see https://aka.ms/RazorPagesCRUD.
-        public async Task<IActionResult> OnPostAsync()
+        _context.Attach(Host).State = EntityState.Modified;
+
+        try
         {
-            if (!ModelState.IsValid)
+            await _context.SaveChangesAsync();
+        }
+        catch (DbUpdateConcurrencyException)
+        {
+            if (!HostExists(Host.Address, Host.Port))
             {
-                return Page();
+                return NotFound();
             }
-
-            _context.Attach(Host).State = EntityState.Modified;
-
-            try
+            else
             {
-                await _context.SaveChangesAsync();
+                throw;
             }
-            catch (DbUpdateConcurrencyException)
-            {
-                if (!HostExists(Host.Address, Host.Port))
-                {
-                    return NotFound();
-                }
-                else
-                {
-                    throw;
-                }
-            }
-
-            return RedirectToPage("../Index");
         }
 
-        private bool HostExists(string address, int port)
-        {
-            return _context.Hosts.Any(e => e.Address == address && e.Port == port);
-        }
+        return RedirectToPage("../Index");
+    }
+
+    private bool HostExists(string address, int port)
+    {
+        return _context.Hosts.Any(e => e.Address == address && e.Port == port);
     }
 }

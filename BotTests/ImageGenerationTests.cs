@@ -1,4 +1,5 @@
 using DtekParsers;
+using System.Runtime.Serialization;
 
 namespace BotTests;
 
@@ -23,7 +24,8 @@ public class  ImageGenerationTests
 
     private static void SaveImages(string folder, IEnumerable<byte[]> image)
     {
-        if(Directory.Exists(folder))
+        folder = Path.Combine("images", folder);
+        if (Directory.Exists(folder))
         {
             Directory.Delete(folder, true);
         }
@@ -68,5 +70,10 @@ public class  ImageGenerationTests
         Assert.AreEqual(12, image.Count());
     }
 
+    private string[] urls = [
+        "https://www.dtek-kem.com.ua/ua/shutdowns",
+        "https://www.dtek-krem.com.ua/ua/shutdowns",
+        "https://www.dtek-oem.com.ua/ua/shutdowns",
+        ];
 }
 

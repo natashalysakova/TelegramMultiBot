@@ -1,17 +1,16 @@
-﻿namespace TelegramMultiBot.ImageGeneration.Exceptions
+﻿namespace TelegramMultiBot.ImageGeneration.Exceptions;
+
+[Serializable]
+public class SdNotAvailableException : Exception
 {
-    [Serializable]
-    public class SdNotAvailableException : Exception
+    public SdNotAvailableException()
+    { }
+
+    public SdNotAvailableException(string message) : base(message)
     {
-        public SdNotAvailableException()
-        { }
+    }
 
-        public SdNotAvailableException(string message) : base(message)
-        {
-        }
-
-        public SdNotAvailableException(string message, Exception inner) : base(message, inner)
-        {
-        }
+    public SdNotAvailableException(string message, Exception inner) : base(message, inner)
+    {
     }
 }

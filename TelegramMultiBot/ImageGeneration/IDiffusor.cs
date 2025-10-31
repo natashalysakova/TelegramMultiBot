@@ -1,18 +1,17 @@
 ﻿using TelegramMultiBot.Database.DTO;
 
-namespace TelegramMultiBot.ImageGenerators
+namespace TelegramMultiBot.ImageGeneration;
+
+internal interface IDiffusor
 {
-    internal interface IDiffusor
-    {
-        string UI { get; }
-        HostInfo? ActiveHost { get; }
+    string UI { get; }
+    HostInfo? ActiveHost { get; }
 
-        bool CanHandle(JobInfo job);
+    bool CanHandle(JobInfo job);
 
-        bool IsAvailable();
+    bool IsAvailable();
 
-        //Task<bool> isAvailable(HostSettings host);
+    //Task<bool> isAvailable(HostSettings host);
 
-        Task<JobInfo> Run(JobInfo job);
-    }
+    Task<JobInfo> Run(JobInfo job);
 }

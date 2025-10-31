@@ -1,9 +1,8 @@
 ﻿using Telegram.Bot.Types;
 
-namespace TelegramMultiBot.Commands.Interfaces
+namespace TelegramMultiBot.Commands.Interfaces;
+
+internal interface IInlineQueryHandler
 {
-    internal interface IInlineQueryHandler
-    {
-        Task HandleInlineQuery(InlineQuery inlineQuery);
-    }
+    Task HandleInlineQuery(InlineQuery inlineQuery);
 }

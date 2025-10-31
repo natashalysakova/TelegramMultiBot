@@ -1,19 +1,18 @@
 ﻿
-namespace TelegramMultiBot.Database.Services
+namespace TelegramMultiBot.Database.Services;
+
+[Serializable]
+internal class ConfigurationMissingException : Exception
 {
-    [Serializable]
-    internal class ConfigurationMissingException : Exception
+    public ConfigurationMissingException()
     {
-        public ConfigurationMissingException()
-        {
-        }
+    }
 
-        public ConfigurationMissingException(string? message) : base(message)
-        {
-        }
+    public ConfigurationMissingException(string? message) : base(message)
+    {
+    }
 
-        public ConfigurationMissingException(string? message, Exception? innerException) : base(message, innerException)
-        {
-        }
+    public ConfigurationMissingException(string? message, Exception? innerException) : base(message, innerException)
+    {
     }
 }

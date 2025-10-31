@@ -1,18 +1,17 @@
-﻿namespace TelegramMultiBot.ImageGeneration.Exceptions
+﻿namespace TelegramMultiBot.ImageGeneration.Exceptions;
+
+[Serializable]
+internal class InputException : Exception
 {
-    [Serializable]
-    internal class InputException : Exception
+    public InputException()
     {
-        public InputException()
-        {
-        }
+    }
 
-        public InputException(string? message) : base(message)
-        {
-        }
+    public InputException(string? message) : base(message)
+    {
+    }
 
-        public InputException(string? message, Exception? innerException) : base(message, innerException)
-        {
-        }
+    public InputException(string? message, Exception? innerException) : base(message, innerException)
+    {
     }
 }

@@ -3,39 +3,38 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using TelegramMultiBot.Database.Models;
 
-namespace ConfigUI.Pages.Models
+namespace ConfigUI.Pages.Models;
+
+public class CreateModel : PageModel
 {
-    public class CreateModel : PageModel
+    private readonly TelegramMultiBot.Database.BoberDbContext _context;
+
+    public CreateModel(TelegramMultiBot.Database.BoberDbContext context)
     {
-        private readonly TelegramMultiBot.Database.BoberDbContext _context;
+        _context = context;
+    }
 
-        public CreateModel(TelegramMultiBot.Database.BoberDbContext context)
-        {
-            _context = context;
-        }
+    public IActionResult OnGet()
+    {
+        return Page();
+    }
 
-        public IActionResult OnGet()
+    [BindProperty]
+    public Model Model { get; set; } = default!;
+    public IEnumerable<SelectListItem> Versions { get; set; } = Utility.GetEnumAsSelectItemList<TelegramMultiBot.Database.Enums.ModelVersion>();
+
+
+    // To protect from overposting attacks, see https://aka.ms/RazorPagesCRUD
+    public async Task<IActionResult> OnPostAsync()
+    {
+        if (!ModelState.IsValid)
         {
             return Page();
         }
 
-        [BindProperty]
-        public Model Model { get; set; } = default!;
-        public IEnumerable<SelectListItem> Versions { get; set; } = Utility.GetEnumAsSelectItemList<TelegramMultiBot.Database.Enums.ModelVersion>();
+        _context.Models.Add(Model);
+        await _context.SaveChangesAsync();
 
-
-        // To protect from overposting attacks, see https://aka.ms/RazorPagesCRUD
-        public async Task<IActionResult> OnPostAsync()
-        {
-            if (!ModelState.IsValid)
-            {
-                return Page();
-            }
-
-            _context.Models.Add(Model);
-            await _context.SaveChangesAsync();
-
-            return RedirectToPage("../Index");
-        }
+        return RedirectToPage("../Index");
     }
 }

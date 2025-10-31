@@ -18,38 +18,3 @@ public abstract class BaseSchedule
     public DateTime Updated { get; set; }
 
 }
-
-/// <inheritdoc />
-public class RealSchedule : BaseSchedule
-{
-    /// <summary>
-    /// Parsed date of schedule day
-    /// </summary>
-    public DateTime Date { get; set; }
-    /// <summary>
-    /// Raw timestamp of schedule day
-    /// </summary>
-    public long DateTimeStamp { get; set; }
-
-    public override string DateHeader { get => Date.ToString("dd.MM.yy"); }
-}
-
-public class PlannedSchedule : BaseSchedule
-{
-    /// <summary>
-    /// Day of the week number (0 - Monday, 6 - Sunday)
-    /// </summary>
-    public int DayNumber { get; set; }
-    public override string DateHeader { get => dayName[DayNumber]; }
-
-    private static readonly Dictionary<int, string> dayName = new Dictionary<int, string>()
-    {
-        {0, "Понеділок"},
-        {1, "Вівторок"},
-        {2, "Середа"},
-        {3, "Четвер"},
-        {4, "П'ятниця"},
-        {5, "Субота"},
-        {6, "Неділя"},
-    };
-}

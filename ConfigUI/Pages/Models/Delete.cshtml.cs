@@ -3,56 +3,55 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.EntityFrameworkCore;
 using TelegramMultiBot.Database.Models;
 
-namespace ConfigUI.Pages.Models
+namespace ConfigUI.Pages.Models;
+
+public class DeleteModel : PageModel
 {
-    public class DeleteModel : PageModel
+    private readonly TelegramMultiBot.Database.BoberDbContext _context;
+
+    public DeleteModel(TelegramMultiBot.Database.BoberDbContext context)
     {
-        private readonly TelegramMultiBot.Database.BoberDbContext _context;
+        _context = context;
+    }
 
-        public DeleteModel(TelegramMultiBot.Database.BoberDbContext context)
+    [BindProperty]
+    public Model Model { get; set; } = default!;
+
+    public async Task<IActionResult> OnGetAsync(string id)
+    {
+        if (id == null)
         {
-            _context = context;
+            return NotFound();
         }
 
-        [BindProperty]
-        public Model Model { get; set; } = default!;
+        var model = await _context.Models.FirstOrDefaultAsync(m => m.Name == id);
 
-        public async Task<IActionResult> OnGetAsync(string id)
+        if (model == null)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
+            return NotFound();
+        }
+        else
+        {
+            Model = model;
+        }
+        return Page();
+    }
 
-            var model = await _context.Models.FirstOrDefaultAsync(m => m.Name == id);
-
-            if (model == null)
-            {
-                return NotFound();
-            }
-            else
-            {
-                Model = model;
-            }
-            return Page();
+    public async Task<IActionResult> OnPostAsync(string id)
+    {
+        if (id == null)
+        {
+            return NotFound();
         }
 
-        public async Task<IActionResult> OnPostAsync(string id)
+        var model = await _context.Models.FindAsync(id);
+        if (model != null)
         {
-            if (id == null)
-            {
-                return NotFound();
-            }
-
-            var model = await _context.Models.FindAsync(id);
-            if (model != null)
-            {
-                Model = model;
-                _context.Models.Remove(Model);
-                await _context.SaveChangesAsync();
-            }
-
-            return RedirectToPage("../Index");
+            Model = model;
+            _context.Models.Remove(Model);
+            await _context.SaveChangesAsync();
         }
+
+        return RedirectToPage("../Index");
     }
 }

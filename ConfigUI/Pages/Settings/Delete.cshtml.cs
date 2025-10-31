@@ -1,56 +1,55 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace ConfigUI.Pages.Settings
+namespace ConfigUI.Pages.Settings;
+
+public class DeleteModel : PageModel
 {
-    public class DeleteModel : PageModel
+    private readonly TelegramMultiBot.Database.BoberDbContext _context;
+
+    public DeleteModel(TelegramMultiBot.Database.BoberDbContext context)
     {
-        private readonly TelegramMultiBot.Database.BoberDbContext _context;
+        _context = context;
+    }
 
-        public DeleteModel(TelegramMultiBot.Database.BoberDbContext context)
+    [BindProperty]
+    public TelegramMultiBot.Database.Models.Settings Settings { get; set; } = default!;
+
+    public async Task<IActionResult> OnGetAsync(string section, string key)
+    {
+        if (section == null || key == null)
         {
-            _context = context;
+            return NotFound();
         }
 
-        [BindProperty]
-        public TelegramMultiBot.Database.Models.Settings Settings { get; set; } = default!;
+        var settings = await _context.Settings.FindAsync(section, key);
 
-        public async Task<IActionResult> OnGetAsync(string section, string key)
+        if (settings == null)
         {
-            if (section == null || key == null)
-            {
-                return NotFound();
-            }
+            return NotFound();
+        }
+        else
+        {
+            Settings = settings;
+        }
+        return Page();
+    }
 
-            var settings = await _context.Settings.FindAsync(section, key);
-
-            if (settings == null)
-            {
-                return NotFound();
-            }
-            else
-            {
-                Settings = settings;
-            }
-            return Page();
+    public async Task<IActionResult> OnPostAsync(string section, string key)
+    {
+        if (section == null || key == null)
+        {
+            return NotFound();
         }
 
-        public async Task<IActionResult> OnPostAsync(string section, string key)
+        var settings = await _context.Settings.FindAsync(section, key);
+        if (settings != null)
         {
-            if (section == null || key == null)
-            {
-                return NotFound();
-            }
-
-            var settings = await _context.Settings.FindAsync(section, key);
-            if (settings != null)
-            {
-                Settings = settings;
-                _context.Settings.Remove(Settings);
-                await _context.SaveChangesAsync();
-            }
-
-            return RedirectToPage("../Index");
+            Settings = settings;
+            _context.Settings.Remove(Settings);
+            await _context.SaveChangesAsync();
         }
+
+        return RedirectToPage("../Index");
     }
 }

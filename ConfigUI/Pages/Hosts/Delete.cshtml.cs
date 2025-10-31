@@ -1,56 +1,55 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 
-namespace ConfigUI.Pages.Hosts
+namespace ConfigUI.Pages.Hosts;
+
+public class DeleteModel : PageModel
 {
-    public class DeleteModel : PageModel
+    private readonly TelegramMultiBot.Database.BoberDbContext _context;
+
+    public DeleteModel(TelegramMultiBot.Database.BoberDbContext context)
     {
-        private readonly TelegramMultiBot.Database.BoberDbContext _context;
+        _context = context;
+    }
 
-        public DeleteModel(TelegramMultiBot.Database.BoberDbContext context)
+    [BindProperty]
+    public TelegramMultiBot.Database.Models.Host Host { get; set; } = default!;
+
+    public async Task<IActionResult> OnGetAsync(string address, int port)
+    {
+        if (address == null || port == 0)
         {
-            _context = context;
+            return NotFound();
         }
 
-        [BindProperty]
-        public TelegramMultiBot.Database.Models.Host Host { get; set; } = default!;
+        var host = await _context.Hosts.FindAsync(address, port);
 
-        public async Task<IActionResult> OnGetAsync(string address, int port)
+        if (host == null)
         {
-            if (address == null || port == 0)
-            {
-                return NotFound();
-            }
+            return NotFound();
+        }
+        else
+        {
+            Host = host;
+        }
+        return Page();
+    }
 
-            var host = await _context.Hosts.FindAsync(address, port);
-
-            if (host == null)
-            {
-                return NotFound();
-            }
-            else
-            {
-                Host = host;
-            }
-            return Page();
+    public async Task<IActionResult> OnPostAsync(string address, int port)
+    {
+        if (address == null || port == 0)
+        {
+            return NotFound();
         }
 
-        public async Task<IActionResult> OnPostAsync(string address, int port)
+        var host = await _context.Hosts.FindAsync(address, port);
+        if (host != null)
         {
-            if (address == null || port == 0)
-            {
-                return NotFound();
-            }
-
-            var host = await _context.Hosts.FindAsync(address, port);
-            if (host != null)
-            {
-                Host = host;
-                _context.Hosts.Remove(Host);
-                await _context.SaveChangesAsync();
-            }
-
-            return RedirectToPage("../Index");
+            Host = host;
+            _context.Hosts.Remove(Host);
+            await _context.SaveChangesAsync();
         }
+
+        return RedirectToPage("../Index");
     }
 }

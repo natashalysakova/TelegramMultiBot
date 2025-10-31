@@ -1,60 +1,59 @@
 ﻿using System.Text;
 using System.Text.Json;
 
-namespace TelegramMultiBot.MessageCache
+namespace TelegramMultiBot.MessageCache;
+
+public class ChatContext
 {
-    public class ChatContext
+    private const int MaxTotalSizeInBytes = 2048;
+    private int GetContextSizeInBytes()
     {
-        private const int MaxTotalSizeInBytes = 2048;
-        private int GetContextSizeInBytes()
+        return Encoding.UTF8.GetByteCount(this.ToString());
+    }
+
+
+    public ChatContext(string chatKey)
+    {
+        _chatKey = chatKey;
+    }
+
+    private readonly LinkedList<ChatMessage> messages = new();
+    private readonly string _chatKey;
+
+    public void AddLast(ChatMessage message)
+    {
+        messages.AddLast(message);
+
+        while (GetContextSizeInBytes() > MaxTotalSizeInBytes)
         {
-            return Encoding.UTF8.GetByteCount(this.ToString());
+            EvictOldestMessage();
         }
+    }
 
-
-        public ChatContext(string chatKey)
+    override public string ToString()
+    {
+        var options = new JsonSerializerOptions
         {
-            _chatKey = chatKey;
-        }
+            WriteIndented = false,
+            Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
+        };
 
-        private readonly LinkedList<ChatMessage> messages = new();
-        private readonly string _chatKey;
+        var builder = new StringBuilder();
+        builder.Append("Messages:\n");
+        var previousMessages = messages.Take(messages.Count - 1);
 
-        public void AddLast(ChatMessage message)
-        {
-            messages.AddLast(message);
+        builder.Append(string.Join("\n", previousMessages.Select(x => x.ToString())));
+        
+        var lastMessage = messages.Last?.Value;
+        builder.Append($"\n\nLastMessage:\n {lastMessage.ToString()}");
+        return builder.ToString();
+    }
 
-            while (GetContextSizeInBytes() > MaxTotalSizeInBytes)
-            {
-                EvictOldestMessage();
-            }
-        }
+    private void EvictOldestMessage()
+    {
+        var oldestMessage = messages.First?.Value;
+        if (oldestMessage == null) return;
 
-        override public string ToString()
-        {
-            var options = new JsonSerializerOptions
-            {
-                WriteIndented = false,
-                Encoder = System.Text.Encodings.Web.JavaScriptEncoder.UnsafeRelaxedJsonEscaping,
-            };
-
-            var builder = new StringBuilder();
-            builder.Append("Messages:\n");
-            var previousMessages = messages.Take(messages.Count - 1);
-
-            builder.Append(string.Join("\n", previousMessages.Select(x => x.ToString())));
-            
-            var lastMessage = messages.Last?.Value;
-            builder.Append($"\n\nLastMessage:\n {lastMessage.ToString()}");
-            return builder.ToString();
-        }
-
-        private void EvictOldestMessage()
-        {
-            var oldestMessage = messages.First?.Value;
-            if (oldestMessage == null) return;
-
-            messages.Remove(oldestMessage);
-        }
+        messages.Remove(oldestMessage);
     }
 }

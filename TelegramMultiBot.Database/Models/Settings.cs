@@ -1,12 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 
-namespace TelegramMultiBot.Database.Models
+namespace TelegramMultiBot.Database.Models;
+
+[PrimaryKey(nameof(SettingSection), nameof(SettingsKey))]
+public class Settings
 {
-    [PrimaryKey(nameof(SettingSection), nameof(SettingsKey))]
-    public class Settings
-    {
-        public string SettingSection { get; set; }
-        public string SettingsKey { get; set; }
-        public string SettingsValue { get; set; }
-    }
+    public string SettingSection { get; set; }
+    public string SettingsKey { get; set; }
+    public string SettingsValue { get; set; }
 }
