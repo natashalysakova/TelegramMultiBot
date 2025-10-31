@@ -2,14 +2,13 @@
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Models;
 
-namespace TelegramMultiBot.Database.Profiles
+namespace TelegramMultiBot.Database.Profiles;
+
+public class ConfigurationProfile : Profile
 {
-    public class ConfigurationProfile : Profile
+    public ConfigurationProfile()
     {
-        public ConfigurationProfile()
-        {
-            _ = CreateMap<Host, HostInfo>().ReverseMap();
-            _ = CreateMap<Model, ModelInfo>().ReverseMap();
-        }
+        _ = CreateMap<Host, HostInfo>().ReverseMap();
+        _ = CreateMap<Model, ModelInfo>().ReverseMap();
     }
 }

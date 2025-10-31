@@ -1,15 +1,14 @@
-﻿namespace TelegramMultiBot.Commands.CallbackDataTypes
+﻿namespace TelegramMultiBot.Commands.CallbackDataTypes;
+
+public enum ImagineCommands
 {
-    public enum ImagineCommands
-    {
-        Text2Image,
-        HiresFix,
-        Upscale,
-        Info,
-        Original,
-        Actions,
-        Repeat,
-        Vingette,
-        Noise,
-    }
+    Text2Image,
+    HiresFix,
+    Upscale,
+    Info,
+    Original,
+    Actions,
+    Repeat,
+    Vingette,
+    Noise,
 }

@@ -2,45 +2,44 @@
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Models;
 
-namespace TelegramMultiBot.Database.Profiles
+namespace TelegramMultiBot.Database.Profiles;
+
+public class ImageJobProfile : Profile
 {
-    public class ImageJobProfile : Profile
+    public ImageJobProfile()
     {
-        public ImageJobProfile()
-        {
-            _ = CreateMap<ImageJob, JobInfo>()
-                .ForMember(x => x.Exception, act => act.Ignore())
-                .ReverseMap()
-                .ForMember(x => x.Progress, act => act.Ignore());
+        _ = CreateMap<ImageJob, JobInfo>()
+            .ForMember(x => x.Exception, act => act.Ignore())
+            .ReverseMap()
+            .ForMember(x => x.Progress, act => act.Ignore());
 
-            _ = CreateMap<JobResult, JobResultInfoView>()
-                .ForMember(x => x.Seed, act => act.MapFrom(y => GetSeed(y.Info)));
+        _ = CreateMap<JobResult, JobResultInfoView>()
+            .ForMember(x => x.Seed, act => act.MapFrom(y => GetSeed(y.Info)));
 
-            _ = CreateMap<JobResultInfoCreate, JobResult>()
-                .ForMember(x => x.Id, act => act.Ignore())
-                .ForMember(x => x.Index, act => act.Ignore())
-                .ForMember(x => x.Job, act => act.Ignore())
-                .ForMember(x => x.JobId, act => act.Ignore())
-                .ForMember(x => x.FileId, act => act.Ignore());
-        }
+        _ = CreateMap<JobResultInfoCreate, JobResult>()
+            .ForMember(x => x.Id, act => act.Ignore())
+            .ForMember(x => x.Index, act => act.Ignore())
+            .ForMember(x => x.Job, act => act.Ignore())
+            .ForMember(x => x.JobId, act => act.Ignore())
+            .ForMember(x => x.FileId, act => act.Ignore());
+    }
 
-        private static long GetSeed(string? info)
-        {
-            if (info is null)
-                return -1;
+    private static long GetSeed(string? info)
+    {
+        if (info is null)
+            return -1;
 
-            var split = info.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
-            var hasSeed = split.Any(x => x.Contains("Seed:"));
-            if (hasSeed)
-                return long.Parse(ParseParemeter(split.Single(x => x.Contains("Seed:"))));
-            else
-                return -1;
-        }
+        var split = info.Split(',', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        var hasSeed = split.Any(x => x.Contains("Seed:"));
+        if (hasSeed)
+            return long.Parse(ParseParemeter(split.Single(x => x.Contains("Seed:"))));
+        else
+            return -1;
+    }
 
-        private static string ParseParemeter(string paremeter)
-        {
-            return paremeter[(paremeter.IndexOf(':') + 1)..].Trim();
-        }
+    private static string ParseParemeter(string paremeter)
+    {
+        return paremeter[(paremeter.IndexOf(':') + 1)..].Trim();
     }
 }
 

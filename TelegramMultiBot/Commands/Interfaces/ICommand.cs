@@ -1,24 +1,23 @@
 ﻿using Telegram.Bot.Types;
 
-namespace TelegramMultiBot.Commands.Interfaces
+namespace TelegramMultiBot.Commands.Interfaces;
+
+internal interface ICommand
 {
-    internal interface ICommand
-    {
-        string Command { get; }
-        string Description { get; }
+    string Command { get; }
+    string Description { get; }
 
-        bool CanHandle(Message message);
+    bool CanHandle(Message message);
 
-        bool CanHandle(InlineQuery query);
+    bool CanHandle(InlineQuery query);
 
-        bool CanHandle(string query);
-        bool CanHandle(MessageReactionUpdated reactions);
+    bool CanHandle(string query);
+    bool CanHandle(MessageReactionUpdated reactions);
 
-        Task Handle(Message message);
+    Task Handle(Message message);
 
-        bool CanHandleInlineQuery { get; }
-        bool CanHandleCallback { get; }
-        bool CanHandleMessageReaction { get; }
-        bool IsPublic { get; }
-    }
+    bool CanHandleInlineQuery { get; }
+    bool CanHandleCallback { get; }
+    bool CanHandleMessageReaction { get; }
+    bool IsPublic { get; }
 }

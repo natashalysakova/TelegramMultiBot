@@ -1,6 +1,5 @@
-﻿namespace TelegramMultiBot.ImageGenerators.Automatic1111.Api
+﻿namespace TelegramMultiBot.ImageGenerators.Automatic1111.Api;
+
+public class Parameters
 {
-    public class Parameters
-    {
-    }
 }

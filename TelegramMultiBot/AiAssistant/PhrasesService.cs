@@ -1,62 +1,61 @@
-﻿namespace TelegramMultiBot.AiAssistant
+﻿namespace TelegramMultiBot.AiAssistant;
+
+public interface IPhrasesService
 {
-    public interface IPhrasesService
-    {
-        string GetRandomServiceUnavailablePhrase();
-        string GetRandomTimeoutPhrase();
-    }
+    string GetRandomServiceUnavailablePhrase();
+    string GetRandomTimeoutPhrase();
+}
 
-    public class PhrasesService : IPhrasesService
-    {
-        private List<string> _serviceUnavailablePhrases = new List<string>();
-        private List<string> _timeoutPhrases = new List<string>();
+public class PhrasesService : IPhrasesService
+{
+    private List<string> _serviceUnavailablePhrases = new List<string>();
+    private List<string> _timeoutPhrases = new List<string>();
 
-        public PhrasesService()
+    public PhrasesService()
+    {
+        try
         {
-            try
+           var lines =  File.ReadAllLines("phrases.txt").Select(x=>x.Trim()).ToArray();
+            List<string> currentArray = null;
+            for (int i = 0; i < lines.Length; i++)
             {
-               var lines =  File.ReadAllLines("phrases.txt").Select(x=>x.Trim()).ToArray();
-                List<string> currentArray = null;
-                for (int i = 0; i < lines.Length; i++)
+                if (lines[i] == "[Service Unavailable]")
                 {
-                    if (lines[i] == "[Service Unavailable]")
-                    {
-                        currentArray = _serviceUnavailablePhrases;
-                    }
-                    else if (lines[i] == "[Timeout]")
-                    {
-                        currentArray = _timeoutPhrases;
-                    }
-                    else if (!string.IsNullOrWhiteSpace(lines[i].Trim()) && currentArray != null)
-                    {
-                        currentArray.Add(lines[i].Trim());
-                    }
+                    currentArray = _serviceUnavailablePhrases;
+                }
+                else if (lines[i] == "[Timeout]")
+                {
+                    currentArray = _timeoutPhrases;
+                }
+                else if (!string.IsNullOrWhiteSpace(lines[i].Trim()) && currentArray != null)
+                {
+                    currentArray.Add(lines[i].Trim());
                 }
             }
-            catch (Exception)
-            {
-                _serviceUnavailablePhrases = ["В мене лапки :("];
-                _timeoutPhrases = ["Час вийшов :("];
-            }
         }
-
-        public string GetRandomServiceUnavailablePhrase()
+        catch (Exception)
         {
-            return GetRandomPhrase(_serviceUnavailablePhrases);
+            _serviceUnavailablePhrases = ["В мене лапки :("];
+            _timeoutPhrases = ["Час вийшов :("];
         }
+    }
 
-        public string GetRandomTimeoutPhrase()
-        {
-            return GetRandomPhrase(_timeoutPhrases);
-        }
+    public string GetRandomServiceUnavailablePhrase()
+    {
+        return GetRandomPhrase(_serviceUnavailablePhrases);
+    }
 
-        private string GetRandomPhrase(List<string> target)
+    public string GetRandomTimeoutPhrase()
+    {
+        return GetRandomPhrase(_timeoutPhrases);
+    }
+
+    private string GetRandomPhrase(List<string> target)
+    {
+        if (target == null || target.Count == 0)
         {
-            if (target == null || target.Count == 0)
-            {
-                return "No phrases available";
-            }
-            return target[Random.Shared.Next(target.Count)];
+            return "No phrases available";
         }
+        return target[Random.Shared.Next(target.Count)];
     }
 }

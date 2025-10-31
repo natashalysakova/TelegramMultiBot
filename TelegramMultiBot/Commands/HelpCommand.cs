@@ -4,14 +4,14 @@ using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.ImageGenerators;
 
-namespace TelegramMultiBot.Commands
+namespace TelegramMultiBot.Commands;
+
+[ServiceKey("help", "Допомога")]
+internal class HelpCommand(TelegramClientWrapper client, ISqlConfiguationService configuration) : BaseCommand
 {
-    [ServiceKey("help", "Допомога")]
-    internal class HelpCommand(TelegramClientWrapper client, ISqlConfiguationService configuration) : BaseCommand
+    public override async Task Handle(Message message)
     {
-        public override async Task Handle(Message message)
-        {
-            var html =
+        var html =
 @"
 ⏰ *Бобер\-нагадувач*
 [/reminder](/reminder)
@@ -82,10 +82,9 @@ string.Join("\n", configuration.Models.Select(x => $">`#model_{x.Name}`"))
 [/edit](/edit) \- відредагувати текст вашого повідомлення, в котрому бот заміняв URL
 ";
 
-            
-            await client.SendMessageAsync(message, html, parseMode: ParseMode.MarkdownV2, linkPreviewOptions: new LinkPreviewOptions() { IsDisabled = true });
-            //_client.SendTextMessageAsync(message.Chat.Id, html, parseMode: ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId, disableWebPagePreview: true);
-        }
+        
+        await client.SendMessageAsync(message, html, parseMode: ParseMode.MarkdownV2, linkPreviewOptions: new LinkPreviewOptions() { IsDisabled = true });
+        //_client.SendTextMessageAsync(message.Chat.Id, html, parseMode: ParseMode.MarkdownV2, messageThreadId: message.MessageThreadId, disableWebPagePreview: true);
     }
 }
 /*
@@ -96,4 +95,4 @@ buttons - Показати кнопки для згенерованого зоб
 help - Допомога
 delete - Видалити повідомлення від бота
 cancel - Зупинити поточний діалог
- */
+*/

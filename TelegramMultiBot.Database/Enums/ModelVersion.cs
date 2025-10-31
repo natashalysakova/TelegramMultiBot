@@ -1,9 +1,8 @@
-﻿namespace TelegramMultiBot.Database.Enums
+﻿namespace TelegramMultiBot.Database.Enums;
+
+public enum ModelVersion
 {
-    public enum ModelVersion
-    {
-        Unknown = 0,
-        OneFive = 1,
-        SDXL = 2,
-    }
+    Unknown = 0,
+    OneFive = 1,
+    SDXL = 2,
 }
