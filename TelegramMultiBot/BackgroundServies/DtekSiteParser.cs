@@ -100,6 +100,7 @@ public class DtekSiteParser : BackgroundService
         var files = Directory.GetFiles(baseDirectory, "*.png", SearchOption.AllDirectories);
         var ophanedFiles = files.Except(filesInDb);
 
+
         foreach (var file in ophanedFiles)
         {
             if(File.Exists(file))
@@ -108,6 +109,11 @@ public class DtekSiteParser : BackgroundService
                 _logger.LogInformation("Deleted file: {file}", file);
             }
         }
+
+        var missingFiles = filesInDb.Except(files);
+        _logger.LogWarning("Missing files in storage: {file}", string.Join("\n", missingFiles));
+        await dbservice.DeleteHistoryWithMissingFiles(missingFiles);
+
     }
 
 
