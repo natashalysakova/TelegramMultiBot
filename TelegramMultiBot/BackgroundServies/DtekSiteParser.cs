@@ -97,23 +97,37 @@ public class DtekSiteParser : BackgroundService
 
         var filesInDb = await dbservice.GetAllHistoryImagePaths();
 
+        _logger.LogInformation("found {count} files in db", filesInDb.Count());
+
+        if(!Directory.Exists(baseDirectory))
+        {
+            _logger.LogWarning("Base directory {dir} does not exist. Skipping cleanup.", baseDirectory);
+            return;
+        }
+
         var files = Directory.GetFiles(baseDirectory, "*.png", SearchOption.AllDirectories);
         var ophanedFiles = files.Except(filesInDb);
 
-
-        foreach (var file in ophanedFiles)
+        if (ophanedFiles.Any())
         {
-            if(File.Exists(file))
+            _logger.LogInformation("ophanedFiles:" + string.Join('\n', ophanedFiles));
+
+            foreach (var file in ophanedFiles)
             {
-                File.Delete(file);
-                _logger.LogInformation("Deleted file: {file}", file);
+                if (File.Exists(file))
+                {
+                    File.Delete(file);
+                    _logger.LogInformation("Deleted file: {file}", file);
+                }
             }
         }
 
         var missingFiles = filesInDb.Except(files);
-        _logger.LogWarning("Missing files in storage: {file}", string.Join("\n", missingFiles));
-        await dbservice.DeleteHistoryWithMissingFiles(missingFiles);
-
+        if (missingFiles.Any())
+        {
+            _logger.LogWarning("Missing files in storage: {file}", string.Join("\n", missingFiles));
+            await dbservice.DeleteHistoryWithMissingFiles(missingFiles);
+        }
     }
 
 
