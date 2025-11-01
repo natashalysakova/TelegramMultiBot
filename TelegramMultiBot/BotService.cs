@@ -121,7 +121,7 @@ internal class BotService(
         var commands = serviceProvider.GetServices<ICommand>();
 
         List<BotCommand> commandList = new List<BotCommand>();
-        foreach (var command in commands.Where(x=>x.IsPublic))
+        foreach (var command in commands.Where(x => x.IsPublic))
         {
             var commandText = ("/" + command.Command);
             commandList.Add(new BotCommand()

@@ -152,7 +152,6 @@ public class DtekSiteParser : BackgroundService
 
         _logger.LogInformation("Generated {count} images", images.Count());
 
-
         foreach (var image in images)
         {
             var filename = SaveFile(location.Region, scheduleUpdateDate, image);
