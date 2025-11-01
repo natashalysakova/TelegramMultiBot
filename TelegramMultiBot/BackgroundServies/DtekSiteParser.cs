@@ -132,7 +132,12 @@ public class DtekSiteParser : BackgroundService
             return;
         }
 
+        _logger.LogInformation("Location {location} was updated", location.Region);
+
         var images = await ScheduleImageGenerator.GenerateAllImages(schedule);
+
+        _logger.LogInformation("Generated {count} images", images.Count());
+
 
         foreach (var image in images)
         {

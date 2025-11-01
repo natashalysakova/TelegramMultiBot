@@ -50,17 +50,20 @@ public class ScheduleImageGenerator
                     Header = day.DateHeader,
                     Statuses = day.Statuses[group.Id],
                     DateHeader = day.DateHeader
-                })
+                }),
             };
 
             var html = await GenerateScheduleBody($"{title}", [printTable]);
+
+            var minDate = days.Min(x => x is RealSchedule rs ? rs.DateTimeStamp : 0);
 
             requests.Add(new ImageGenerationModel
             {
                 Group = group.Id,
                 HtmlContent = html,
                 RowNumber = days.Count(),
-                IsPlanned = true
+                IsPlanned = printTable.IsPlanned,
+                Date = minDate
             });
         }
 
