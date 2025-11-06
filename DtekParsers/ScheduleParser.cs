@@ -44,17 +44,19 @@ public class ScheduleParser
 
         foreach (var day in realSchedule)
         {
-            builder.Append($"{day.DateTimeStamp}");
-
             if (day.Statuses.ContainsKey(groupCode))
             {
                 var groupSchedule = day.Statuses[groupCode];
-                if (groupSchedule is not null)
+                if (groupSchedule is not null && groupSchedule.Sum(x=>x.RealHours) > 0)
                 {
+                    builder.Append($"{day.DateTimeStamp}");
+
                     foreach (var status in groupSchedule)
                     {
                         builder.Append($"|{status.Id}:{(int)status.Status}");
                     }
+                    builder.Append(";");
+
                 }
             }
         }

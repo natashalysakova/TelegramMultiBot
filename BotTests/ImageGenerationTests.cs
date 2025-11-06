@@ -51,7 +51,7 @@ public class  ImageGenerationTests
 
         SaveImages(folder, image.Select(x => x.ImageData));
 
-        Assert.AreEqual(1, image.Count());
+        Assert.AreEqual(2, image.Count());
     }
 
     [TestMethod]

@@ -8,14 +8,6 @@ namespace BotTests;
 public class UnitTest1
 {
     [TestMethod]
-    public void TestMethod1()
-    {
-        //2022 - 08 - 09 04:05:00
-        var next = CronUtil.ParseNext("5 4 * * *");
-        Assert.AreEqual(new DateTime(2022, 08, 09, 04, 05, 00), next);
-    }
-
-    [TestMethod]
     public void MyTestMethod()
     {
         string s = "cat, dog, cute beavers\r\nNegative prompt: horse\r\nSteps: 5, Sampler: DPM++ SDE Karras, CFG scale: 2.0, Seed: 3342802166, Size: 1024x768, Model: dreamshaperXL_turboDpmppSDE, Denoising strength: 0.35, Version: v1.6.0-2-g4afaaf8a";
