@@ -110,7 +110,7 @@ public class MonitorService
     {
         if (job.Group == null)
         {
-            // No group associated with the job, nothing to compare
+            // No group associated with the job, nothing to compare. Actually should not happen. Ever.
             _logger.LogInformation("Job {key} has no group associated, treating as changed", job.Id);
             return true;
         }
@@ -126,8 +126,10 @@ public class MonitorService
         // Snapshot length different, no need to compare content
         if (job.LastSentGroupSnapsot?.Length != job.Group.DataSnapshot?.Length)
         {
-            _logger.LogInformation("Job {key} group data length changed:\n{old}\n{new}",
-                job.Id, job.Group.DataSnapshot, job.LastSentGroupSnapsot);
+            _logger.LogInformation("Job {key} group data length changed:\nGroup(new)({newLength}): {new}\nJob(old)({oldLength}): {old}",
+                job.Id,
+                job.Group.DataSnapshot?.Length, job.Group.DataSnapshot,
+                job.LastSentGroupSnapsot?.Length, job.LastSentGroupSnapsot);
             return true;
         }
 
@@ -144,8 +146,6 @@ public class MonitorService
         }
         return false;
     }
-
-
 
     internal async Task<Guid> AddDtekJob(long chatId, int? messageThreadId, string region, string? group)
     {

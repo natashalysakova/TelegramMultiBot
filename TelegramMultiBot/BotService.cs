@@ -143,6 +143,12 @@ internal class BotService(
             {
                 logger.LogDebug("sending new schedule: {chatId} {message}", info.ChatId, image);
 
+                if(!System.IO.File.Exists(image))
+                {
+                    logger.LogWarning("file {image} not found, skipping", image);
+                    continue;
+                }
+
                 var stream = System.IO.File.OpenRead(image);
                 streams.Add(stream);
                 var filename = Path.GetFileName(image);
