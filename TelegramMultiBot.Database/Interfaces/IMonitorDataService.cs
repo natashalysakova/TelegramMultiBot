@@ -32,6 +32,7 @@ public interface IMonitorDataService
     Task DeleteOldHistory(DateTime cutoffDate);
     Task<IEnumerable<string>> GetAllHistoryImagePaths();
     Task DeleteHistoryWithMissingFiles(IEnumerable<string> missingFiles);
+    Task DeleteAllHistory();
 }
 
 public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -291,5 +292,12 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
 
         context.ElectricityHistory.RemoveRange(recordsToDelete);
         await context.SaveChangesAsync();
+    }
+
+    public Task DeleteAllHistory()
+    {
+        var allRecords = context.ElectricityHistory;
+        context.ElectricityHistory.RemoveRange(allRecords);
+        return context.SaveChangesAsync();
     }
 }
