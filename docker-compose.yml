@@ -29,6 +29,8 @@ services:
     env_file:
       - prod.env
       - .env
+    volumes:
+      - images:/app/images
     depends_on:
       database:
         condition: service_healthy
@@ -150,6 +152,8 @@ networks:
     driver: bridge
 volumes:
   dbdata:
+    driver: local
+  images:
     driver: local
   dbdata-dev:
     driver: local

@@ -97,15 +97,12 @@ public class MonitorService
         // For non-group jobs, send if schedule updated
         if (!job.GroupId.HasValue)
         {
-            _logger.LogInformation("Job {key} is non-group job, schedule update: {update}", job.Id, hasScheduleUpdate);
             return hasScheduleUpdate;
         }
 
         // For group jobs, also check if group data changed
         bool hasGroupDataChange = HasGroupDataChanged(job);
 
-        _logger.LogInformation("Job {key} is group job, schedule update: {update}, group data change: {groupChange}",
-            job.Id, hasScheduleUpdate, hasGroupDataChange);
         return hasScheduleUpdate && hasGroupDataChange;
     }
 
@@ -113,24 +110,30 @@ public class MonitorService
     {
         if (job.Group == null)
         {
-            return false;
+            // No group associated with the job, nothing to compare
+            _logger.LogInformation("Job {key} has no group associated, treating as changed", job.Id);
+            return true;
         }
 
         // New snapshot available when previously none existed
         if (string.IsNullOrWhiteSpace(job.LastSentGroupSnapsot) && !string.IsNullOrWhiteSpace(job.Group.DataSnapshot))
         {
+            _logger.LogInformation("Job {key} group data snapshot created:\n{new}",
+                job.Id, job.Group.DataSnapshot);
             return true;
         }
 
+        // Snapshot length different, no need to compare content
         if (job.LastSentGroupSnapsot?.Length != job.Group.DataSnapshot?.Length)
         {
             _logger.LogInformation("Job {key} group data length changed:\n{old}\n{new}",
                 job.Id, job.Group.DataSnapshot, job.LastSentGroupSnapsot);
-            return false;
+            return true;
         }
 
+        var length = job.LastSentGroupSnapsot?.Length ?? 0; // Length is same for both schedule snapshot and job snapshot
         // Snapshot content has changed
-        for (int i = 0; i < Math.Min(job.LastSentGroupSnapsot?.Length ?? 0, job.Group.DataSnapshot?.Length ?? 0); i++)
+        for (int i = 0; i < length; i++)
         {
             if (job.LastSentGroupSnapsot![i] != job.Group.DataSnapshot![i])
             {

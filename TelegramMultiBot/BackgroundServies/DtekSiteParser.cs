@@ -22,7 +22,7 @@ public class DtekSiteParser : BackgroundService
     }
 
 #if DEBUG
-    const int STANDART_DELAY = 30; // 10 seconds
+    const int STANDART_DELAY = 30; // 30 seconds
 #else
     const int STANDART_DELAY = 300; // 5 minutes
 #endif
@@ -51,7 +51,7 @@ public class DtekSiteParser : BackgroundService
 
                         delay = STANDART_DELAY; // reset delay on success
                     }
-                    catch (Exception ex)
+                    catch (ParseException ex)
                     {
                         _logger.LogError(ex, "Error occurred while parsing site {url}: {message}", location.Region, ex.Message);
                     }
