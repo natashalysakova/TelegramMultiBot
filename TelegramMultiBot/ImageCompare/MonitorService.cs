@@ -1,4 +1,5 @@
-﻿using DtekParsers;
+﻿using System.Text;
+using DtekParsers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Database.Interfaces;
@@ -88,7 +89,7 @@ public class MonitorService
         }
     }
 
-    private static bool DecideIfSendUpdate(MonitorJob job)
+    private bool DecideIfSendUpdate(MonitorJob job)
     {
         // Check if schedule has been updated since last send
         bool hasScheduleUpdate = job.LastScheduleUpdate != job.Location.LastUpdated;
@@ -96,16 +97,19 @@ public class MonitorService
         // For non-group jobs, send if schedule updated
         if (!job.GroupId.HasValue)
         {
+            _logger.LogInformation("Job {key} is non-group job, schedule update: {update}", job.Id, hasScheduleUpdate);
             return hasScheduleUpdate;
         }
 
         // For group jobs, also check if group data changed
         bool hasGroupDataChange = HasGroupDataChanged(job);
 
+        _logger.LogInformation("Job {key} is group job, schedule update: {update}, group data change: {groupChange}",
+            job.Id, hasScheduleUpdate, hasGroupDataChange);
         return hasScheduleUpdate && hasGroupDataChange;
     }
 
-    private static bool HasGroupDataChanged(MonitorJob job)
+    private bool HasGroupDataChanged(MonitorJob job)
     {
         if (job.Group == null)
         {
@@ -118,8 +122,24 @@ public class MonitorService
             return true;
         }
 
+        if (job.LastSentGroupSnapsot?.Length != job.Group.DataSnapshot?.Length)
+        {
+            _logger.LogInformation("Job {key} group data length changed:\n{old}\n{new}",
+                job.Id, job.Group.DataSnapshot, job.LastSentGroupSnapsot);
+            return false;
+        }
+
         // Snapshot content has changed
-        return job.LastSentGroupSnapsot != job.Group.DataSnapshot;
+        for (int i = 0; i < Math.Min(job.LastSentGroupSnapsot?.Length ?? 0, job.Group.DataSnapshot?.Length ?? 0); i++)
+        {
+            if (job.LastSentGroupSnapsot![i] != job.Group.DataSnapshot![i])
+            {
+                _logger.LogInformation("Job {key} group data changed at index {index}\t{old}\t{new}",
+                    job.Id, i, job.LastSentGroupSnapsot.Substring(0, i), job.Group.DataSnapshot.Substring(0, i));
+                return true;
+            }
+        }
+        return false;
     }
 
 
