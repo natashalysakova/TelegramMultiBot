@@ -174,7 +174,7 @@ internal class ComfyUI : Diffusor
         int nodeCount;
 
         jsons = GeneralTxt2Img(genParams, out outputNode, out nodeCount);
-        
+
         await StartAndMonitorJob(job, directory, jsons, GetInfos(genParams, genParams.Model, nodeCount), outputNode, genParams.Model.Steps);
     }
 
@@ -496,57 +496,66 @@ internal class ComfyUI : Diffusor
                 }
 
                 var data = builder.ToString();
-                var obj = JsonConvert.DeserializeObject<WebsocketResponce>(data) ?? throw new InvalidOperationException("Cannot deserialize progress");
+                WebsocketResponce? obj;
+                try
+                {
+                    obj = WebsocketResponceParser.ParseWithJObject(data);
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex.Message);
+                    throw;
+                }
 
-                if (obj.type != "crystools.monitor")
+                if (obj.Type != "crystools.monitor")
                     _logger.LogDebug("{data}", data);
                 else
                     _logger.LogTrace("{data}", data);
 
-                if (obj.type == "execution_error")
+                if (obj.Type == "execution_error")
                 {
-                    throw new RenderFailedException(obj.data.exception_message);
+                    throw new RenderFailedException(obj.Data.exception_message);
                 }
 
-                if (obj.type == "progress")
+                if (obj.Type == "progress_state")
                 {
-                    if (obj.data.value == obj.data.max)
-                    {
-                        tile += 1;
-                        var progress = i * fraction + fraction;
+                    //if (obj.Data.Value == obj.Data.max)
+                    //{
+                    //    tile += 1;
+                    //    var progress = i * fraction + fraction;
 
-                        _logger.LogDebug("{0} Progress: {1}", jobId, progress);
-                        _databaseService.PostProgress(job.Id, progress, "working");
+                    //    _logger.LogDebug("{0} Progress: {1}", jobId, progress);
+                    //    _databaseService.PostProgress(job.Id, progress, "working");
 
-                        if (job.Type == JobType.HiresFix && !tmpFixForMessage)
-                        {
-                            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Неможливо порахувати прогрес. Чекайте.");
-                            tmpFixForMessage = true;
-                        }
-                        else if (job.Type != JobType.HiresFix)
-                        {
-                            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
-                        }
-                    }
-                    else if (DateTime.Now - lastUpdate > TimeSpan.FromSeconds(1))
-                    {
-                        var progress = 1.0 / obj.data.max * obj.data.value * fraction + i * fraction;
+                    //    if (job.Type == JobType.HiresFix && !tmpFixForMessage)
+                    //    {
+                    //        await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Неможливо порахувати прогрес. Чекайте.");
+                    //        tmpFixForMessage = true;
+                    //    }
+                    //    else if (job.Type != JobType.HiresFix)
+                    //    {
+                    //        await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
+                    //    }
+                    //}
+                    //else if (DateTime.Now - lastUpdate > TimeSpan.FromSeconds(1))
+                    //{
+                    //    var progress = 1.0 / obj.data.max * obj.data.value * fraction + i * fraction;
 
-                        if (progress > lastProgress)
-                        {
-                            await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
-                            _databaseService.PostProgress(job.Id, progress, "working");
+                    //    if (progress > lastProgress)
+                    //    {
+                    //        await _client.EditMessageTextAsync(job.ChatId, job.BotMessageId, $"[{ActiveHost.UI}] {job.Type} - Працюю... {i + 1}/{jsons.Count()} Прогресс: {Math.Round(progress, 2)}%");
+                    //        _databaseService.PostProgress(job.Id, progress, "working");
 
-                            lastUpdate = DateTime.Now;
-                            lastProgress = progress;
-                        }
-                    }
+                    //        lastUpdate = DateTime.Now;
+                    //        lastProgress = progress;
+                    //    }
+                    //}
 
 
 
                 }
 
-                if (obj.type == "executing" && obj.data.node == null && obj.data.prompt_id == jobId)
+                if (obj.Type == "execution_success" && obj.Data.PromptId == jobId)
                 {
                     _logger.LogDebug("{jobId} - finished", jobId);
                     break;
@@ -713,12 +722,7 @@ public class Image
     public string type { get; set; }
 }
 
-public class Status
-{
-    public string status_str { get; set; }
-    public bool completed { get; set; }
-    public object[][] messages { get; set; }
-}
+
 
 public class StartJobResponse
 {
@@ -741,24 +745,4 @@ public class Exec_Info
     public int queue_remaining { get; set; }
 }
 
-public class WebsocketResponce
-{
-    public string type { get; set; }
-    public Data data { get; set; }
-}
 
-public class Data
-{
-    public string node;
-    public string prompt_id;
-    public int value { get; set; }
-    public int max { get; set; }
-
-    public string[] nodes { get; set; }
-
-    public Status status { get; set; }
-    public string sid { get; set; }
-    public Output output { get; set; }
-    public string node_type { get; set; }
-    public string exception_message { get; set; }
-}

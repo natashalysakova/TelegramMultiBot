@@ -13,19 +13,19 @@ namespace BotTests.Properties
     [TestClass]
     public class MonitorDataServiceTests
     {
-        IMonitorDataService service;
-        BoberDbContext context;
+        IMonitorDataService _service;
+        BoberDbContext _context;
 
         public MonitorDataServiceTests()
         {
-            context = GetContext(Guid.NewGuid().ToString());
-            service = new MonitorDataService(context);
+            _context = GetContext(Guid.NewGuid().ToString());
+            _service = new MonitorDataService(_context);
         }
 
         [TestMethod]
         public async Task GetLocationsTest()
         {
-            var result = await service.GetLocations();
+            var result = await _service.GetLocations();
 
             Assert.HasCount(2, result);
         }
@@ -35,7 +35,7 @@ namespace BotTests.Properties
         [DataRow("krem")]
         public async Task GetLocationByRegion_ReturnsExpectedResult (string region)
         {
-            var result = await service.GetLocationByRegion(region);
+            var result = await _service.GetLocationByRegion(region);
 
             Assert.IsNotNull(result);
             Assert.AreEqual(region, result.Region);
@@ -48,7 +48,7 @@ namespace BotTests.Properties
         [DataRow("     ")]
         public async Task GetLocationByRegion_ReturnsNull(string region)
         {
-            var result = await service.GetLocationByRegion(region);
+            var result = await _service.GetLocationByRegion(region);
 
             Assert.IsNull(result);
         }
@@ -56,7 +56,7 @@ namespace BotTests.Properties
         [TestMethod]
         public async Task GetAllGroupsTest()
         {
-            var result = await service.GetAllGroups();
+            var result = await _service.GetAllGroups();
 
             Assert.IsNotNull(result);
             Assert.HasCount(6, result);
@@ -67,19 +67,16 @@ namespace BotTests.Properties
         [DataRow("krem")]
         public async Task GetGroupByCodeAndLocationRegion_ReturnsExpectedResult(string region)
         {
-            var result = await service.GetGroupByCodeAndLocationRegion(region, "group_1");
+            var result = await _service.GetGroupByCodeAndLocationRegion(region, "group_1");
 
             Assert.IsNotNull(result);
             Assert.AreEqual(region, result.LocationRegion);
             Assert.AreEqual("group_1", result.GroupCode);
         }
 
-        private BoberDbContext GetContext(string name)
+        private static BoberDbContext GetContext(string name)
         {
-            var builder = new DbContextOptionsBuilder<BoberDbContext>().UseInMemoryDatabase(name, options =>
-            {
-
-            });
+            var builder = new DbContextOptionsBuilder<BoberDbContext>().UseInMemoryDatabase(name);
 
             var context = new BoberDbContext(builder.Options);
             context.Seed();
@@ -90,7 +87,7 @@ namespace BotTests.Properties
             return context;
         }
 
-        private void SeedGroups(BoberDbContext context)
+        private static void SeedGroups(BoberDbContext context)
         {
             foreach (var location in context.ElectricityLocations)
             {
