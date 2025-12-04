@@ -1,0 +1,26 @@
+﻿{"type": "status", "data": {"status": {"exec_info": {"queue_remaining": 0}}, "sid": "bober_"}}
+
+{"type": "execution_cached", "data": {"nodes": ["1", "4", "5", "6", "25"], "prompt_id": "2d585214-749e-4444-bf2a-a0fb9c0fd622", "timestamp": 1764878790837}}
+
+{"type": "progress", "data": {"value": 5, "max": 6, "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "node": "3"}}
+{"type": "progress_state", "data": {"prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "nodes": {"3": {"value": 4, "max": 6, "state": "running", "node_id": "3", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "display_node_id": "3", "parent_node_id": null, "real_node_id": "3"}}}}
+
+{"type": "progress_state", "data": {"prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "nodes": {"3": {"value": 5, "max": 6, "state": "running", "node_id": "3", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "display_node_id": "3", "parent_node_id": null, "real_node_id": "3"}}}}
+
+{"type": "progress", "data": {"value": 6, "max": 6, "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "node": "3"}}
+
+{"type": "progress_state", "data": {"prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "nodes": {"3": {"value": 6, "max": 6, "state": "finished", "node_id": "3", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "display_node_id": "3", "parent_node_id": null, "real_node_id": "3"}}}}
+
+{"type": "progress_state", "data": {"prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "nodes": {"3": {"value": 6, "max": 6, "state": "finished", "node_id": "3", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "display_node_id": "3", "parent_node_id": null, "real_node_id": "3"}, "11": {"value": 0.0, "max": 1.0, "state": "running", "node_id": "11", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "display_node_id": "11", "parent_node_id": null, "real_node_id": "11"}}}}
+
+{"type": "executing", "data": {"node": "11", "display_node": "11", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26"}}
+
+{"type": "progress_state", "data": {"prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "nodes": {"3": {"value": 6, "max": 6, "state": "finished", "node_id": "3", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "display_node_id": "3", "parent_node_id": null, "real_node_id": "3"}, "11": {"value": 1.0, "max": 1.0, "state": "finished", "node_id": "11", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "display_node_id": "11", "parent_node_id": null, "real_node_id": "11"}}}}
+
+{"type": "executing", "data": {"node": "24", "display_node": "24", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26"}}
+
+{"type": "executed", "data": {"node": "24", "display_node": "24", "output": {"images": [{"filename": "ComfyUI_temp_kbpup_00020_.png", "subfolder": "", "type": "temp"}]}, "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26"}}
+
+{"type": "progress_state", "data": {"prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "nodes": {"3": {"value": 6, "max": 6, "state": "finished", "node_id": "3", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "display_node_id": "3", "parent_node_id": null, "real_node_id": "3"}, "11": {"value": 1.0, "max": 1.0, "state": "finished", "node_id": "11", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "display_node_id": "11", "parent_node_id": null, "real_node_id": "11"}, "24": {"value": 1.0, "max": 1.0, "state": "finished", "node_id": "24", "prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "display_node_id": "24", "parent_node_id": null, "real_node_id": "24"}}}}
+
+{"type": "execution_success", "data": {"prompt_id": "697d7fa1-d113-4053-aa23-a7be902aff26", "timestamp": 1764879405345}}
