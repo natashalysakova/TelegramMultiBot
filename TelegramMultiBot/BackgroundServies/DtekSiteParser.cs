@@ -2,9 +2,10 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System;
+using System.Net.Http;
+using System.Text;
+using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 
@@ -15,7 +16,7 @@ public class DtekSiteParser : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DtekSiteParser> _logger;
 
-    public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger)
+    public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger, ISvitlobotClient svitlobotClient)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
@@ -33,6 +34,7 @@ public class DtekSiteParser : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
+
             try
             {
                 var scope = _serviceProvider.CreateScope();
@@ -70,6 +72,20 @@ public class DtekSiteParser : BackgroundService
 
             try
             {
+                _logger.LogTrace("Starting sending updates to svitlobot");
+                SendUpdatesToSvitlobot();
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Error during sending updates to svitlobot: {message}", ex.Message);
+            }
+            finally
+            {
+                _logger.LogTrace("Sending updates to svitlobot ended");
+            }
+
+            try
+            {
                 _logger.LogTrace("Starting cleanup process");
                 await DoCleanup();
             }
@@ -87,6 +103,147 @@ public class DtekSiteParser : BackgroundService
         }
     }
 
+    public async Task SendUpdatesToSvitlobot()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+
+        var svitlobots = await dbservice.GetAllSvitlobots();
+        foreach (var svitlobot in svitlobots)
+        {
+            string data = string.Empty;
+            try
+            {
+                var response = await new HttpClient().GetAsync("https://api.svitlobot.in.ua/website/getChannelTimetable?channel_key=" + svitlobot.SvitlobotKey);
+
+                if (response == null)
+                {
+                    _logger.LogWarning("Svitlobot key {key} returned null response", svitlobot.SvitlobotKey);
+                    continue;
+                }
+
+                if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    _logger.LogWarning("Svitlobot key {key} returned status code {code}", svitlobot.SvitlobotKey, response.StatusCode);
+                    continue;
+                }
+
+                data = await response!.Content.ReadAsStringAsync();
+
+                var schedule = data.Split(";&&&;", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault();
+                // [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                // [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
+                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
+
+
+                var newSchedule = ConvertDataSnapshotToNewSchedule(schedule, svitlobot.Group.DataSnapshot);
+
+                if (newSchedule is null)
+                {
+                    _logger.LogWarning("Svitlobot key {key} conversion returned null new schedule", svitlobot.SvitlobotKey);
+                    continue;
+                }
+
+                var updateResponse = await new HttpClient().GetAsync($"https://api.svitlobot.in.ua/website/timetableEditEvent?&channel_key={svitlobot.SvitlobotKey}&timetableData={newSchedule}");
+                if (updateResponse is null || response.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    _logger.LogWarning("Svitlobot key {key} update returned status code {code}", svitlobot.SvitlobotKey, response?.StatusCode);
+                }
+            }
+            catch (Exception)
+            {
+
+                throw;
+            }
+        }
+    }
+
+    public string ConvertDataSnapshotToNewSchedule(string? schedule, string? dataSnapshot)
+    {
+        // 1764885600|1:0|2:0|3:0|4:0|5:0|6:0|7:0|8:0|9:1|10:1|11:0|12:0|13:0|14:0|15:0|16:0|17:0|18:1|19:1|20:1|21:3|22:0|23:0|24:0;
+        // |
+        // V
+        // 031200000000000000000000%3B000000000000100100000000%3B000000000000000030000000%3B000000000000000000000000%3B010000010000000100000000%3B000000000000000000000000%3B00000000000000000000000
+
+        var splitted = dataSnapshot?.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var result = new Dictionary<int, string>();
+
+        if (splitted != null && splitted.Any())
+        {
+            foreach (string day in splitted)
+            {
+                var row = day.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+                var date = row[0];
+
+                StringBuilder stringBuilder = new StringBuilder();
+                for (int i = 1; i < row.Length; i++)
+                {
+                    var splittedInfo = row[i].Split(':', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+                    if (splittedInfo.Length != 2)
+                    {
+                        break;
+                    }
+                    stringBuilder.Append(splittedInfo[1]);
+                }
+                var readyDay = stringBuilder.ToString();
+
+                var dayofWeek = (int)(DateTimeOffset.FromUnixTimeSeconds(long.Parse(date)).DayOfWeek) - 1;
+                if (dayofWeek < 0)
+                {
+                    dayofWeek = 6; // make sunday as 6
+                }
+
+                result[dayofWeek] = readyDay;
+            }
+        }
+
+
+        int[][]? scheduleArray = null;
+        if (schedule == "no data")
+        {
+            _logger.LogWarning("Schedule is 'no data'");
+        }
+        else if (schedule != null)
+        {
+            try
+            {
+                scheduleArray = JsonSerializer.Deserialize<int[][]>(schedule);
+            }
+            catch (Exception)
+            {
+                _logger.LogWarning("Failed to deserialize schedule: {schedule}", schedule);
+            }
+        }
+
+        for (int i = 0; i < 7; i++)
+        {
+            if (!result.ContainsKey(i) && scheduleArray != null && i < scheduleArray.Length)
+            {
+                var dayData = scheduleArray[i];
+                StringBuilder stringBuilder = new StringBuilder();
+                foreach (var hour in dayData)
+                {
+                    stringBuilder.Append(hour.ToString());
+                }
+                result[i] = stringBuilder.ToString();
+            }
+            else if (!result.ContainsKey(i))
+            {
+                // fill with zeros
+                result[i] = new string('0', 24);
+            }
+        }
+
+        var finalResult = string.Join("%3B", result.OrderBy(x => x.Key).Select(x => x.Value));
+
+        return finalResult;
+    }
+
     private async Task DoCleanup()
     {
         using var scope = _serviceProvider.CreateScope();
@@ -99,7 +256,7 @@ public class DtekSiteParser : BackgroundService
 
         _logger.LogInformation("found {count} files in db", filesInDb.Count());
 
-        if(!Directory.Exists(baseDirectory))
+        if (!Directory.Exists(baseDirectory))
         {
             _logger.LogWarning("Base directory {dir} does not exist. Skipping cleanup.", baseDirectory);
             return;

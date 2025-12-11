@@ -28,13 +28,16 @@ public interface IMonitorDataService
     Task<Dictionary<string, bool>> GetSubscriptionList(long chatId, string region);
 
     Task<IEnumerable<ElectricityGroup>> GetAllGroups();
-    Task<ElectricityGroup?> GetGroupByCodeAndLocationRegion(string region, string code);
+    Task<ElectricityGroup?> GetGroupByCodeAndLocationRegion(string region, string code, bool partialMatch = false);
 
     Task<int> Add<T>(T entity) where T : class;
     Task Update<T>(T entity) where T : class;
     Task DeleteOldHistory(DateTime cutoffDate);
     Task<IEnumerable<string>> GetAllHistoryImagePaths();
     Task DeleteHistoryWithMissingFiles(IEnumerable<string> missingFiles);
+    Task<SvitlobotData> AddSvitlobotKey(string key, Guid id);
+    Task<bool> RemoveSvitlobotKey(string key, Guid id);
+    Task<IEnumerable<SvitlobotData>> GetAllSvitlobots();
 }
 
 public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -186,9 +189,20 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
         return context.SaveChangesAsync();
     }
 
-    public async Task<ElectricityGroup?> GetGroupByCodeAndLocationRegion(string region, string code)
+    public async Task<ElectricityGroup?> GetGroupByCodeAndLocationRegion(string region, string code, bool partialMatch = false)
     {
-        return await context.ElectricityGroups.SingleOrDefaultAsync(x => x.GroupCode == code && x.LocationRegion == region);
+        var query = context.ElectricityGroups.Where(x => x.LocationRegion == region);
+
+        if(partialMatch)
+        {
+            query = query.Where(x => EF.Functions.Like(x.GroupCode, $"%{code}%"));
+        }
+        else
+        {
+            query = query.Where(x => x.GroupCode == code);
+        }
+
+        return await query.SingleOrDefaultAsync();
     }
 
     public async Task<IEnumerable<string>> GetCurrentScheduleImagesForRegion(string region)
@@ -294,5 +308,46 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
 
         context.ElectricityHistory.RemoveRange(recordsToDelete);
         await context.SaveChangesAsync();
+    }
+
+    public async Task<SvitlobotData> AddSvitlobotKey(string key, Guid id)
+    {
+        var existingRecord = await context.Svitlobot.FirstOrDefaultAsync(x => x.GroupId == id && x.SvitlobotKey == key);
+        if (existingRecord != null)
+        {
+            return existingRecord;
+        }
+
+        var record = new SvitlobotData
+        {
+            GroupId = id,
+            SvitlobotKey = key
+        };
+
+        context.Svitlobot.Add(record);
+        await context.SaveChangesAsync();
+
+        return record;
+    }
+
+    public async Task<bool> RemoveSvitlobotKey(string key, Guid id)
+    {
+        var record = context.Svitlobot.FirstOrDefault(x => x.GroupId == id && x.SvitlobotKey == key);
+        if (record != null)
+        {
+            context.Svitlobot.Remove(record);
+            await context.SaveChangesAsync();
+            return true;
+        }
+
+        return false;
+    }
+
+    public async Task<IEnumerable<SvitlobotData>> GetAllSvitlobots()
+    {
+        var records = context.Svitlobot
+            .Include(x=>x.Group);
+
+        return await records.ToListAsync();
     }
 }

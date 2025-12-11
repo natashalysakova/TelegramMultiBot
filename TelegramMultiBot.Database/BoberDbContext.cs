@@ -6,7 +6,7 @@ using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database;
 
-public class BoberDbContext : DbContext
+public partial class BoberDbContext : DbContext
 {
     public BoberDbContext(DbContextOptions options) : base(options)
     {
@@ -27,7 +27,8 @@ public class BoberDbContext : DbContext
 
     public virtual DbSet<AssistantSubscriber> Assistants { get; set; }
     public virtual DbSet<ChatHistory> ChatHistory { get; set; }
-
+    
+    public virtual DbSet<SvitlobotData> Svitlobot { get; set; }
 
     public void Seed()
     {
