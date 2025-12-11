@@ -11,15 +11,45 @@ using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.BackgroundServies;
 
+public interface ISvitlobotClient
+{
+    Task<string> GetTimetable(string channelKey);
+    Task<bool> UpdateTimetable(string channelKey, string timetableData);
+}
+public class SvitlobotClient : ISvitlobotClient
+{
+    private readonly HttpClient _httpClient;
+
+    public SvitlobotClient()
+    {
+        _httpClient = new HttpClient();
+    }
+
+    public async Task<string> GetTimetable(string channelKey)
+    {
+        var response = await _httpClient.GetAsync($"https://api.svitlobot.in.ua/website/getChannelTimetable?channel_key={channelKey}");
+        response.EnsureSuccessStatusCode();
+        return await response.Content.ReadAsStringAsync();
+    }
+
+    public async Task<bool> UpdateTimetable(string channelKey, string timetableData)
+    {
+        var response = await _httpClient.GetAsync($"https://api.svitlobot.in.ua/website/timetableEditEvent?&channel_key={channelKey}&timetableData={timetableData}");
+        return response.IsSuccessStatusCode;
+    }
+}
+
 public class DtekSiteParser : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DtekSiteParser> _logger;
+    private readonly ISvitlobotClient _svitlobotClient;
 
     public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger, ISvitlobotClient svitlobotClient)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
+        _svitlobotClient = svitlobotClient;
     }
 
 #if DEBUG
@@ -114,49 +144,25 @@ public class DtekSiteParser : BackgroundService
             string data = string.Empty;
             try
             {
-                var response = await new HttpClient().GetAsync("https://api.svitlobot.in.ua/website/getChannelTimetable?channel_key=" + svitlobot.SvitlobotKey);
-
-                if (response == null)
-                {
-                    _logger.LogWarning("Svitlobot key {key} returned null response", svitlobot.SvitlobotKey);
-                    continue;
-                }
-
-                if (response.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    _logger.LogWarning("Svitlobot key {key} returned status code {code}", svitlobot.SvitlobotKey, response.StatusCode);
-                    continue;
-                }
-
-                data = await response!.Content.ReadAsStringAsync();
-
-                var schedule = data.Split(";&&&;", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault();
-                // [[0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                // [0, 1, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 0, 0, 0, 0, 0],
-                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-                // [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]
-
+                data = await _svitlobotClient.GetTimetable(svitlobot.SvitlobotKey);
+                var schedule = data?.Split(";&&&;", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault();
 
                 var newSchedule = ConvertDataSnapshotToNewSchedule(schedule, svitlobot.Group.DataSnapshot);
-
                 if (newSchedule is null)
                 {
                     _logger.LogWarning("Svitlobot key {key} conversion returned null new schedule", svitlobot.SvitlobotKey);
                     continue;
                 }
 
-                var updateResponse = await new HttpClient().GetAsync($"https://api.svitlobot.in.ua/website/timetableEditEvent?&channel_key={svitlobot.SvitlobotKey}&timetableData={newSchedule}");
-                if (updateResponse is null || response.StatusCode != System.Net.HttpStatusCode.OK)
+                var updateResponse = await _svitlobotClient.UpdateTimetable(svitlobot.SvitlobotKey, newSchedule);
+                if (!updateResponse)
                 {
-                    _logger.LogWarning("Svitlobot key {key} update returned status code {code}", svitlobot.SvitlobotKey, response?.StatusCode);
+                    _logger.LogWarning("Svitlobot key {key} update returned failure", svitlobot.SvitlobotKey);
                 }
             }
             catch (Exception)
             {
-
+                _logger.LogError("Error during updating svitlobot key {key} with data {data}", svitlobot.SvitlobotKey, data);
                 throw;
             }
         }
@@ -201,7 +207,6 @@ public class DtekSiteParser : BackgroundService
                 result[dayofWeek] = readyDay;
             }
         }
-
 
         int[][]? scheduleArray = null;
         if (schedule == "no data")

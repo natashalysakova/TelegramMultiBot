@@ -27,6 +27,7 @@ public class DtekSiteParserTests2
     private Mock<ILogger<DtekSiteParser>> _loggerMock = null!;
     private Mock<IServiceScope> _scopeMock = null!;
     private Mock<IServiceScopeFactory> _scopeFactoryMock = null!;
+    private Mock<ISvitlobotClient> _svitlobotClientMock = null!;
     private DtekSiteParser _dtekSiteParser = null!;
 
     [TestInitialize]
@@ -45,6 +46,7 @@ public class DtekSiteParserTests2
         _loggerMock = new Mock<ILogger<DtekSiteParser>>();
         _scopeMock = new Mock<IServiceScope>();
         _scopeFactoryMock = new Mock<IServiceScopeFactory>();
+        _svitlobotClientMock = new Mock<ISvitlobotClient>();
 
         // Setup service scope to return mocked service provider
         _scopeMock.Setup(x => x.ServiceProvider).Returns(_serviceProviderMock.Object);
@@ -63,8 +65,11 @@ public class DtekSiteParserTests2
         // Setup scope disposal
         _scopeMock.Setup(x => x.Dispose());
 
+        _svitlobotClientMock.Setup(x => x.UpdateTimetable(It.IsAny<string>(), It.IsAny<string>()))
+            .ReturnsAsync(true);
+
         // Create instance of DtekSiteParser with mocked dependencies
-        _dtekSiteParser = new DtekSiteParser(_serviceProviderMock.Object, _loggerMock.Object);
+        _dtekSiteParser = new DtekSiteParser(_serviceProviderMock.Object, _loggerMock.Object, _svitlobotClientMock.Object);
     }
 
     [TestCleanup]
@@ -130,31 +135,27 @@ public class DtekSiteParserTests2
         
         await _dbContext.SaveChangesAsync();
 
-        // Act & Assert
-        try
-        {
+        _svitlobotClientMock.Setup(x => x.UpdateTimetable("test-key-123", It.IsAny<string>()))
+            .ReturnsAsync(true);
+
+        // Act
+    
             await _dtekSiteParser.SendUpdatesToSvitlobot();
-            
-            // If we reach here, HTTP calls succeeded (unlikely in test environment)
-            // Verify database was queried
-            var svitlobots = await _monitorDataService.GetAllSvitlobots();
-            Assert.AreEqual(1, svitlobots.Count(), "Should have one svitlobot in database");
-            Assert.AreEqual("test-key-123", svitlobots.First().SvitlobotKey);
-        }
-        catch (HttpRequestException)
-        {
-            // Expected - we can't reach the real API in unit tests
-            // Verify that we at least tried to process the data from database
-            var svitlobots = await _monitorDataService.GetAllSvitlobots();
-            Assert.AreEqual(1, svitlobots.Count(), "Should have one svitlobot in database");
-            Assert.IsNotNull(svitlobots.First().Group, "Group should be loaded from database");
-            Assert.AreEqual("1.1", svitlobots.First().Group.GroupCode);
-        }
-        catch (Exception ex)
-        {
-            // Any other exception should fail the test
-            Assert.Fail($"Unexpected exception: {ex.GetType().Name}: {ex.Message}");
-        }
+        
+        // Assert
+        var expectedSchedule = 
+        "111111111111111111111111%3B" +
+        "000000000000000000000000%3B" + 
+        "000000000000000000000000%3B" + 
+        "000000000000000000000000%3B" +
+        "000000000000000000000000%3B" + 
+        "000000000000000000000000%3B" + 
+        "000000000000000000000000";
+
+        _svitlobotClientMock
+            .Verify(x => x.UpdateTimetable("test-key-123", expectedSchedule), Times.Once);  
+
+
     }
 
     [TestMethod]
@@ -182,21 +183,38 @@ public class DtekSiteParserTests2
         
         await _dbContext.SaveChangesAsync();
 
-        // Act & Assert
-        try
-        {
-            await _dtekSiteParser.SendUpdatesToSvitlobot();
-            
-            var svitlobots = await _monitorDataService.GetAllSvitlobots();
-            Assert.AreEqual(1, svitlobots.Count());
-            Assert.IsNull(svitlobots.First().Group.DataSnapshot);
-        }
-        catch (HttpRequestException)
-        {
-            // Expected - HTTP calls will fail in test environment
-            var svitlobots = await _monitorDataService.GetAllSvitlobots();
-            Assert.AreEqual(1, svitlobots.Count());
-        }
+        _svitlobotClientMock.Setup(x => x.GetTimetable("test-key-123"))
+            .ReturnsAsync(
+@"19;&;Група 1.1;&;0
+20;&;Група 1.2;&;0
+21;&;Група 2.1;&;0
+22;&;Група 2.2;&;0
+23;&;Група 3.1;&;0
+24;&;Група 3.2;&;0
+25;&;Група 4.1;&;0
+26;&;Група 4.2;&;0
+27;&;Група 5.1;&;0
+28;&;Група 5.2;&;0
+29;&;Група 6.1;&;0
+30;&;Група 6.2;&;0
+;&&&;[[1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1, 1], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0], [0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0]]"
+            );
+        // Act
+
+        await _dtekSiteParser.SendUpdatesToSvitlobot();
+        
+        // Assert
+
+        var expectedSchedule = 
+        "111111111111111111111111%3B" +
+        "000000000000000000000000%3B" + 
+        "000000000000000000000000%3B" + 
+        "000000000000000000000000%3B" +
+        "000000000000000000000000%3B" + 
+        "000000000000000000000000%3B" + 
+        "000000000000000000000000";
+        _svitlobotClientMock
+            .Verify(x => x.UpdateTimetable("test-key-123", expectedSchedule), Times.Once); 
     }
 
     [TestMethod]
@@ -241,20 +259,12 @@ public class DtekSiteParserTests2
         
         await _dbContext.SaveChangesAsync();
 
-        // Act & Assert
-        try
-        {
-            await _dtekSiteParser.SendUpdatesToSvitlobot();
-            
-            var svitlobots = await _monitorDataService.GetAllSvitlobots();
-            Assert.AreEqual(2, svitlobots.Count(), "Should have two svitlobots in database");
-        }
-        catch (HttpRequestException)
-        {
-            // Expected - HTTP calls will fail in test environment
-            var svitlobots = await _monitorDataService.GetAllSvitlobots();
-            Assert.AreEqual(2, svitlobots.Count(), "Should have two svitlobots in database");
-        }
+        // Act
+        await _dtekSiteParser.SendUpdatesToSvitlobot();
+
+        // Assert
+        _svitlobotClientMock
+            .Verify(x => x.UpdateTimetable(It.IsAny<string>(), It.IsAny<string>()), Times.Exactly(2)); 
     }
 
     [TestMethod]

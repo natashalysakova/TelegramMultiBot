@@ -14,6 +14,11 @@ internal class SvitloCommand(TelegramClientWrapper client, MonitorService monito
 {
     private string supportedRegions = "регіони що підтримуються: krem - Київська область, kem - м. Київ";
 
+    public override bool CanHandle(Message message)
+    {
+        return base.CanHandle(message) && !message.Text!.StartsWith("/svitlobot");
+    }
+
     public async override Task Handle(Message message)
     {
         var keyboard = new InlineKeyboardMarkup(new[]
