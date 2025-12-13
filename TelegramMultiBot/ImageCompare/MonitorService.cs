@@ -1,4 +1,5 @@
-﻿using DtekParsers;
+﻿using System.Text;
+using DtekParsers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Database.Interfaces;
@@ -88,7 +89,7 @@ public class MonitorService
         }
     }
 
-    private static bool DecideIfSendUpdate(MonitorJob job)
+    private bool DecideIfSendUpdate(MonitorJob job)
     {
         // Check if schedule has been updated since last send
         bool hasScheduleUpdate = job.LastScheduleUpdate != job.Location.LastUpdated;
@@ -105,24 +106,46 @@ public class MonitorService
         return hasScheduleUpdate && hasGroupDataChange;
     }
 
-    private static bool HasGroupDataChanged(MonitorJob job)
+    private bool HasGroupDataChanged(MonitorJob job)
     {
         if (job.Group == null)
         {
-            return false;
+            // No group associated with the job, nothing to compare. Actually should not happen. Ever.
+            _logger.LogInformation("Job {key} has no group associated, treating as changed", job.Id);
+            return true;
         }
 
         // New snapshot available when previously none existed
         if (string.IsNullOrWhiteSpace(job.LastSentGroupSnapsot) && !string.IsNullOrWhiteSpace(job.Group.DataSnapshot))
         {
+            _logger.LogInformation("Job {key} group data snapshot created:\n{new}",
+                job.Id, job.Group.DataSnapshot);
             return true;
         }
 
+        // Snapshot length different, no need to compare content
+        if (job.LastSentGroupSnapsot?.Length != job.Group.DataSnapshot?.Length)
+        {
+            _logger.LogInformation("Job {key} group data length changed:\nGroup(new)({newLength}): {new}\nJob(old)({oldLength}): {old}",
+                job.Id,
+                job.Group.DataSnapshot?.Length, job.Group.DataSnapshot,
+                job.LastSentGroupSnapsot?.Length, job.LastSentGroupSnapsot);
+            return true;
+        }
+
+        var length = job.LastSentGroupSnapsot?.Length ?? 0; // Length is same for both schedule snapshot and job snapshot
         // Snapshot content has changed
-        return job.LastSentGroupSnapsot != job.Group.DataSnapshot;
+        for (int i = 0; i < length; i++)
+        {
+            if (job.LastSentGroupSnapsot![i] != job.Group.DataSnapshot![i])
+            {
+                _logger.LogInformation("Job {key} group data changed at index {index}\t{old}\t{new}",
+                    job.Id, i, job.LastSentGroupSnapsot.Substring(0, i), job.Group.DataSnapshot.Substring(0, i));
+                return true;
+            }
+        }
+        return false;
     }
-
-
 
     internal async Task<Guid> AddDtekJob(long chatId, int? messageThreadId, string region, string? group)
     {

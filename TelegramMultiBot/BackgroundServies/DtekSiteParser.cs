@@ -53,7 +53,7 @@ public class DtekSiteParser : BackgroundService
     }
 
 #if DEBUG
-    const int STANDART_DELAY = 30; // 10 seconds
+    const int STANDART_DELAY = 30; // 30 seconds
 #else
     const int STANDART_DELAY = 300; // 5 minutes
 #endif
@@ -77,16 +77,24 @@ public class DtekSiteParser : BackgroundService
                 foreach (var location in locations)
                 {
                     _logger.LogTrace("Parsing site for location {region}", location.Region);
-                    try
+                    var retryCount = 0;
+                    bool success = false;
+                    do
                     {
-                        await ParseSite(dbservice, location);
-
-                        delay = STANDART_DELAY; // reset delay on success
+                        try
+                        {
+                            await ParseSite(dbservice, location);
+                            success = true;
+                            delay = STANDART_DELAY; // reset delay on success
+                        }
+                        catch (ParseException ex) // parsing error - maybe page wasn't loaded correctly
+                        {
+                            retryCount++;
+                            _logger.LogError(ex, "Error occurred while parsing site {url}: {message}", location.Region, ex.Message);
+                            await Task.Delay(TimeSpan.FromSeconds(10 * retryCount)); // wait before retry
+                        }
                     }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex, "Error occurred while parsing site {url}: {message}", location.Region, ex.Message);
-                    }
+                    while (retryCount < 3 && !success);
                 }
             }
             catch (Exception ex)
@@ -299,6 +307,7 @@ public class DtekSiteParser : BackgroundService
         if (!Directory.Exists(baseDirectory))
         {
             _logger.LogWarning("Base directory {dir} does not exist. Skipping cleanup.", baseDirectory);
+            await dbservice.DeleteAllHistory();
             return;
         }
 
@@ -348,7 +357,6 @@ public class DtekSiteParser : BackgroundService
         var images = await ScheduleImageGenerator.GenerateAllImages(schedule);
 
         _logger.LogInformation("Generated {count} images", images.Count());
-
 
         foreach (var image in images)
         {
