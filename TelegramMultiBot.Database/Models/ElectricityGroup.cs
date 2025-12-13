@@ -14,4 +14,5 @@ public class ElectricityGroup
 
     public virtual ICollection<ElectricityHistory> History { get; set; } = new List<ElectricityHistory>();
     public virtual ICollection<MonitorJob> Jobs { get; set; } = new List<MonitorJob>();
+    public virtual ICollection<SvitlobotData> SvitlobotData { get; set; } = new List<SvitlobotData>();
 }

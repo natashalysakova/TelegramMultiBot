@@ -170,6 +170,7 @@ internal class Program
         _ = serviceCollection.AddTransient<IAssistantDataService, AssistantDataService>();
 
         _ = serviceCollection.AddTransient<CleanupService>();
+        _ = serviceCollection.AddTransient<ISvitlobotClient, SvitlobotClient>();
 
         _ = serviceCollection.AddTransient<AiHelper>();
 
