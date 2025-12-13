@@ -103,7 +103,7 @@ public class DtekSiteParser : BackgroundService
             try
             {
                 _logger.LogTrace("Starting sending updates to svitlobot");
-                SendUpdatesToSvitlobot();
+                await SendUpdatesToSvitlobot();
             }
             catch (Exception ex)
             {
@@ -144,7 +144,21 @@ public class DtekSiteParser : BackgroundService
             string data = string.Empty;
             try
             {
+                if(svitlobot.LastSentData == svitlobot.Group.DataSnapshot)
+                {
+                    _logger.LogTrace("Svitlobot key {key} data snapshot not changed, skipping", svitlobot.SvitlobotKey);
+                    continue;
+                }
+
                 data = await _svitlobotClient.GetTimetable(svitlobot.SvitlobotKey);
+
+                if(data == $@"Channel ""{svitlobot.SvitlobotKey}"" is not found! Insert correct key from chat bot!")
+                {
+                    await dbservice.RemoveSvitlobotKey(svitlobot.SvitlobotKey, svitlobot.GroupId);
+                    _logger.LogWarning("Svitlobot key {key} not found, removed from db", svitlobot.SvitlobotKey);
+                    continue;
+                } 
+
                 var schedule = data?.Split(";&&&;", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault();
 
                 var newSchedule = ConvertDataSnapshotToNewSchedule(schedule, svitlobot.Group.DataSnapshot);
@@ -159,6 +173,9 @@ public class DtekSiteParser : BackgroundService
                 {
                     _logger.LogWarning("Svitlobot key {key} update returned failure", svitlobot.SvitlobotKey);
                 }
+
+                svitlobot.LastSentData = svitlobot.Group.DataSnapshot;
+                await dbservice.Update(svitlobot);
             }
             catch (Exception)
             {
@@ -194,7 +211,10 @@ public class DtekSiteParser : BackgroundService
                     {
                         break;
                     }
-                    stringBuilder.Append(splittedInfo[1]);
+
+                    var valueToInsert = ParseFromSnapshot(splittedInfo[1]);
+
+                    stringBuilder.Append(valueToInsert);
                 }
                 var readyDay = stringBuilder.ToString();
 
@@ -247,6 +267,21 @@ public class DtekSiteParser : BackgroundService
         var finalResult = string.Join("%3B", result.OrderBy(x => x.Key).Select(x => x.Value));
 
         return finalResult;
+    }
+
+    private string ParseFromSnapshot(string value)
+    {
+       /// See LightStatus enum in DtekParsers project
+       /// We ignore 'maybe' and 'mfirst' and 'msecond' statuses for snapshot conversion
+
+        return value switch
+        {
+            "0" => "0",
+            "1" => "1",
+            "3" => "2",
+            "4" => "3",
+            _ => "1",
+        };
     }
 
     private async Task DoCleanup()
