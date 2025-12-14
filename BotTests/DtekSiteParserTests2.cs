@@ -177,7 +177,8 @@ public class DtekSiteParserTests2
             Id = Guid.NewGuid(),
             SvitlobotKey = "test-key-123",
             GroupId = group.Id,
-            Group = group
+            Group = group,
+            LastSentData = "some-old-data"
         };
         await _dbContext.Svitlobot.AddAsync(svitlobot);
         
