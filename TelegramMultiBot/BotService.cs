@@ -121,7 +121,7 @@ internal class BotService(
         var commands = serviceProvider.GetServices<ICommand>();
 
         List<BotCommand> commandList = new List<BotCommand>();
-        foreach (var command in commands.Where(x=>x.IsPublic))
+        foreach (var command in commands.Where(x => x.IsPublic))
         {
             var commandText = ("/" + command.Command);
             commandList.Add(new BotCommand()
@@ -142,6 +142,12 @@ internal class BotService(
             foreach (var image in info.Filenames.Take(10))
             {
                 logger.LogDebug("sending new schedule: {chatId} {message}", info.ChatId, image);
+
+                if(!System.IO.File.Exists(image))
+                {
+                    logger.LogWarning("file {image} not found, skipping", image);
+                    continue;
+                }
 
                 var stream = System.IO.File.OpenRead(image);
                 streams.Add(stream);

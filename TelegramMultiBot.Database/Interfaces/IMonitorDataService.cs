@@ -1,7 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.VisualBasic;
-using System.Collections.ObjectModel;
-using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Models;
@@ -38,6 +35,7 @@ public interface IMonitorDataService
     Task<SvitlobotData> AddSvitlobotKey(string key, Guid id);
     Task<bool> RemoveSvitlobotKey(string key, Guid id);
     Task<IEnumerable<SvitlobotData>> GetAllSvitlobots();
+    Task DeleteAllHistory();
 }
 
 public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -349,5 +347,12 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
             .Include(x=>x.Group);
 
         return await records.ToListAsync();
+    }
+    
+    public Task DeleteAllHistory()
+    {
+        var allRecords = context.ElectricityHistory;
+        context.ElectricityHistory.RemoveRange(allRecords);
+        return context.SaveChangesAsync();
     }
 }
