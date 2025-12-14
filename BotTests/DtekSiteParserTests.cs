@@ -598,5 +598,26 @@ public class DtekSiteParserTestsTest
         Assert.AreEqual("777777777777777777777777", days[6]); // Sunday from schedule
     }
 
+    [TestMethod]
+    public void ConvertDataSnapshotToNewSchedule_SundayChecks()
+    {
+        string schedule = null;
+        
+        // Sunday: 1765663200
+        var dataSnapshot = "1765663200|1:0|2:0|3:0|4:0|5:0|6:0|7:0|8:0|9:0|10:0|11:0|12:0|13:0|14:0|15:0|16:4|17:1|18:1|19:1|20:0|21:0|22:0|23:0|24:0;";
+
+        var result = _parser.ConvertDataSnapshotToNewSchedule(schedule, dataSnapshot);
+
+        var resultString = result.ToString()!;
+        var days = resultString.Split("%3B");
+        Assert.AreEqual("000000000000000000000000", days[0]); // Monday
+        Assert.AreEqual("000000000000000000000000", days[1]); // Tuesday
+        Assert.AreEqual("000000000000000000000000", days[2]); // Wednesday
+        Assert.AreEqual("000000000000000000000000", days[3]); // Thursday
+        Assert.AreEqual("000000000000000000000000", days[4]); // Friday
+        Assert.AreEqual("000000000000000000000000", days[5]); // Saturday
+        Assert.AreEqual("000000000000000311100000", days[6]); // Sunday
+    }
+
     #endregion
 }

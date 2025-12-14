@@ -226,7 +226,7 @@ public class DtekSiteParser : BackgroundService
                 }
                 var readyDay = stringBuilder.ToString();
 
-                var dayofWeek = (int)DateTimeOffset.FromUnixTimeSeconds(long.Parse(date)).DayOfWeek;
+                var dayofWeek = (int)DateTimeOffset.FromUnixTimeSeconds(long.Parse(date)).ToLocalTime().DayOfWeek;
 
                 var cultureInfo = Thread.CurrentThread.CurrentCulture;
                 if(cultureInfo.DateTimeFormat.FirstDayOfWeek == DayOfWeek.Sunday) // adjust if week starts from Sunday
