@@ -29,7 +29,7 @@ public interface IMonitorDataService
 
     Task<int> Add<T>(T entity) where T : class;
     Task Update<T>(T entity) where T : class;
-    Task DeleteOldHistory(DateTime cutoffDate);
+    Task<IEnumerable<ElectricityHistory>> DeleteOldHistory(DateTime cutoffDate);
     Task<IEnumerable<string>> GetAllHistoryImagePaths();
     Task DeleteHistoryWithMissingFiles(IEnumerable<string> missingFiles);
     Task<SvitlobotData> AddSvitlobotKey(string key, Guid id);
@@ -286,12 +286,15 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
         return toSend.Distinct();
     }
 
-    public async Task DeleteOldHistory(DateTime cutoffDate)
+    public async Task<IEnumerable<ElectricityHistory>> DeleteOldHistory(DateTime cutoffDate)
     {
-        var toDelete = context.ElectricityHistory
-            .Where(x => x.Updated < cutoffDate);
+        var toDelete = await context.ElectricityHistory
+            .Where(x => x.Updated < cutoffDate).ToListAsync();
         context.ElectricityHistory.RemoveRange(toDelete);
+       
         await context.SaveChangesAsync();
+
+        return toDelete;
     }
 
     public async Task<IEnumerable<string>> GetAllHistoryImagePaths()

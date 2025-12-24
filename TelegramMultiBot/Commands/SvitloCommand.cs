@@ -3,8 +3,8 @@ using DtekParsers;
 using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
+using TelegramMultiBot.BackgroundServies;
 using TelegramMultiBot.Commands.Interfaces;
-using TelegramMultiBot.ImageCompare;
 
 namespace TelegramMultiBot.Commands;
 
