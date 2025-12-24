@@ -229,7 +229,7 @@ public class DtekSiteParser : BackgroundService
                 var dayofWeek = (int)DateTimeOffset.FromUnixTimeSeconds(long.Parse(date)).ToLocalTime().DayOfWeek;
 
                 var cultureInfo = Thread.CurrentThread.CurrentCulture;
-                if(cultureInfo.DateTimeFormat.FirstDayOfWeek == DayOfWeek.Sunday) // adjust if week starts from Sunday
+                if (cultureInfo.DateTimeFormat.FirstDayOfWeek == DayOfWeek.Sunday) // adjust if week starts from Sunday
                 {
                     dayofWeek = dayofWeek == 0 ? 6 : dayofWeek - 1;
                 }
@@ -298,38 +298,50 @@ public class DtekSiteParser : BackgroundService
     {
         using var scope = _serviceProvider.CreateScope();
         var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
-        var cutoffDate = DateTime.Now.AddDays(-7);
+        var cutoffDate = DateTime.Today.AddDays(-7);
 
-        await dbservice.DeleteOldHistory(cutoffDate);
-
-        var filesInDb = await dbservice.GetAllHistoryImagePaths();
-
-        _logger.LogInformation("found {count} files in db", filesInDb.Count());
-
-        if (!Directory.Exists(baseDirectory))
-        {
-            _logger.LogWarning("Base directory {dir} does not exist. Skipping cleanup.", baseDirectory);
-            await dbservice.DeleteAllHistory();
-            return;
-        }
+        var removedHistory = await dbservice.DeleteOldHistory(cutoffDate);
 
         var files = Directory.GetFiles(baseDirectory, "*.png", SearchOption.AllDirectories);
-        var ophanedFiles = files.Except(filesInDb);
 
-        if (ophanedFiles.Any())
+        foreach (var file in removedHistory)
         {
-            _logger.LogInformation("ophanedFiles:" + string.Join('\n', ophanedFiles));
+            var fullPath = files.SingleOrDefault(x => x.Contains(file.ImagePath));
 
-            foreach (var file in ophanedFiles)
+            if (File.Exists(fullPath))
             {
-                if (File.Exists(file))
-                {
-                    File.Delete(file);
-                    _logger.LogInformation("Deleted file: {file}", file);
-                }
+                File.Delete(fullPath);
+                _logger.LogInformation("Deleted file: {file}", fullPath);
             }
         }
 
+        //_logger.LogInformation("found {count} files in db", filesInDb.Count());
+
+        //if (!Directory.Exists(baseDirectory))
+        //{
+        //    _logger.LogWarning("Base directory {dir} does not exist. Skipping cleanup.", baseDirectory);
+        //    await dbservice.DeleteAllHistory();
+        //    return;
+        //}
+
+        //var files = Directory.GetFiles(baseDirectory, "*.png", SearchOption.AllDirectories);
+        //var ophanedFiles = files.Except(filesInDb);
+
+        //if (ophanedFiles.Any())
+        //{
+        //    _logger.LogInformation("ophanedFiles:" + string.Join('\n', ophanedFiles));
+
+        //    foreach (var file in ophanedFiles)
+        //    {
+        //        if (File.Exists(file))
+        //        {
+        //            File.Delete(file);
+        //            _logger.LogInformation("Deleted file: {file}", file);
+        //        }
+        //    }
+        //}
+
+        var filesInDb = await dbservice.GetAllHistoryImagePaths();
         var missingFiles = filesInDb.Except(files);
         if (missingFiles.Any())
         {

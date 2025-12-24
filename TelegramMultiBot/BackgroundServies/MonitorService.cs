@@ -4,8 +4,9 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
+using TelegramMultiBot.ImageCompare;
 
-namespace TelegramMultiBot.ImageCompare;
+namespace TelegramMultiBot.BackgroundServies;
 
 public class MonitorService
 {
@@ -54,7 +55,6 @@ public class MonitorService
             try
             {
                 bool sendUpdate = DecideIfSendUpdate(job);
-                _logger.LogTrace("Job {key} send update decision: {decision}", job.Id, sendUpdate);
                 if (sendUpdate)
                 {
                     job.LastScheduleUpdate = job.Location.LastUpdated;
@@ -62,6 +62,7 @@ public class MonitorService
                     if (job.Group != null)
                     {
                         job.LastSentGroupSnapsot = job.Group.DataSnapshot;
+                        _logger.LogInformation("Updating job {id} snapshot", job.Id);
                     }
 
                     await dbservice.Update(job);
@@ -78,7 +79,7 @@ public class MonitorService
                 }
                 else
                 {
-                    _logger.LogTrace("Job {key} was not updated", job.Id);
+                    _logger.LogInformation("Schedule for job {key} was not updated", job.Id);
                 }
 
             }
@@ -140,7 +141,7 @@ public class MonitorService
             if (job.LastSentGroupSnapsot![i] != job.Group.DataSnapshot![i])
             {
                 _logger.LogInformation("Job {key} group data changed at index {index}\t{old}\t{new}",
-                    job.Id, i, job.LastSentGroupSnapsot.Substring(0, i), job.Group.DataSnapshot.Substring(0, i));
+                    job.Id, i, job.LastSentGroupSnapsot, job.Group.DataSnapshot);
                 return true;
             }
         }
