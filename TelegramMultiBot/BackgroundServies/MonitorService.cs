@@ -63,6 +63,13 @@ public class MonitorService
 
                 job.LastScheduleUpdate = job.Location.LastUpdated;
 
+                if (job.GroupId.HasValue && job.Group is null)
+                {
+                    _logger.LogInformation("Loading group data for job {id} with GroupId {groupId}", job.Id, job.GroupId.Value);
+                    var groupfromDb = await dbservice.GetGroupById(job.GroupId.Value);
+                    job.Group = groupfromDb;
+                }
+
                 if (job.Group != null)
                 {
                     var oldSnapshot = job.LastSentGroupSnapsot;
@@ -83,8 +90,6 @@ public class MonitorService
                 var verifyJob = await dbservice.GetJobById(job.Id);
                 _logger.LogInformation("After DB Update - Job {id}: LastScheduleUpdate={lastSchedule}, LastSentGroupSnapsot='{snapshot}'",
                     verifyJob.Id, verifyJob.LastScheduleUpdate, verifyJob.LastSentGroupSnapsot);
-
-                await dbservice.Update(job);
 
                 await SendExisiting(job.Id);
 

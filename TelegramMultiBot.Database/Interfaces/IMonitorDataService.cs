@@ -36,6 +36,7 @@ public interface IMonitorDataService
     Task<bool> RemoveSvitlobotKey(string key, Guid id);
     Task<IEnumerable<SvitlobotData>> GetAllSvitlobots();
     Task DeleteAllHistory();
+    Task<ElectricityGroup> GetGroupById(Guid value);
 }
 
 public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -355,5 +356,10 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
         var allRecords = context.ElectricityHistory;
         context.ElectricityHistory.RemoveRange(allRecords);
         return context.SaveChangesAsync();
+    }
+
+    public Task<ElectricityGroup> GetGroupById(Guid value)
+    {
+        return context.ElectricityGroups.FirstAsync(x => x.Id == value);
     }
 }
