@@ -55,32 +55,38 @@ public class MonitorService
             try
             {
                 bool sendUpdate = DecideIfSendUpdate(job);
-                if (sendUpdate)
+                if (!sendUpdate)
                 {
-                    job.LastScheduleUpdate = job.Location.LastUpdated;
-
-                    if (job.Group != null)
-                    {
-                        job.LastSentGroupSnapsot = job.Group.DataSnapshot;
-                        _logger.LogInformation("Updating job {id} snapshot", job.Id);
-                    }
-
-                    await dbservice.Update(job);
-
-                    try
-                    {
-                        await SendExisiting(job.Id);
-                    }
-                    catch (Exception ex)
-                    {
-                        _logger.LogError(ex.Message);
-                        continue;
-                    }
+                    _logger.LogTrace("Schedule for job {key} was not updated", job.Id);
+                    continue;
                 }
-                else
+
+                job.LastScheduleUpdate = job.Location.LastUpdated;
+
+                if (job.Group != null)
                 {
-                    _logger.LogInformation("Schedule for job {key} was not updated", job.Id);
+                    var oldSnapshot = job.LastSentGroupSnapsot;
+                    var newSnapshot = job.Group.DataSnapshot;
+
+                    _logger.LogInformation("Before Update - Job {id}: LastScheduleUpdate={lastSchedule}, LastSentGroupSnapsot='{oldSnapshot}' -> '{newSnapshot}'",
+                        job.Id, job.LastScheduleUpdate, oldSnapshot, newSnapshot);
+
+                    job.LastSentGroupSnapsot = job.Group.DataSnapshot;
+
+                    _logger.LogInformation("After Assignment - Job {id}: LastSentGroupSnapsot='{snapshot}'",
+                        job.Id, job.LastSentGroupSnapsot);
                 }
+
+                await dbservice.Update(job);
+
+                // Verify what was actually persisted
+                var verifyJob = await dbservice.GetJobById(job.Id);
+                _logger.LogInformation("After DB Update - Job {id}: LastScheduleUpdate={lastSchedule}, LastSentGroupSnapsot='{snapshot}'",
+                    verifyJob.Id, verifyJob.LastScheduleUpdate, verifyJob.LastSentGroupSnapsot);
+
+                await dbservice.Update(job);
+
+                await SendExisiting(job.Id);
 
             }
             catch (Exception ex)

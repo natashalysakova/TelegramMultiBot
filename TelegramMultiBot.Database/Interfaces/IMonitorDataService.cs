@@ -52,11 +52,9 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
 
     public async Task<IEnumerable<MonitorJob>> GetActiveJobs()
     {
-        return await GetJobsInternal()
+        return await GetJobsInternal(disableTracking: false)
             .Where(x => x.IsActive).ToListAsync();
     }
-
-
 
     public async Task<MonitorJob?> GetJobBySubscriptionParameters(long chatId, string region, string? group)
     {
