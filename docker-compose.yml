@@ -31,7 +31,6 @@ services:
       - .env
     volumes:
       - images:/app/images
-      - monitor:/app/monitor
     depends_on:
       database:
         condition: service_healthy
@@ -146,8 +145,6 @@ volumes:
   dbdata:
     driver: local
   images:
-    driver: local
-  monitor:
     driver: local
   dbdata-dev:
     driver: local
