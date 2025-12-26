@@ -13,10 +13,6 @@ ENV PUPPETEER_EXECUTABLE_PATH "/usr/bin/chromium"
 
 WORKDIR /app
 
-# Create directories and set permissions before switching to app user
-RUN mkdir -p /app/monitor /app/images && \
-    chown -R app:app /app/monitor /app/images
-
 USER app
 WORKDIR /app
 
