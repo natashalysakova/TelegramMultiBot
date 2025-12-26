@@ -159,10 +159,10 @@ public class MonitorService
 
     internal async Task<Guid> AddDtekJob(long chatId, int? messageThreadId, string region, string? group)
     {
-        var scope = _serviceProvider.CreateScope();
-        var _dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-        var existing = await _dataService.GetJobBySubscriptionParameters(chatId, region, group);
+        var existing = await dataService.GetJobBySubscriptionParameters(chatId, region, group);
 
         if (existing != null && existing.IsActive)
         {
@@ -170,12 +170,12 @@ public class MonitorService
         }
         else if (existing != null && existing.IsActive == false)
         {
-            await _dataService.ReactivateJob(existing.Id, messageThreadId);
+            await dataService.ReactivateJob(existing.Id, messageThreadId);
             return existing.Id;
         }
 
 
-        var location = await _dataService.GetLocationByRegion(region);
+        var location = await dataService.GetLocationByRegion(region);
 
         if (location == null)
         {
@@ -186,7 +186,7 @@ public class MonitorService
 
         if (!string.IsNullOrEmpty(group))
         {
-            dbGroup = await _dataService.GetGroupByCodeAndLocationRegion(region, group);
+            dbGroup = await dataService.GetGroupByCodeAndLocationRegion(region, group);
         }
 
         var job = new MonitorJob()
@@ -198,17 +198,17 @@ public class MonitorService
             GroupId = dbGroup?.Id,
             Type = dbGroup is null ? ElectricityJobType.AllGroups : ElectricityJobType.SingleGroup,
         };
-        await _dataService.Add(job);
+        await dataService.Add(job);
         return job.Id;
     }
 
     public async Task<bool> SendExisiting(long chatId, string region, int? messageThreadId)
     {
-        var scope = _serviceProvider.CreateScope();
-        var _dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
         _logger.LogTrace("Preparing to send existing schedule for region {region} to chat {chatId}", region, chatId);
-        var existingInfo = await _dataService.GetCurrentScheduleImagesForRegion(region);
+        var existingInfo = await dataService.GetCurrentScheduleImagesForRegion(region);
 
         string caption = $"Актуальний графік {LocationNameUtility.GetLocationByRegion(region)} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
 
@@ -228,11 +228,11 @@ public class MonitorService
 
     public async Task<bool> SendExisiting(long chatId, string region, string group, ElectricityJobType jobType, int? messageThreadId)
     {
-        var scope = _serviceProvider.CreateScope();
-        var _dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-        var existingInfo = await _dataService.GetCurrentScheduleImagesForGroupRegion(group, region, jobType);
-        var groupFromDb = await _dataService.GetGroupByCodeAndLocationRegion(region, group);
+        var existingInfo = await dataService.GetCurrentScheduleImagesForGroupRegion(group, region, jobType);
+        var groupFromDb = await dataService.GetGroupByCodeAndLocationRegion(region, group);
         string groupName = groupFromDb?.GroupName ?? "";
 
         string caption = $"Актуальний графік {LocationNameUtility.GetLocationByRegion(region)} {groupName} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
@@ -251,10 +251,10 @@ public class MonitorService
 
     public async Task<bool> SendExisiting(Guid jobAdded)
     {
-        var scope = _serviceProvider.CreateScope();
-        var _dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-        var job = await _dataService.GetJobById(jobAdded);
+        var job = await dataService.GetJobById(jobAdded);
         if (job is null)
         {
             return false;
@@ -266,7 +266,7 @@ public class MonitorService
             return false;
 
         job.LastScheduleUpdate = job.Location.LastUpdated;
-        await _dataService.Update(job);
+        await dataService.Update(job);
 
         ReadyToSend?.Invoke(info);
         return true;
@@ -274,10 +274,10 @@ public class MonitorService
 
     internal async Task<SendInfo> GetInfo(MonitorJob job)
     {
-        var scope = _serviceProvider.CreateScope();
-        var _dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-        var images = await _dataService.GetImagesForJob(job.Id);
+        var images = await dataService.GetImagesForJob(job.Id);
 
         string caption = $"Актуальний графік {LocationNameUtility.GetLocationByRegion(job.Location.Region)} {job.Group?.GroupName ?? ""} на " + DateTime.Now.ToString("dd.MM.yyyy HH:mm");
 
@@ -292,35 +292,35 @@ public class MonitorService
 
     internal async Task<bool> DisableJob(long chatId, string region, string? group, string reason)
     {
-        var scope = _serviceProvider.CreateScope();
-        var _dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-        await _dataService.DisableJobs(chatId, region, group, reason);
+        await dataService.DisableJobs(chatId, region, group, reason);
         return true;
     }
 
     public async Task DisableJob(long chatId, string reason)
     {
-        var scope = _serviceProvider.CreateScope();
-        var _dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-        await _dataService.DisableJobs(chatId, reason);
+        await dataService.DisableJobs(chatId, reason);
     }
 
 
     internal async Task<IEnumerable<MonitorJob>> GetActiveJobs(long chatId)
     {
-        var scope = _serviceProvider.CreateScope();
-        var _dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-        return await _dataService.GetActiveJobs(chatId);
+        return await dataService.GetActiveJobs(chatId);
     }
 
     internal async Task<Dictionary<string, bool>> IsSubscribed(long chatId, string region)
     {
-        var scope = _serviceProvider.CreateScope();
-        var _dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-        return await _dataService.GetSubscriptionList(chatId, region);
+        return await dataService.GetSubscriptionList(chatId, region);
     }
 }
