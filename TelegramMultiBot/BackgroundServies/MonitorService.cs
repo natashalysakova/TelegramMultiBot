@@ -110,10 +110,14 @@ public class MonitorService
             return hasScheduleUpdate;
         }
 
-        // For group jobs, also check if group data changed
-        bool hasGroupDataChange = HasGroupDataChanged(job);
+        // For group jobs with no schedule update, skip
+        if (!hasScheduleUpdate)
+        {
+            return false;
+        }
 
-        return hasScheduleUpdate && hasGroupDataChange;
+        // For group jobs, also check if group data changed
+        return HasGroupDataChanged(job);
     }
 
     private bool HasGroupDataChanged(MonitorJob job)
