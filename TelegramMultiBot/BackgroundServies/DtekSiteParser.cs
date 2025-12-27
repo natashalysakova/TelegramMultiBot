@@ -75,7 +75,7 @@ public class DtekSiteParser : BackgroundService
                 foreach (var location in locations)
                 {
                     using var locationScope = _logger.BeginScope("Location: {region}", location.Region);
-                    _logger.LogDebug("Parsing site for location {region}", location.Region);
+                    _logger.LogDebug("Parsing site");
                     var retryCount = 0;
                     bool success = false;
                     do
@@ -94,6 +94,7 @@ public class DtekSiteParser : BackgroundService
                         }
                     }
                     while (retryCount < 3 && !success);
+                    _logger.LogDebug("Finished parsing site");
                 }
             }
             catch (Exception ex)
@@ -411,14 +412,15 @@ public class DtekSiteParser : BackgroundService
                 ScheduleDay = image.Date.HasValue ? image.Date.Value : 0,
                 JobType = GetJobType(image)
             });
-
         }
+        
+        _logger.LogInformation("Schedule and images updated in database");
     }
 
     private async Task<bool> HasMissingImages(IMonitorDataService dbservice, ElectricityLocation location)
     {
         var files = Directory.GetFiles(baseDirectory, "*.png", SearchOption.AllDirectories);
-        var filesInDb = await dbservice.GetAllHistoryImagePaths();
+        var filesInDb = await dbservice.GetAllHistoryImagePaths(location.Id);
         var missingFiles = filesInDb.Except(files);
         if (missingFiles.Any())
         {
