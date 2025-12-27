@@ -44,12 +44,19 @@ public class DtekSiteParser : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DtekSiteParser> _logger;
     private readonly ISvitlobotClient _svitlobotClient;
+    private CancellationTokenSource _delayCancellationTokenSource;
 
     public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger, ISvitlobotClient svitlobotClient)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _svitlobotClient = svitlobotClient;
+        _delayCancellationTokenSource = new CancellationTokenSource();
+
+        if(!Directory.Exists(baseDirectory))
+        {
+            Directory.CreateDirectory(baseDirectory);
+        }
     }
 
 #if DEBUG
@@ -64,7 +71,6 @@ public class DtekSiteParser : BackgroundService
 
         while (!stoppingToken.IsCancellationRequested)
         {
-
             try
             {
                 var scope = _serviceProvider.CreateScope();
@@ -137,7 +143,8 @@ public class DtekSiteParser : BackgroundService
             }
 
             _logger.LogTrace("Waiting for {delay} seconds before next check", delay);
-            await Task.Delay(TimeSpan.FromSeconds(delay));
+            await Task.Delay(TimeSpan.FromSeconds(delay), _delayCancellationTokenSource.Token);
+            _delayCancellationTokenSource = new CancellationTokenSource();
         }
     }
 
@@ -308,7 +315,7 @@ public class DtekSiteParser : BackgroundService
         {
             var fullPath = files.SingleOrDefault(x => x.Contains(file.ImagePath));
 
-            if (File.Exists(fullPath))
+            if (file != null && File.Exists(fullPath))
             {
                 File.Delete(fullPath);
                 _logger.LogInformation("Deleted file: {file}", fullPath);
@@ -346,7 +353,7 @@ public class DtekSiteParser : BackgroundService
         if (missingFiles.Any())
         {
             _logger.LogWarning("Missing files in storage: {file}", string.Join("\n", missingFiles));
-            await dbservice.DeleteHistoryWithMissingFiles(missingFiles);
+            //await dbservice.DeleteHistoryWithMissingFiles(missingFiles);
         }
     }
 

@@ -84,10 +84,13 @@ public class MonitorService
 
                 await dbservice.Update(job);
 
-                // Verify what was actually persisted
-                var verifyJob = await dbservice.GetJobById(job.Id);
-                _logger.LogInformation("After DB Update - Job {id}: LastScheduleUpdate={lastSchedule}, LastSentGroupSnapsot='{snapshot}'",
-                    verifyJob.Id, verifyJob.LastScheduleUpdate, verifyJob.LastSentGroupSnapsot);
+                if (job.GroupId.HasValue)
+                {
+                    // Verify what was actually persisted
+                    var verifyJob = await dbservice.GetJobById(job.Id);
+                    _logger.LogInformation("After DB Update - Job {id}: LastScheduleUpdate={lastSchedule}, LastSentGroupSnapsot='{snapshot}'",
+                        verifyJob.Id, verifyJob.LastScheduleUpdate, verifyJob.LastSentGroupSnapsot);
+                }
 
                 await SendExisiting(job.Id);
 
