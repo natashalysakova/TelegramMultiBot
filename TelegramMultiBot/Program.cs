@@ -38,9 +38,10 @@ internal class Program
           .ConfigureHostConfiguration(configHost => {
           })
           .ConfigureServices((hostContext, services) => {
-              services.AddHostedService<DtekSiteParser>();
-              services.AddHostedService<BotService>();
-              RegisterServices(services, args);
+                services.AddSingleton<DtekSiteParser>();
+                services.AddHostedService(provider => provider.GetRequiredService<DtekSiteParser>());
+                services.AddHostedService<BotService>();
+                RegisterServices(services, args);
           })
          .UseConsoleLifetime()
          .Build();
@@ -190,6 +191,7 @@ internal class Program
         _ = serviceCollection.AddSingleton<ImageGenearatorQueue>();
         _ = serviceCollection.AddSingleton<IMessageCacheService, InMemoryMessageCacheService>();
         _ = serviceCollection.AddSingleton<MonitorService>();
+        _ = serviceCollection.AddSingleton<IDtekSiteParserService, DtekSiteParserService>();
 
         _ = RegisterMyServices<IDialogHandler>(serviceCollection);
         _ = RegisterMyServices<IDiffusor>(serviceCollection);

@@ -1,4 +1,5 @@
-﻿using System.Text;
+﻿using System.Runtime.Serialization.Formatters;
+using System.Text;
 using DtekParsers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -50,12 +51,14 @@ public class MonitorService
         var sendList = new List<SendInfo>();
         foreach (var job in activeJobs)
         {
+            using var jobScope = _logger.BeginScope("JobId:{jobId}", job.Id);
+
             try
             {
                 bool sendUpdate = DecideIfSendUpdate(job);
                 if (!sendUpdate)
                 {
-                    _logger.LogTrace("Schedule for job {key} was not updated", job.Id);
+                    _logger.LogTrace("Schedule was not updated");
                     continue;
                 }
 
@@ -63,7 +66,7 @@ public class MonitorService
 
                 if (job.GroupId.HasValue && job.Group is null)
                 {
-                    _logger.LogInformation("Loading group data for job {id} with GroupId {groupId}", job.Id, job.GroupId.Value);
+                    _logger.LogInformation("Loading group data with GroupId {groupId}", job.GroupId.Value);
                     var groupfromDb = await dbservice.GetGroupById(job.GroupId.Value);
                     job.Group = groupfromDb;
                 }
@@ -73,13 +76,13 @@ public class MonitorService
                     var oldSnapshot = job.LastSentGroupSnapsot;
                     var newSnapshot = job.Group.DataSnapshot;
 
-                    _logger.LogInformation("Before Update - Job {id}: LastScheduleUpdate={lastSchedule}, LastSentGroupSnapsot='{oldSnapshot}' -> '{newSnapshot}'",
-                        job.Id, job.LastScheduleUpdate, oldSnapshot, newSnapshot);
+                    _logger.LogInformation("Before Update: LastScheduleUpdate={lastSchedule}, LastSentGroupSnapsot='{oldSnapshot}' -> '{newSnapshot}'",
+                        job.LastScheduleUpdate, oldSnapshot, newSnapshot);
 
                     job.LastSentGroupSnapsot = job.Group.DataSnapshot;
 
-                    _logger.LogInformation("After Assignment - Job {id}: LastSentGroupSnapsot='{snapshot}'",
-                        job.Id, job.LastSentGroupSnapsot);
+                    _logger.LogInformation("After Assignment: LastSentGroupSnapsot='{snapshot}'",
+                        job.LastSentGroupSnapsot);
                 }
 
                 await dbservice.Update(job);
@@ -88,8 +91,8 @@ public class MonitorService
                 {
                     // Verify what was actually persisted
                     var verifyJob = await dbservice.GetJobById(job.Id);
-                    _logger.LogInformation("After DB Update - Job {id}: LastScheduleUpdate={lastSchedule}, LastSentGroupSnapsot='{snapshot}'",
-                        verifyJob.Id, verifyJob.LastScheduleUpdate, verifyJob.LastSentGroupSnapsot);
+                    _logger.LogInformation("After DB Update: LastScheduleUpdate={lastSchedule}, LastSentGroupSnapsot='{snapshot}'",
+                        verifyJob.LastScheduleUpdate, verifyJob.LastSentGroupSnapsot);
                 }
 
                 await SendExisiting(job.Id);
@@ -97,7 +100,7 @@ public class MonitorService
             }
             catch (Exception ex)
             {
-                _logger.LogError("{key} job error: {message}", job.Id, ex.Message);
+                _logger.LogError("Job error: {message}", ex.Message);
             }
         }
     }
@@ -128,23 +131,22 @@ public class MonitorService
         if (job.Group == null)
         {
             // No group associated with the job, nothing to compare. Actually should not happen. Ever.
-            _logger.LogInformation("Job {key} has no group associated, treating as changed", job.Id);
+            _logger.LogInformation("Job has no group associated, treating as changed");
             return true;
         }
 
         // New snapshot available when previously none existed
         if (string.IsNullOrWhiteSpace(job.LastSentGroupSnapsot) && !string.IsNullOrWhiteSpace(job.Group.DataSnapshot))
         {
-            _logger.LogInformation("Job {key} group data snapshot created:\n{new}",
-                job.Id, job.Group.DataSnapshot);
+            _logger.LogInformation("Group data snapshot created:\n{new}",
+                job.Group.DataSnapshot);
             return true;
         }
 
         // Snapshot length different, no need to compare content
         if (job.LastSentGroupSnapsot?.Length != job.Group.DataSnapshot?.Length)
         {
-            _logger.LogInformation("Job {key} group data length changed:\nGroup(new)({newLength}): {new}\nJob(old)({oldLength}): {old}",
-                job.Id,
+            _logger.LogInformation("Group data length changed:\nGroup(new)({newLength}): {new}\nJob(old)({oldLength}): {old}",
                 job.Group.DataSnapshot?.Length, job.Group.DataSnapshot,
                 job.LastSentGroupSnapsot?.Length, job.LastSentGroupSnapsot);
             return true;
@@ -156,8 +158,8 @@ public class MonitorService
         {
             if (job.LastSentGroupSnapsot![i] != job.Group.DataSnapshot![i])
             {
-                _logger.LogInformation("Job {key} group data changed at index {index}\t{old}\t{new}",
-                    job.Id, i, job.LastSentGroupSnapsot, job.Group.DataSnapshot);
+                _logger.LogInformation("Group data changed at index {index}\t{old}\t{new}",
+                    i, job.LastSentGroupSnapsot, job.Group.DataSnapshot);
                 return true;
             }
         }

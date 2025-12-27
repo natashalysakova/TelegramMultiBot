@@ -8,6 +8,15 @@ using TelegramMultiBot.Commands.Interfaces;
 
 namespace TelegramMultiBot.Commands;
 
+[ServiceKey("svitloRun", "Терміново перевірити графіки світла", isPublic: false)]
+internal class SvitloRunCommand(TelegramClientWrapper client, ILogger<SvitloRunCommand> logger, IDtekSiteParserService dtekSiteParserService) : BaseCommand
+{
+    public override Task Handle(Message message)
+    {
+        dtekSiteParserService.ParseImmediately();
+        return client.SendMessageAsync(message.Chat.Id, "Перевірка графіків світла розпочата!", messageThreadId: message.MessageThreadId);
+    }
+}
 
 [ServiceKey("svitlo", "Бобер-Електрик")]
 internal class SvitloCommand(TelegramClientWrapper client, MonitorService monitorService, ILogger<SvitloCommand> logger) : BaseCommand, ICallbackHandler
@@ -16,7 +25,7 @@ internal class SvitloCommand(TelegramClientWrapper client, MonitorService monito
 
     public override bool CanHandle(Message message)
     {
-        return base.CanHandle(message) && !message.Text!.StartsWith("/svitlobot");
+        return base.CanHandle(message) && !message.Text!.StartsWith("/svitlobot") && !message.Text!.StartsWith("/svitloRun");
     }
 
     public async override Task Handle(Message message)

@@ -11,31 +11,24 @@ using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.BackgroundServies;
 
-public interface ISvitlobotClient
+public interface IDtekSiteParserService
 {
-    Task<string> GetTimetable(string channelKey);
-    Task<bool> UpdateTimetable(string channelKey, string timetableData);
+    public Task ParseImmediately();
 }
-public class SvitlobotClient : ISvitlobotClient
-{
-    private readonly HttpClient _httpClient;
 
-    public SvitlobotClient()
+public class DtekSiteParserService : IDtekSiteParserService
+{   
+    private readonly DtekSiteParser _dtekSiteParser;
+
+    public DtekSiteParserService(DtekSiteParser dtekSiteParser)
     {
-        _httpClient = new HttpClient();
+        _dtekSiteParser = dtekSiteParser;
     }
 
-    public async Task<string> GetTimetable(string channelKey)
+    public async Task ParseImmediately()
     {
-        var response = await _httpClient.GetAsync($"https://api.svitlobot.in.ua/website/getChannelTimetable?channel_key={channelKey}");
-        response.EnsureSuccessStatusCode();
-        return await response.Content.ReadAsStringAsync();
-    }
-
-    public async Task<bool> UpdateTimetable(string channelKey, string timetableData)
-    {
-        var response = await _httpClient.GetAsync($"https://api.svitlobot.in.ua/website/timetableEditEvent?&channel_key={channelKey}&timetableData={timetableData}");
-        return response.IsSuccessStatusCode;
+        _dtekSiteParser.CancelDelay();
+        await Task.CompletedTask;
     }
 }
 
@@ -45,6 +38,8 @@ public class DtekSiteParser : BackgroundService
     private readonly ILogger<DtekSiteParser> _logger;
     private readonly ISvitlobotClient _svitlobotClient;
     private CancellationTokenSource _delayCancellationTokenSource;
+
+    const string baseDirectory = "monitor";
 
     public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger, ISvitlobotClient svitlobotClient)
     {
@@ -60,7 +55,7 @@ public class DtekSiteParser : BackgroundService
     }
 
 #if DEBUG
-    const int STANDART_DELAY = 30; // 30 seconds
+    const int STANDART_DELAY = 60; // 30 seconds
 #else
     const int STANDART_DELAY = 300; // 5 minutes
 #endif
@@ -75,14 +70,12 @@ public class DtekSiteParser : BackgroundService
             {
                 var scope = _serviceProvider.CreateScope();
                 var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
-
-                _logger.LogTrace("checking all locations at {date}", DateTime.Now.ToString("dd.MM.yyyy HH:mm:ss.fff"));
-
                 var locations = await dbservice.GetLocations();
 
                 foreach (var location in locations)
                 {
-                    _logger.LogTrace("Parsing site for location {region}", location.Region);
+                    using var locationScope = _logger.BeginScope("Location: {region}", location.Region);
+                    _logger.LogDebug("Parsing site for location {region}", location.Region);
                     var retryCount = 0;
                     bool success = false;
                     do
@@ -141,10 +134,19 @@ public class DtekSiteParser : BackgroundService
             {
                 _logger.LogTrace("Cleanup ended");
             }
-
-            _logger.LogTrace("Waiting for {delay} seconds before next check", delay);
-            await Task.Delay(TimeSpan.FromSeconds(delay), _delayCancellationTokenSource.Token);
-            _delayCancellationTokenSource = new CancellationTokenSource();
+            try
+            {
+                _logger.LogDebug("Waiting for {delay} seconds before next check", delay);
+                await Task.Delay(TimeSpan.FromSeconds(delay), _delayCancellationTokenSource.Token);
+            }
+            catch (OperationCanceledException)
+            {
+                _logger.LogInformation("Delay cancelled, running the parser again immediately");
+            }
+            finally
+            {
+                _delayCancellationTokenSource = new CancellationTokenSource();
+            }
         }
     }
 
@@ -300,7 +302,7 @@ public class DtekSiteParser : BackgroundService
             _ => "1",
         };
     }
-
+    
     private async Task DoCleanup()
     {
         using var scope = _serviceProvider.CreateScope();
@@ -348,15 +350,8 @@ public class DtekSiteParser : BackgroundService
         //    }
         //}
 
-        var filesInDb = await dbservice.GetAllHistoryImagePaths();
-        var missingFiles = filesInDb.Except(files);
-        if (missingFiles.Any())
-        {
-            _logger.LogWarning("Missing files in storage: {file}", string.Join("\n", missingFiles));
-            //await dbservice.DeleteHistoryWithMissingFiles(missingFiles);
-        }
+        
     }
-
 
     private async Task ParseSite(IMonitorDataService dbservice, ElectricityLocation location)
     {
@@ -367,13 +362,13 @@ public class DtekSiteParser : BackgroundService
 
         var scheduleUpdateDate = schedule.Updated;
 
-        if (location.LastUpdated == scheduleUpdateDate)
+        if (location.LastUpdated == scheduleUpdateDate &&  ! await HasMissingImages(dbservice, location))
         {
-            _logger.LogTrace("location {location} was not updated. Last update at {date}", location.Region, location.LastUpdated);
+            _logger.LogDebug("location was not updated. Last update at {date}", location.LastUpdated);
             return;
         }
 
-        _logger.LogInformation("Location {location} was updated", location.Region);
+        _logger.LogInformation("Location was updated");
 
         var images = await ScheduleImageGenerator.GenerateAllImages(schedule);
 
@@ -420,6 +415,21 @@ public class DtekSiteParser : BackgroundService
         }
     }
 
+    private async Task<bool> HasMissingImages(IMonitorDataService dbservice, ElectricityLocation location)
+    {
+        var files = Directory.GetFiles(baseDirectory, "*.png", SearchOption.AllDirectories);
+        var filesInDb = await dbservice.GetAllHistoryImagePaths();
+        var missingFiles = filesInDb.Except(files);
+        if (missingFiles.Any())
+        {
+            _logger.LogWarning("Missing files in storage: {file}", string.Join("\n", missingFiles));
+            //await dbservice.DeleteHistoryWithMissingFiles(missingFiles);
+            return true;
+        }
+
+        return false;
+    }
+
     private ElectricityJobType GetJobType(ImageGenerationModel image)
     {
         if (image.IsPlanned)
@@ -436,7 +446,6 @@ public class DtekSiteParser : BackgroundService
         }
     }
 
-    const string baseDirectory = "monitor";
     private string SaveFile(string region, DateTime updated, ImageGenerationModel image)
     {
         var folder = Path.Combine(baseDirectory, region);
@@ -487,5 +496,10 @@ public class DtekSiteParser : BackgroundService
             return image.Group;
         }
         return string.Empty;
+    }
+
+    internal void CancelDelay()
+    {
+        _delayCancellationTokenSource.Cancel();
     }
 }

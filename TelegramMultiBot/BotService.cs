@@ -90,7 +90,6 @@ internal class BotService(
                 await client.SetMyCommands(commandList, new BotCommandScopeAllGroupChats(), cancellationToken: stoppingToken);
                 await client.SetMyCommands(commandList, new BotCommandScopeAllPrivateChats(), cancellationToken: stoppingToken);
                 await client.SetMyCommands(commandList, new BotCommandScopeAllChatAdministrators(), cancellationToken: stoppingToken);
-
                 logger.LogInformation("Commands list set");
 
                 while (!stoppingToken.IsCancellationRequested)

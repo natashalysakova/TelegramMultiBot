@@ -2,11 +2,17 @@
   "profiles": {
     "BoberBot.Dev": {
       "commandName": "Project",
-      "commandLineArgs": "--env=dev"
+      "commandLineArgs": "--env=dev",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Development"
+      }
     },
     "BoberBot.Prod": {
       "commandName": "Project",
-      "commandLineArgs": "--env=prod"
+      "commandLineArgs": "--env=prod",
+      "environmentVariables": {
+        "ASPNETCORE_ENVIRONMENT": "Production"
+      }
     },
     "Container (Dockerfile)": {
       "commandName": "Docker",
