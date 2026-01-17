@@ -135,15 +135,6 @@ services:
         condition: service_healthy
         restart: true
     << : *base-config
-    
-  watchtower:
-      image: containrrr/watchtower:arm64v8-latest
-      environment:
-        DOCKER_CONFIG: /config
-      volumes:
-        - /etc/watchtower/config/:/config/
-        - /var/run/docker.sock:/var/run/docker.sock
-      command: --schedule "0 0 5 * * *" 
       
 networks:
   bober-net:
