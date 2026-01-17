@@ -28,6 +28,7 @@ public class DtekSiteParserTests2
     private Mock<IServiceScope> _scopeMock = null!;
     private Mock<IServiceScopeFactory> _scopeFactoryMock = null!;
     private Mock<ISvitlobotClient> _svitlobotClientMock = null!;
+    private Mock<ISqlConfiguationService> _configurationService = null!;
     private DtekSiteParser _dtekSiteParser = null!;
 
     [TestInitialize]
@@ -68,8 +69,9 @@ public class DtekSiteParserTests2
         _svitlobotClientMock.Setup(x => x.UpdateTimetable(It.IsAny<string>(), It.IsAny<string>()))
             .ReturnsAsync(true);
 
+
         // Create instance of DtekSiteParser with mocked dependencies
-        _dtekSiteParser = new DtekSiteParser(_serviceProviderMock.Object, _loggerMock.Object, _svitlobotClientMock.Object);
+        _dtekSiteParser = new DtekSiteParser(_serviceProviderMock.Object, _loggerMock.Object, _svitlobotClientMock.Object, _configurationService.Object);
     }
 
     [TestCleanup]

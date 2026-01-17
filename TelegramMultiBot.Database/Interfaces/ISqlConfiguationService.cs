@@ -12,4 +12,5 @@ public interface ISqlConfiguationService
     public ComfyUISettings ComfySettings { get; }
     public GeneralSettings GeneralSettings { get; }
 
+    public SvitlobotSettings SvitlobotSettings { get; }
 }

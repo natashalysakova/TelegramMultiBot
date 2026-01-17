@@ -125,6 +125,7 @@ internal class Program
         defaults.AddRange(new ComfyUISettings().ToList());
         defaults.AddRange(new ImageGenerationSettings().ToList());
         defaults.AddRange(new GeneralSettings().ToList());
+        defaults.AddRange(new SvitlobotSettings().ToList());
 
         foreach (var setting in defaults)
         {

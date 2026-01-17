@@ -1,10 +1,22 @@
-﻿using Newtonsoft.Json.Linq;
+﻿using Microsoft.Extensions.Logging;
+using Newtonsoft.Json.Linq;
+using PuppeteerSharp;
+using System.Net.Http;
+using System.Net.Sockets;
 using System.Text;
+using TelegramMultiBot.Database.Interfaces;
 
 namespace DtekParsers;
 
 public class ScheduleParser
 {
+    private readonly ISqlConfiguationService _configuationService;
+
+    public ScheduleParser(ISqlConfiguationService configuationService)
+    {
+        _configuationService = configuationService;
+    }
+
     public async Task<Schedule> Parse(string url)
     {
         var html = await GetHtmlFromUrl(url);
@@ -268,8 +280,39 @@ public class ScheduleParser
 
     public async Task<string> GetHtmlFromUrl(string url)
     {
-        using var client = new HttpClient();
-        return await client.GetStringAsync(url);
+        HttpClient client = new HttpClient();
+
+        try
+        {
+            var dtekCookie = GetCookie(url);
+            if(!string.IsNullOrEmpty(dtekCookie))
+            {
+                client.DefaultRequestHeaders.Add("Cookie", dtekCookie);
+            }
+            return await client.GetStringAsync(url);
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Error fetching HTML from URL: {ex.Message}");
+            return await client.GetStringAsync(url);
+        }
+    }
+
+    private string? GetCookie(string url)
+    {
+        if (_configuationService == null)
+            return null;
+
+        var location = LocationNameUtility.GetRegionByUrl(url);
+        switch (location)
+        {
+            case "kem": return _configuationService.SvitlobotSettings.KemCookie;
+            case "krem": return _configuationService.SvitlobotSettings.KremCookie;
+
+            default:
+                return null;
+        }
+
     }
 
     private static DateTime UnixTimeStampToDateTime(double unixTimeStamp)

@@ -176,6 +176,15 @@ public class ConfigurationService : ISqlConfiguationService
         }
     }
 
+    public SvitlobotSettings SvitlobotSettings
+    {
+               get
+        {
+            return BindSettings<SvitlobotSettings>(_context.Settings.Where(x => x.SettingSection == SvitlobotSettings.Name));
+        }
+
+    }
+
     private T BindSettings<T>(IEnumerable<Settings> settings) where T : class, new()
     {
         var type = typeof(T);

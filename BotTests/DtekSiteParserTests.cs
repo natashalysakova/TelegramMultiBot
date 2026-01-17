@@ -13,7 +13,7 @@ public class DtekSiteParserTestsTest
     public void TestInitialize()
     {
         // For testing the public method, we can create instance without dependencies
-        _parser = new DtekSiteParser(null!, null!, null!);
+        _parser = new DtekSiteParser(null!, null!, null!, null!);
     }
 
     #region ConvertDataSnapshotToNewSchedule Tests

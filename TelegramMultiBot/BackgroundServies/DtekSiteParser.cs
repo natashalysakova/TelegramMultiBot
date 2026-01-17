@@ -37,15 +37,17 @@ public class DtekSiteParser : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DtekSiteParser> _logger;
     private readonly ISvitlobotClient _svitlobotClient;
+    private readonly ISqlConfiguationService _configuationService;
     private CancellationTokenSource _delayCancellationTokenSource;
 
     const string baseDirectory = "monitor";
 
-    public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger, ISvitlobotClient svitlobotClient)
+    public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger, ISvitlobotClient svitlobotClient, ISqlConfiguationService configuationService)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _svitlobotClient = svitlobotClient;
+        _configuationService = configuationService;
         _delayCancellationTokenSource = new CancellationTokenSource();
 
         if(!Directory.Exists(baseDirectory))
@@ -356,14 +358,14 @@ public class DtekSiteParser : BackgroundService
 
     private async Task ParseSite(IMonitorDataService dbservice, ElectricityLocation location)
     {
-        var schedule = await new ScheduleParser().Parse(location.Url);
+        var schedule = await new ScheduleParser(_configuationService).Parse(location.Url);
         //locationSchedules.Add(location.Id, schedule);
 
         location.LastChecked = DateTime.Now;
 
         var scheduleUpdateDate = schedule.Updated;
 
-        if (location.LastUpdated == scheduleUpdateDate &&  ! await HasMissingImages(dbservice, location))
+        if (location.LastUpdated == scheduleUpdateDate)
         {
             _logger.LogDebug("location was not updated. Last update at {date}", location.LastUpdated);
             return;

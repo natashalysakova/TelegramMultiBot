@@ -11,7 +11,7 @@ public class  ImageGenerationTests
     [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "krem.real")]
     public async Task Image_RealScheduleSingleGroupImageReady(string url, string folder)
     {
-        var parser = new ScheduleParser();
+        var parser = new ScheduleParser(null!);
 
         var schedule = await parser.Parse(url);
 
@@ -43,7 +43,7 @@ public class  ImageGenerationTests
     [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "krem.all")]
     public async Task Image_GenerateAllGroupsRealScheduleImageReady(string url, string folder)
     {
-        var parser = new ScheduleParser();
+        var parser = new ScheduleParser(null!);
 
         var schedule = await parser.Parse(url);
 
@@ -59,7 +59,7 @@ public class  ImageGenerationTests
     [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "krem.planned")]
     public async Task Image_GeneratePlannedScheduleSingleGroupImageReady(string url, string folder)
     {
-        var parser = new ScheduleParser();
+        var parser = new ScheduleParser(null!);
 
         var schedule = await parser.Parse(url);
 

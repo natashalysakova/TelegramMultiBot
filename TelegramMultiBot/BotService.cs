@@ -90,6 +90,13 @@ internal class BotService(
                 await client.SetMyCommands(commandList, new BotCommandScopeAllGroupChats(), cancellationToken: stoppingToken);
                 await client.SetMyCommands(commandList, new BotCommandScopeAllPrivateChats(), cancellationToken: stoppingToken);
                 await client.SetMyCommands(commandList, new BotCommandScopeAllChatAdministrators(), cancellationToken: stoppingToken);
+
+                var privateCommands = GetCommandList(true);
+                await client.SetMyCommands(commandList.Union(privateCommands), new BotCommandScopeChat()
+                {
+                    ChatId = 80413249
+                }, cancellationToken: stoppingToken);
+                
                 logger.LogInformation("Commands list set");
 
                 while (!stoppingToken.IsCancellationRequested)
@@ -116,19 +123,32 @@ internal class BotService(
 
     }
 
-    private IEnumerable<BotCommand> GetCommandList()
+    private IEnumerable<BotCommand> GetCommandList(bool privateCommands = false)
     {
         var commands = serviceProvider.GetServices<ICommand>();
 
         List<BotCommand> commandList = new List<BotCommand>();
-        foreach (var command in commands.Where(x => x.IsPublic))
+        foreach (var command in commands.Where(x => x.IsPublic == !privateCommands))
         {
-            var commandText = ("/" + command.Command);
-            commandList.Add(new BotCommand()
+            try
             {
-                Command = commandText.Length > 32 ? commandText.Substring(0, 32) : commandText,
-                Description = command.Description.Length > 256 ? command.Description.Substring(0, 256) : command.Description
-            });
+                var commandText = ("/" + command.Command);
+                var description = command.Description;
+                if (privateCommands)
+                {
+                    description = "admin " + command.Description;
+                }
+                commandList.Add(new BotCommand()
+                {
+                    Command = commandText.Length > 32 ? commandText.Substring(0, 32) : commandText,
+                    Description = description.Length > 256 ? description.Substring(0, 256) : description
+                });
+
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{message}", ex.Message);
+            }
         }
         return commandList;
     }
@@ -143,7 +163,7 @@ internal class BotService(
             {
                 logger.LogDebug("sending new schedule: {chatId} {message}", info.ChatId, image);
 
-                if(!System.IO.File.Exists(image))
+                if (!System.IO.File.Exists(image))
                 {
                     logger.LogWarning("file {image} not found, skipping", image);
                     continue;
