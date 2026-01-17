@@ -147,7 +147,7 @@ internal class BotService(
             }
             catch (Exception ex)
             {
-                logger.LogError(ex, "{message}", ex.Message);
+                logger.LogWarning("{type} {message}", command.GetType().Name, ex.Message);
             }
         }
         return commandList;
