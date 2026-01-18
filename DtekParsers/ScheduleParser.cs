@@ -293,8 +293,7 @@ public class ScheduleParser
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Error fetching HTML from URL: {ex.Message}");
-            return await client.GetStringAsync(url);
+            throw new ParseException($"Failed to fetch HTML: {ex.Message}");
         }
     }
 

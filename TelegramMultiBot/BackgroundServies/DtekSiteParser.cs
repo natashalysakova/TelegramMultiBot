@@ -91,12 +91,19 @@ public class DtekSiteParser : BackgroundService
                         catch (ParseException ex) // parsing error - maybe page wasn't loaded correctly
                         {
                             retryCount++;
-                            _logger.LogError(ex, "Error occurred while parsing site {url}: {message}", location.Region, ex.Message);
-                            await Task.Delay(TimeSpan.FromSeconds(10 * retryCount)); // wait before retry
+                            _logger.LogError(ex, "Error occurred while parsing: {message}", ex.Message);
+                            await Task.Delay(TimeSpan.FromSeconds(20 * retryCount)); // wait before retry
                         }
                     }
-                    while (retryCount < 3 && !success);
-                    _logger.LogDebug("Finished parsing site");
+                    while (retryCount < 5 && !success);
+                    if (!success)
+                    {
+                        _logger.LogError("Failed to parse site after {retries} retries", retryCount);
+                    }
+                    else
+                    {
+                        _logger.LogInformation("Finished parsing site");
+                    }
                 }
             }
             catch (Exception ex)
