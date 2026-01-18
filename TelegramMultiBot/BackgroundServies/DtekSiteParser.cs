@@ -365,7 +365,7 @@ public class DtekSiteParser : BackgroundService
 
         var scheduleUpdateDate = schedule.Updated;
 
-        if (location.LastUpdated == scheduleUpdateDate)
+        if (location.LastUpdated >= scheduleUpdateDate)
         {
             _logger.LogDebug("location was not updated. Last update at {date}", location.LastUpdated);
             return;
