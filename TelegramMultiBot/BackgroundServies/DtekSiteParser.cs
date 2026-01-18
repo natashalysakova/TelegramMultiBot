@@ -429,7 +429,7 @@ public class DtekSiteParser : BackgroundService
     private async Task<bool> HasMissingImages(IMonitorDataService dbservice, ElectricityLocation location)
     {
         var files = Directory.GetFiles(baseDirectory, "*.png", SearchOption.AllDirectories);
-        var filesInDb = await dbservice.GetAllHistoryImagePaths(location.Id);
+        var filesInDb = await dbservice.GetLatestUpdateFiles(location.Id);
         var missingFiles = filesInDb.Except(files);
         if (missingFiles.Any())
         {

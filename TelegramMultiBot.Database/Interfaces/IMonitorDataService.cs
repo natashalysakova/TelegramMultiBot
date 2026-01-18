@@ -30,7 +30,7 @@ public interface IMonitorDataService
     Task<int> Add<T>(T entity) where T : class;
     Task Update<T>(T entity) where T : class;
     Task<IEnumerable<ElectricityHistory>> DeleteOldHistory(DateTime cutoffDate);
-    Task<IEnumerable<string>> GetAllHistoryImagePaths(Guid locationId);
+    Task<IEnumerable<string>> GetLatestUpdateFiles(Guid locationId);
     Task DeleteHistoryWithMissingFiles(IEnumerable<string> missingFiles);
     Task<SvitlobotData> AddSvitlobotKey(string key, Guid id);
     Task<bool> RemoveSvitlobotKey(string key, Guid id);
@@ -296,10 +296,18 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
         return toDelete;
     }
 
-    public async Task<IEnumerable<string>> GetAllHistoryImagePaths(Guid locationId)
+    // Fetch the latest update date first, then filter by it to avoid a correlated subquery
+    public async Task<IEnumerable<string>> GetLatestUpdateFiles(Guid locationId)
     {
-        return await context.ElectricityHistory
+        var latestUpdate = await context.ElectricityHistory
             .Where(x => x.LocationId == locationId)
+            .MaxAsync(x => (DateTime?)x.Updated);
+
+        if (latestUpdate == null)
+            return new List<string>();
+
+        return await context.ElectricityHistory
+            .Where(x => x.LocationId == locationId && x.Updated == latestUpdate)
             .Select(x => x.ImagePath)
             .ToListAsync();
     }
