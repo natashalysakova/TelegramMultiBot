@@ -155,6 +155,21 @@ internal class BotService(
 
     private async void MonitorService_ReadyToSend(SendInfo info)
     {
+        if(info.Type == BotMessageType.Alert)
+        {
+            try
+            {
+                await client.SendMessage(info.ChatId, info.Caption ?? "Alert", messageThreadId: info.MessageThreadId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogError(ex, "{message}", ex.Message);
+            }
+
+            return;
+        }
+
+
         var streams = new List<Stream>();
         try
         {

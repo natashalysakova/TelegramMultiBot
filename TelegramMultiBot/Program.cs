@@ -178,7 +178,6 @@ internal class Program
         var botKey = configuration["TG_TOKEN"];
         if (string.IsNullOrEmpty(botKey))
             throw new KeyNotFoundException("TG_TOKEN");
-
         _ = serviceCollection.AddSingleton(new TelegramBotClient(botKey, cancellationToken: new CancellationToken()) { Timeout = TimeSpan.FromSeconds(600) });
 
         _ = serviceCollection.AddScoped<BotService>();

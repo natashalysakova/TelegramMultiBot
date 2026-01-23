@@ -17,7 +17,7 @@ public interface IDtekSiteParserService
 }
 
 public class DtekSiteParserService : IDtekSiteParserService
-{   
+{
     private readonly DtekSiteParser _dtekSiteParser;
 
     public DtekSiteParserService(DtekSiteParser dtekSiteParser)
@@ -50,7 +50,7 @@ public class DtekSiteParser : BackgroundService
         _configuationService = configuationService;
         _delayCancellationTokenSource = new CancellationTokenSource();
 
-        if(!Directory.Exists(baseDirectory))
+        if (!Directory.Exists(baseDirectory))
         {
             Directory.CreateDirectory(baseDirectory);
         }
@@ -88,6 +88,11 @@ public class DtekSiteParser : BackgroundService
                             success = true;
                             delay = STANDART_DELAY; // reset delay on success
                         }
+                        catch (IncapsulaException ex) // incapsula blocking
+                        {
+                            _logger.LogError(ex, "Incapsula blocking detected.Asking admin for cookie", ex.Message);
+                            await AskForHelp(dbservice, location);
+                        }
                         catch (ParseException ex) // parsing error - maybe page wasn't loaded correctly
                         {
                             retryCount++;
@@ -95,7 +100,7 @@ public class DtekSiteParser : BackgroundService
                             await Task.Delay(TimeSpan.FromSeconds(20 * retryCount)); // wait before retry
                         }
                     }
-                    while (retryCount < 5 && !success);
+                    while (retryCount < 2 && !success);
                     if (!success)
                     {
                         _logger.LogError("Failed to parse site after {retries} retries", retryCount);
@@ -160,6 +165,20 @@ public class DtekSiteParser : BackgroundService
         }
     }
 
+    private async Task AskForHelp(IMonitorDataService dataService, ElectricityLocation location)
+    {
+        if (!await dataService.AlertExists(location.Id))
+        {
+            Alert alert = new Alert()
+            {
+                LocationId = location.Id,
+                CreatedAt = DateTimeOffset.Now,
+            };
+
+            await dataService.Add(alert);
+        }
+    }
+
     public async Task SendUpdatesToSvitlobot()
     {
         using var scope = _serviceProvider.CreateScope();
@@ -171,7 +190,7 @@ public class DtekSiteParser : BackgroundService
             string data = string.Empty;
             try
             {
-                if(svitlobot.LastSentData == svitlobot.Group.DataSnapshot)
+                if (svitlobot.LastSentData == svitlobot.Group.DataSnapshot)
                 {
                     _logger.LogTrace("Svitlobot key {key} data snapshot not changed, skipping", svitlobot.SvitlobotKey);
                     continue;
@@ -179,12 +198,12 @@ public class DtekSiteParser : BackgroundService
 
                 data = await _svitlobotClient.GetTimetable(svitlobot.SvitlobotKey);
 
-                if(data == $@"Channel ""{svitlobot.SvitlobotKey}"" is not found! Insert correct key from chat bot!")
+                if (data == $@"Channel ""{svitlobot.SvitlobotKey}"" is not found! Insert correct key from chat bot!")
                 {
                     await dbservice.RemoveSvitlobotKey(svitlobot.SvitlobotKey, svitlobot.GroupId);
                     _logger.LogWarning("Svitlobot key {key} not found, removed from db", svitlobot.SvitlobotKey);
                     continue;
-                } 
+                }
 
                 var schedule = data?.Split(";&&&;", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries).LastOrDefault();
 
@@ -300,8 +319,8 @@ public class DtekSiteParser : BackgroundService
 
     private string ParseFromSnapshot(string value)
     {
-       /// See LightStatus enum in DtekParsers project
-       /// We ignore 'maybe' and 'mfirst' and 'msecond' statuses for snapshot conversion
+        /// See LightStatus enum in DtekParsers project
+        /// We ignore 'maybe' and 'mfirst' and 'msecond' statuses for snapshot conversion
 
         return value switch
         {
@@ -312,7 +331,7 @@ public class DtekSiteParser : BackgroundService
             _ => "1",
         };
     }
-    
+
     private async Task DoCleanup()
     {
         using var scope = _serviceProvider.CreateScope();
@@ -360,7 +379,7 @@ public class DtekSiteParser : BackgroundService
         //    }
         //}
 
-        
+
     }
 
     private async Task ParseSite(IMonitorDataService dbservice, ElectricityLocation location)
@@ -422,7 +441,7 @@ public class DtekSiteParser : BackgroundService
                 JobType = GetJobType(image)
             });
         }
-        
+
         _logger.LogInformation("Schedule and images updated in database");
     }
 

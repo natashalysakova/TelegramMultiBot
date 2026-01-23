@@ -43,6 +43,13 @@ internal class CookieCommand(TelegramClientWrapper client, ILogger<CookieCommand
         }
 
         setting.SettingsValue = cookieValue;
+
+        var alerts = context.Alerts.Include(x=>x.Location).Where(x => x.Location.Region == region && x.isResolved == false);
+        foreach (var item in alerts)
+        {
+            item.ResolvedAt = DateTimeOffset.UtcNow;
+        }
+
         await context.SaveChangesAsync();
         await client.SendMessageAsync(message.Chat.Id, $"Кука для регіону {region} успішно встановлена!", messageThreadId: message.MessageThreadId);
 

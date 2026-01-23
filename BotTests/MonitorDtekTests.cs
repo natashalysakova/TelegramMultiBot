@@ -2,6 +2,7 @@ using DtekParsers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using Moq;
+using TelegramMultiBot.BackgroundServies;
 using TelegramMultiBot.Database;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
@@ -26,7 +27,7 @@ public class MonitorDtekTests
     }
 
     [TestMethod]
-    [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "incap_ses_689_2398465=W3MySWLEqkLbTQpBUNKPCYbEbGkAAAAArwEnl8sX6vvUZIMqSWk8ng==")]
+    [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "incap_ses_689_2398465=DycxK/pvEyurbUSPUtKPCbIwc2kAAAAAAe+igeMdMAdgBAD1uSAV6A==")]
     [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns")]
     [DataRow("https://www.dtek-oem.com.ua/ua/shutdowns")]
 
@@ -58,5 +59,19 @@ public class MonitorDtekTests
             Assert.HasCount(12, item.Statuses);
         }
 
+    }
+
+    [TestMethod]
+    [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns")]
+
+    public async Task PageParsed_IncapsulaException(string url)
+    {
+        var settings = new SvitlobotSettings();
+        var config = new Mock<ISqlConfiguationService>();
+        config.Setup(c => c.SvitlobotSettings).Returns(settings);
+
+        var parser = new ScheduleParser(config.Object);
+
+        await Assert.ThrowsExactlyAsync<IncapsulaException>(async () => await parser.Parse(url));
     }
 }

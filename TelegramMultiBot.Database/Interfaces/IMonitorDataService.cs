@@ -1,5 +1,6 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using System.Threading.Tasks;
+using System.Xml.Schema;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Models;
 
@@ -37,6 +38,8 @@ public interface IMonitorDataService
     Task<IEnumerable<SvitlobotData>> GetAllSvitlobots();
     Task DeleteAllHistory();
     Task<ElectricityGroup> GetGroupById(Guid value);
+    Task<IEnumerable<Alert>> GetUnresolvedAlerts();
+    Task<bool> AlertExists(Guid locationId);
 }
 
 public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -372,5 +375,19 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     public Task<ElectricityGroup> GetGroupById(Guid value)
     {
         return context.ElectricityGroups.FirstAsync(x => x.Id == value);
+    }
+
+    public async Task<IEnumerable<Alert>> GetUnresolvedAlerts()
+    {
+        var date = DateTimeOffset.UtcNow.AddHours(-12);
+
+        return await context.Alerts
+            .Include(x=>x.Location)
+            .Where(x => x.AlertSent == false || x.SentAt < date).ToListAsync();
+    }
+
+    public Task<bool> AlertExists(Guid locationId)
+    {
+        return context.Alerts.AnyAsync(x => x.LocationId == locationId && x.isResolved == false);
     }
 }

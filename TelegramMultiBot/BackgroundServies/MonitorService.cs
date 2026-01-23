@@ -35,10 +35,55 @@ public class MonitorService
                 {
                     _logger.LogError(ex, "Error occurred while checking for updates: {message}", ex.Message);
                 }
+
+                try
+                {
+                    CheckForHelpNeeded();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error occurred while checking for updates: {message}", ex.Message);
+                }
+
                 await Task.Delay(TimeSpan.FromSeconds(30));
             }
 
         }, token);
+    }
+
+    private async Task CheckForHelpNeeded()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+
+        var locationsNeedingHelp = await dbservice.GetUnresolvedAlerts();
+
+        foreach (var alert in locationsNeedingHelp)
+        {
+            using var locationScope = _logger.BeginScope("AlertId:{locationId}", alert.Id);
+            try
+            {
+                _logger.LogInformation("Location {region} needs help alert", alert.Location.Region);
+                var info = new SendInfo()
+                {
+                    Type = BotMessageType.Alert,
+                    ChatId = 80413249,
+                    Filenames = new List<string>(),
+                    Caption = $"Location {alert.Location.Region} needs new cookie",
+                };
+                ReadyToSend?.Invoke(info);
+
+                alert.AlertSent = true;
+                alert.SentAt = DateTime.UtcNow;
+
+                await dbservice.Update(alert);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Alert error: {message}", ex.Message);
+            }
+        }
+
     }
 
     private async Task CheckForUpdates()

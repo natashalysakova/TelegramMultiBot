@@ -9,6 +9,7 @@ public class ElectricityLocation
     public required string Url { get; set; }
     public required string Region { get; set; }
     public DateTime LastChecked { get; set; }
+
     public DateTime LastUpdated
     {
         get
