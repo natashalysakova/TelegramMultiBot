@@ -40,6 +40,9 @@ public interface IMonitorDataService
     Task<ElectricityGroup> GetGroupById(Guid value);
     Task<IEnumerable<Alert>> GetUnresolvedAlerts();
     Task<bool> AlertExists(Guid locationId);
+    Task<IEnumerable<AddressJob>> GetActiveAddresesJobs(Guid locationId);
+    Task<IEnumerable<AddressJob>> GetAllAddressJobsNeedingToBeSent();
+    Task<bool> AddressJobExists(AddressJob job);
 }
 
 public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -389,5 +392,32 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     public Task<bool> AlertExists(Guid locationId)
     {
         return context.Alerts.AnyAsync(x => x.LocationId == locationId && x.isResolved == false);
+    }
+
+    public async Task<IEnumerable<AddressJob>> GetActiveAddresesJobs(Guid locationId)
+    {
+        return await context.AddressJobs
+            .Include(x=>x.Location)
+            .Where(x => x.LocationId == locationId && x.IsActive)
+            .ToListAsync();
+    }
+
+    public async Task<IEnumerable<AddressJob>> GetAllAddressJobsNeedingToBeSent()
+    {
+        return await context.AddressJobs
+            .Where(x=>x.IsActive && x.ShouldBeSent && x.LastFetchedInfo != null)
+            .ToListAsync();
+    }
+
+    public async Task<bool> AddressJobExists(AddressJob job)
+    {
+        return await context.AddressJobs
+            .AnyAsync(x=>
+                x.IsActive && 
+                x.LocationId == job.LocationId && 
+                x.City == job.City && 
+                x.Street == job.Street && 
+                x.Building == job.Building && 
+                x.ChatId == job.ChatId);
     }
 }

@@ -1,5 +1,8 @@
 ﻿using System.Runtime.Serialization.Formatters;
 using System.Text;
+using System.Text.Json;
+using System.Text.Json.Serialization;
+using System.Threading.Tasks;
 using DtekParsers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
@@ -38,17 +41,74 @@ public class MonitorService
 
                 try
                 {
-                    CheckForHelpNeeded();
+                    await CheckForHelpNeeded();
                 }
                 catch (Exception ex)
                 {
                     _logger.LogError(ex, "Error occurred while checking for updates: {message}", ex.Message);
                 }
 
+                try
+                {
+                    await CheckAddressJobs();
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogError(ex, "Error occurred while checking address job: {message}", ex.Message);
+                }
+
                 await Task.Delay(TimeSpan.FromSeconds(30));
             }
 
         }, token);
+    }
+
+    private async Task CheckAddressJobs()
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+
+        var addressJobs = await dbservice.GetAllAddressJobsNeedingToBeSent();
+        foreach (var addressJob in addressJobs)
+        {
+            using var jobScope = _logger.BeginScope("AddressJobId:{jobId}", addressJob.Id);
+            try
+            {
+                _logger.LogInformation("Processing address job for {city}, {street}, {building}", addressJob.City, addressJob.Street, addressJob.Building);
+
+                var addresInfo = JsonSerializer.Deserialize<BuildingInfo>(addressJob.LastFetchedInfo);
+
+                var info = new SendInfo()
+                {
+                    Type = BotMessageType.AddressJobInfo,
+                    ChatId = addressJob.ChatId,
+                    Filenames = new List<string>(),
+                    Caption = $"🏘 {addressJob.City} {addressJob.Street} {addressJob.Building}\n" +
+                    $"*{addresInfo.SubType}*\n" +
+                    $"🕔 Час початку: *{addresInfo.StartDate}*\n" +
+                    $"⌛️ Орієнтовний час відновлення електроенергії: *{addresInfo.EndDate}*",
+                }; 
+
+                info.Caption = EncodeForMarkup(info.Caption);
+
+                ReadyToSend?.Invoke(info);
+                addressJob.ShouldBeSent = false;
+                await dbservice.Update(addressJob);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError("Address job error: {message}", ex.Message);
+            }
+        }
+
+    }
+
+    private string EncodeForMarkup(string caption)
+    {
+        caption = caption.Replace(".", @"\.");
+        caption = caption.Replace("(", @"\(");
+        caption = caption.Replace(")", @"\)");
+        return caption;
     }
 
     private async Task CheckForHelpNeeded()
@@ -376,5 +436,36 @@ public class MonitorService
         var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
         return await dataService.GetSubscriptionList(chatId, region);
+    }
+
+    internal async Task AddAddressJob(long chatId, string region, string city, string street, string building, int? messageThreadId)
+    {
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+
+        var location = await dataService.GetLocationByRegion(region);
+        if(location == null)
+        {
+            throw new Exception("Location not found");
+        }
+
+        var job = new AddressJob()
+        {
+            ChatId = chatId,
+            LocationId = location.Id,
+            City = city,
+            Street = street,
+            Building = building,
+            MessageThreadId = messageThreadId,
+            ShouldBeSent = true,
+            IsActive = true
+        };
+
+        if(await dataService.AddressJobExists(job))
+        {
+            return;
+        }
+
+        await dataService.Add(job);
     }
 }

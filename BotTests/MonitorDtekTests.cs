@@ -27,7 +27,7 @@ public class MonitorDtekTests
     }
 
     [TestMethod]
-    [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "incap_ses_689_2398465=DycxK/pvEyurbUSPUtKPCbIwc2kAAAAAAe+igeMdMAdgBAD1uSAV6A==")]
+    [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", Cookie.KREM)]
     [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns")]
     [DataRow("https://www.dtek-oem.com.ua/ua/shutdowns")]
 

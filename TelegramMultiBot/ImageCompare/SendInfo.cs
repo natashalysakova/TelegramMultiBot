@@ -13,4 +13,5 @@ public enum BotMessageType
 {
     Unknown = 0,
     Alert = 1,
+    AddressJobInfo = 2,
 }

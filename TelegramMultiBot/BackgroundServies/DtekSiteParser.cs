@@ -1,13 +1,18 @@
-﻿using DtekParsers;
+﻿using AngleSharp.Dom;
+using DtekParsers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using System;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
+using System.Threading.Tasks;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
+using TelegramMultiBot.Database.Services;
 
 namespace TelegramMultiBot.BackgroundServies;
 
@@ -85,6 +90,9 @@ public class DtekSiteParser : BackgroundService
                         try
                         {
                             await ParseSite(dbservice, location);
+
+                            await ParseAddreses(dbservice, location);
+
                             success = true;
                             delay = STANDART_DELAY; // reset delay on success
                         }
@@ -163,6 +171,38 @@ public class DtekSiteParser : BackgroundService
                 _delayCancellationTokenSource = new CancellationTokenSource();
             }
         }
+    }
+
+
+    private async Task ParseAddreses(IMonitorDataService dbservice, ElectricityLocation location)
+    {
+        var addressesToCheck = await dbservice.GetActiveAddresesJobs(location.Id);
+
+        var infoParser = new AddressParser(_configuationService);
+
+        foreach (var address in addressesToCheck)
+        {
+            try
+            {
+                var buildingInfos = await infoParser.ParseAddress(address, DateTimeOffset.Now);
+
+                var fetchedInfo = JsonSerializer.Serialize(buildingInfos);
+
+                if (address.LastFetchedInfo != fetchedInfo && buildingInfos.Type != "")
+                {
+                    address.LastFetchedInfo = JsonSerializer.Serialize(buildingInfos);
+                    address.ShouldBeSent = true;
+                    await dbservice.Update(address);
+                    _logger.LogInformation("Address job {id} info updated", address.Id);
+                }
+            }
+            catch (Exception ex)
+            {
+                _logger.LogWarning("Failed to parse address job {id}: {ex}", address.Id, ex.Message);
+                continue;
+            }
+        }
+
     }
 
     private async Task AskForHelp(IMonitorDataService dataService, ElectricityLocation location)
@@ -533,3 +573,109 @@ public class DtekSiteParser : BackgroundService
         _delayCancellationTokenSource.Cancel();
     }
 }
+
+public class AddressParser(ISqlConfiguationService configuationService)
+{
+
+    private string? GetCookie(string url)
+    {
+        if (configuationService == null)
+            return null;
+
+        var location = LocationNameUtility.GetRegionByUrl(url);
+        switch (location)
+        {
+            case "kem": return configuationService.SvitlobotSettings.KemCookie;
+            case "krem": return configuationService.SvitlobotSettings.KremCookie;
+
+            default:
+                return null;
+        }
+
+    }
+
+    public async Task<BuildingInfo> ParseAddress(AddressJob addressJob, DateTimeOffset date)
+    {
+        try
+        {
+            var url = addressJob.Location.Url.Replace("shutdowns", "ajax");
+            var client = new HttpClient();
+            var request = new HttpRequestMessage(HttpMethod.Get, url);
+
+            var dtekCookie = GetCookie(url);
+            if (!string.IsNullOrEmpty(dtekCookie))
+            {
+                client.DefaultRequestHeaders.Add("Cookie", dtekCookie);
+            }
+
+            var collection = new List<KeyValuePair<string, string>>
+            {
+                new("method", "getHomeNum"),
+                new("data[0][name]", "city"),
+                new("data[0][value]", addressJob.City),
+                new("data[1][name]", "street"),
+                new("data[1][value]", addressJob.Street),
+                new("data[2][name]", "updateFact"),
+                new("data[2][value]", date.ToString("dd.MM.yyyy HH:mm"))
+            };
+            var content = new FormUrlEncodedContent(collection);
+            request.Content = content;
+            var response = await client.SendAsync(request);
+            response.EnsureSuccessStatusCode();
+
+            var responseContent = await response.Content.ReadAsStringAsync();
+            var addressResponse = JsonSerializer.Deserialize<AddressResponse>(responseContent,
+                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+
+            // Check if response is successful and has data
+            if (addressResponse?.Result == true && addressResponse.Data != null)
+            {
+                // Find the specific building in the data dictionary
+                if (addressResponse.Data.TryGetValue(addressJob.Building, out var buildingInfo))
+                {
+                    return buildingInfo;
+                }
+                else
+                {
+                    // Building not found - you might want to log this
+                    throw new ParseException($"Building '{addressJob.Building}' not found in response");
+                }
+            }
+
+            throw new ParseException("Invalid response from server");
+        }
+        catch (Exception ex)
+        {
+            throw new ParseException($"Failed to fetch HTML: {ex.Message}");
+        }
+    }
+}
+public class AddressResponse
+{
+    public bool Result { get; set; }
+    public Dictionary<string, BuildingInfo>? Data { get; set; }
+    // Add other properties if needed (showCurOutageParam, fact, preset, etc.)
+}
+
+public class BuildingInfo
+{
+    [JsonPropertyName("sub_type")]
+    public string SubType { get; set; } = string.Empty;
+
+    [JsonPropertyName("start_date")]
+    public string StartDate { get; set; } = string.Empty;
+
+    [JsonPropertyName("end_date")]
+    public string EndDate { get; set; } = string.Empty;
+
+    [JsonPropertyName("type")]
+    public string Type { get; set; } = string.Empty;
+
+    [JsonPropertyName("sub_type_reason")]
+    public List<string> SubTypeReason { get; set; } = new();
+
+    [JsonPropertyName("voluntarily")]
+    public object? Voluntarily { get; set; }
+}
+
+

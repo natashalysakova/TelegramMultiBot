@@ -64,7 +64,7 @@ public class ScheduleParser
             return string.Empty;
         }
         
-        return attentionNode.InnerHtml.Trim();
+        return attentionNode.InnerText.Trim();
     }
 
     private string? GenerateGroupDataSnapshot(List<RealSchedule> realSchedule, string groupCode)

@@ -21,6 +21,7 @@ public partial class BoberDbContext : DbContext
 
     public virtual DbSet<ReminderJob> Reminders { get; set; }
     public virtual DbSet<MonitorJob> Monitor { get; set; }
+    public virtual DbSet<AddressJob> AddressJobs { get; set; }
     public virtual DbSet<ElectricityLocation> ElectricityLocations { get; set; }
     public virtual DbSet<ElectricityHistory> ElectricityHistory { get; set; }
     public virtual DbSet<ElectricityGroup> ElectricityGroups { get; set; }
