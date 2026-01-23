@@ -58,7 +58,7 @@ public class MonitorDtekTests
         {
             Assert.HasCount(12, item.Statuses);
         }
-
+        Assert.IsFalse(string.IsNullOrEmpty(schedule.AttentionNote));
     }
 
     [TestMethod]

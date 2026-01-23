@@ -1,4 +1,4 @@
-﻿namespace TelegramMultiBot.BackgroundServies;
+﻿namespace DtekParsers;
 
 public class IncapsulaException : Exception
 {

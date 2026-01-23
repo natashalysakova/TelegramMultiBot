@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Net.Sockets;
 using System.Text;
 using TelegramMultiBot.Database.Interfaces;
+using HtmlAgilityPack;
 
 namespace DtekParsers;
 
@@ -31,6 +32,7 @@ public class ScheduleParser
         schedule.TimeZones = GetTimeZones(presetVariableJobject);
         schedule.Groups = GetGroups(presetVariableJobject);
         schedule.Location = location;
+        schedule.AttentionNote = GetAttentionNote(html);
 
 
         FillRealSchedule(schedule, realVariableJobject);
@@ -48,6 +50,21 @@ public class ScheduleParser
         }
 
         return schedule;
+    }
+
+    private string GetAttentionNote(string html)
+    {
+        var htmlDoc = new HtmlDocument();
+        htmlDoc.LoadHtml(html);
+        
+        var attentionNode = htmlDoc.DocumentNode.SelectSingleNode("//div[@class='m-attention__text']");
+        
+        if (attentionNode == null)
+        {
+            return string.Empty;
+        }
+        
+        return attentionNode.InnerHtml.Trim();
     }
 
     private string? GenerateGroupDataSnapshot(List<RealSchedule> realSchedule, string groupCode)
@@ -131,6 +148,10 @@ public class ScheduleParser
 
     private static JObject GetJsonFromScriptVariables(string html, string variable)
     {
+        var incapsulaSection = GetLastScriptSectionContaining(html, "Incapsula");
+        if(incapsulaSection != null)
+            throw new IncapsulaException("Incapsula protection detected. Cannot parse the schedule.");
+
         var section = GetLastScriptSectionContaining(html, "DisconSchedule.fact");
         if (section == null)
             throw new ParseException("Could not find script section containing DisconSchedule.fact");
@@ -322,5 +343,3 @@ public class ScheduleParser
         return dateTime;
     }
 }
-
-

@@ -90,7 +90,7 @@ public class DtekSiteParser : BackgroundService
                         }
                         catch (IncapsulaException ex) // incapsula blocking
                         {
-                            _logger.LogError(ex, "Incapsula blocking detected.Asking admin for cookie", ex.Message);
+                            _logger.LogError(ex, "Incapsula blocking detected.Asking admin for cookie");
                             await AskForHelp(dbservice, location);
                         }
                         catch (ParseException ex) // parsing error - maybe page wasn't loaded correctly

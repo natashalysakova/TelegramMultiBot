@@ -19,7 +19,7 @@ public class ScheduleImageGenerator
             $"Графік відключень {schedule.Location}",
             schedule.Groups,
             schedule.TimeZones.OrderBy(x => x.Id).Select(x => x.Short),
-            schedule.RealSchedule);
+            schedule.RealSchedule, schedule.AttentionNote);
     }
 
     public static async Task<IEnumerable<ImageGenerationModel>> GeneratePlannedScheduleSingleGroupImages(Schedule schedule)
@@ -28,14 +28,14 @@ public class ScheduleImageGenerator
             $"Графік можливих відключень {schedule.Location}",
             schedule.Groups,
             schedule.TimeZones.OrderBy(x => x.Id).Select(x => x.Short),
-            schedule.PlannedSchedule);
+            schedule.PlannedSchedule, schedule.AttentionNote);
     }
 
     public static async Task<IEnumerable<ImageGenerationModel>> GenerateSingleGroupImages(
         string title,
         IEnumerable<ScheduleGroup> groups,
         IEnumerable<string> timeZones,
-        IEnumerable<BaseSchedule> days)
+        IEnumerable<BaseSchedule> days, string attentonNote)
     {
         var requests = new List<ImageGenerationModel>();
         foreach (var group in groups)
@@ -53,7 +53,7 @@ public class ScheduleImageGenerator
                 }),
             };
 
-            var html = await GenerateScheduleBody($"{title}", [printTable]);
+            var html = await GenerateScheduleBody($"{title}", [printTable], attentonNote);
 
             var minDate = days.Min(x => x is RealSchedule rs ? rs.DateTimeStamp : 0);
 
@@ -91,7 +91,7 @@ public class ScheduleImageGenerator
             tables.Add(printTable);
         }
 
-        var html = await GenerateScheduleBody($"Графік відключень {schedule.Location}", tables);
+        var html = await GenerateScheduleBody($"Графік відключень {schedule.Location}", tables, schedule.AttentionNote);
 
         List<ImageGenerationModel> requests = new();
         foreach (var day in schedule.RealSchedule)
@@ -110,7 +110,7 @@ public class ScheduleImageGenerator
 
     private static async Task<string> GenerateScheduleBody(
         string title,
-        IEnumerable<PrintTable> tables)
+        IEnumerable<PrintTable> tables, string attentionNote)
     {
         var doc = new HtmlDocument();
 
@@ -194,6 +194,15 @@ public class ScheduleImageGenerator
         var updatedInfo = doc.GetElementbyId("updated-info");
         updatedInfo.InnerHtml = $"Оновлено: {tables.Max(x => x.Updated).ToString("dd.MM.yyyy HH:mm")}";
 
+        var attention = doc.GetElementbyId("attention");
+        if (string.IsNullOrEmpty(attentionNote))
+        {
+            attention.Attributes.Append("hidden");
+        }
+        else
+        {
+            attention.InnerHtml = attentionNote;
+        }
         //var fileName = $"{groupName}_{updated.ToString("ddMMyyyyHHmmss")}_{name_suffix}.html";
         return doc.DocumentNode.OuterHtml;
     }

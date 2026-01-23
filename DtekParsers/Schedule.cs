@@ -1,4 +1,6 @@
 ﻿
+using System.Diagnostics;
+
 namespace DtekParsers;
 
 public class Schedule
@@ -9,4 +11,6 @@ public class Schedule
     public List<RealSchedule> RealSchedule { get; set; } = new();
     public List<PlannedSchedule> PlannedSchedule { get; set; } = new();
     public DateTime Updated { get; set; }
+
+    public string AttentionNote { get; set; } = string.Empty;
 }
