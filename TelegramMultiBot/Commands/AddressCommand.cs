@@ -18,7 +18,7 @@ internal class AddressCommand(TelegramClientWrapper client, MonitorService monit
 
         if(split.Length > 6 || split.Length < 4)
         {
-            await client.SendMessageAsync(message.Chat.Id, "Невірний формат команди. Використання:\n/address | <регіон> | <місто> | <вулиця> | <будинок> | [<chatId>]\nабо\n/address | <регіон> | <вулиця> | <будинок> | [<chatId>] (тільки для м.Київ)");
+            await client.SendMessageAsync(message.Chat.Id, "Невірний формат команди. Використання:\n/address | <регіон> | <місто> | <вулиця> | <будинок> | [<chatId>]\nабо\n/address | <регіон> | <вулиця> | <будинок> | [<chatId>] (тільки для м.Київ)", messageThreadId: message.MessageThreadId);
             return;
         }
 
@@ -51,6 +51,6 @@ internal class AddressCommand(TelegramClientWrapper client, MonitorService monit
         }
         var messageThread = chatId == message.Chat.Id ? message.MessageThreadId : null;
         await monitorService.AddAddressJob(chatId, region, city, street, building, messageThread);
-        await client.SendMessageAsync(message.Chat, "Addres job saved");
+        await client.SendMessageAsync(message.Chat, "Addres job saved", messageThreadId: message.MessageThreadId);
     }
 }
