@@ -6,4 +6,5 @@ public class SvitlobotSettings : BaseSetting
 
     public string? KremCookie { get; set; }
     public string? KemCookie { get; set; }
+    public string? OemCookie { get; set; }
 }

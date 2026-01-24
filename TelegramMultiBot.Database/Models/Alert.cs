@@ -14,9 +14,6 @@ namespace TelegramMultiBot.Database.Models
         public DateTimeOffset CreatedAt { get; set; }
 
         public DateTimeOffset? ResolvedAt { get; set; }
-
-        [System.ComponentModel.DataAnnotations.Schema.NotMapped]
-        public bool isResolved { get => ResolvedAt != null;  }
         public bool AlertSent { get; set; }
         public DateTimeOffset? SentAt { get; set; }
     }

@@ -35,7 +35,7 @@ public class MonitorDtekTests
     [TestMethod]
     [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", Cookie.KREM)]
     [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns", Cookie.KEM)]
-    [DataRow("https://www.dtek-oem.com.ua/ua/shutdowns")]
+    [DataRow("https://www.dtek-oem.com.ua/ua/shutdowns", Cookie.OEM)]
 
     public async Task PageParsed(string url, string? cookie = null)
     {

@@ -294,7 +294,7 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     public async Task<IEnumerable<ElectricityHistory>> DeleteOldHistory(DateTime cutoffDate)
     {
         var toDelete = await context.ElectricityHistory
-            .Where(x => x.Updated < cutoffDate).ToListAsync();
+            .Where(x => x.CreatedAt < cutoffDate).ToListAsync();
         context.ElectricityHistory.RemoveRange(toDelete);
        
         await context.SaveChangesAsync();

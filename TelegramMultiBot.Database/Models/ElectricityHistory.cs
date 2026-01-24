@@ -4,6 +4,11 @@ namespace TelegramMultiBot.Database.Models;
 
 public class ElectricityHistory
 {
+    public ElectricityHistory()
+    {
+        CreatedAt = DateTimeOffset.UtcNow;
+    }
+
     [DatabaseGenerated(DatabaseGeneratedOption.Identity)]
     public Guid Id { get; set; }
     public DateTime Updated { get; set; }
@@ -17,4 +22,6 @@ public class ElectricityHistory
 
     public Guid? GroupId { get; set; }
     public virtual ElectricityGroup? Group { get; set; }
+
+    public DateTimeOffset CreatedAt { get; set; }
 }

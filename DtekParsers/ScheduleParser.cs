@@ -148,8 +148,8 @@ public class ScheduleParser
 
     private static JObject GetJsonFromScriptVariables(string html, string variable)
     {
-        var incapsulaSection = GetLastScriptSectionContaining(html, "Incapsula");
-        if(incapsulaSection != null)
+        var incapsulaSection = html.Contains("Incapsula");
+        if(incapsulaSection)
             throw new IncapsulaException("Incapsula protection detected. Cannot parse the schedule.");
 
         var section = GetLastScriptSectionContaining(html, "DisconSchedule.fact");

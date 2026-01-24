@@ -100,6 +100,8 @@ public class DtekSiteParser : BackgroundService
                         {
                             _logger.LogError(ex, "Incapsula blocking detected.Asking admin for cookie");
                             await AskForHelp(dbservice, location);
+                            _logger.LogInformation("Admin notified. Stopping further retries for this location.");
+                            continue;
                         }
                         catch (ParseException ex) // parsing error - maybe page wasn't loaded correctly
                         {
@@ -611,13 +613,17 @@ public class AddressParser(ISqlConfiguationService configuationService)
                 client.DefaultRequestHeaders.Add("Cookie", dtekCookie);
             }
 
+            // Validate and trim city and street before adding to collection
+            var validatedCity = ValidateAndTrimCyrillicText(addressJob.City, "City");
+            var validatedStreet = ValidateAndTrimCyrillicText(addressJob.Street, "Street");
+
             var collection = new List<KeyValuePair<string, string>>
             {
                 new("method", "getHomeNum"),
                 new("data[0][name]", "city"),
-                new("data[0][value]", addressJob.City),
+                new("data[0][value]", validatedCity),
                 new("data[1][name]", "street"),
-                new("data[1][value]", addressJob.Street),
+                new("data[1][value]", validatedStreet),
                 new("data[2][name]", "updateFact"),
                 new("data[2][value]", date.ToString("dd.MM.yyyy HH:mm"))
             };
@@ -652,6 +658,63 @@ public class AddressParser(ISqlConfiguationService configuationService)
         {
             throw new ParseException($"Failed to fetch HTML: {ex.Message}. Request: {requestContent} Response content: {responseContent}");
         }
+    }
+    
+    private static string ValidateAndTrimCyrillicText(string text, string fieldName)
+    {
+        if (string.IsNullOrWhiteSpace(text))
+        {
+            throw new ArgumentException($"{fieldName} cannot be null or empty", nameof(text));
+        }
+        
+        var trimmedText = text.Trim();
+        
+        // Try to replace latin characters with cyrillic equivalents
+        var convertedText = ConvertLatinToCyrillic(trimmedText);
+        
+        // Check if text contains only cyrillic letters, numbers, spaces, dots, hyphens, and common punctuation
+        // This regex allows: cyrillic letters, numbers, spaces, dots, hyphens, apostrophes, and parentheses
+        var cyrillicPattern = @"^[А-Яа-яІіЇїЄєʼ0-9\s\.\-\(\)№\/]+$";
+        
+        if (!Regex.IsMatch(convertedText, cyrillicPattern))
+        {
+            throw new ArgumentException($"{fieldName} contains invalid characters. Only cyrillic letters, numbers, spaces, dots, hyphens and basic punctuation are allowed. Original: '{trimmedText}', Converted: '{convertedText}'", nameof(text));
+        }
+        
+        return convertedText;
+    }
+    
+    private static string ConvertLatinToCyrillic(string text)
+    {
+        // Dictionary of latin to cyrillic character mappings for visually similar characters
+        var latinToCyrillic = new Dictionary<char, char>
+        {
+            // Lowercase mappings
+            { 'a', 'а' }, { 'e', 'е' }, { 'o', 'о' }, { 'p', 'р' }, { 'c', 'с' },
+            { 'x', 'х' }, { 'y', 'у' }, { 'k', 'к' }, { 'h', 'н' }, { 'm', 'м' },
+            { 'i', 'і' }, { 'b', 'б' }, { 't', 'т' }, { 'v', 'в' },
+            
+            // Uppercase mappings
+            { 'A', 'А' }, { 'E', 'Е' }, { 'O', 'О' }, { 'P', 'Р' }, { 'C', 'С' },
+            { 'X', 'Х' }, { 'Y', 'У' }, { 'K', 'К' }, { 'H', 'Н' }, { 'M', 'М' },
+            { 'I', 'І' }, { 'B', 'В' }, { 'T', 'Т' }, { 'V', 'В' }
+        };
+        
+        var result = new StringBuilder(text.Length);
+        
+        foreach (char c in text)
+        {
+            if (latinToCyrillic.TryGetValue(c, out char cyrillicChar))
+            {
+                result.Append(cyrillicChar);
+            }
+            else
+            {
+                result.Append(c);
+            }
+        }
+        
+        return result.ToString();
     }
 }
 public class AddressResponse
