@@ -42,17 +42,16 @@ public class DtekSiteParser : BackgroundService
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DtekSiteParser> _logger;
     private readonly ISvitlobotClient _svitlobotClient;
-    private readonly ISqlConfiguationService _configuationService;
+    private ISqlConfiguationService _configuationService;
     private CancellationTokenSource _delayCancellationTokenSource;
 
     const string baseDirectory = "monitor";
 
-    public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger, ISvitlobotClient svitlobotClient, ISqlConfiguationService configuationService)
+    public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger, ISvitlobotClient svitlobotClient)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _svitlobotClient = svitlobotClient;
-        _configuationService = configuationService;
         _delayCancellationTokenSource = new CancellationTokenSource();
 
         if (!Directory.Exists(baseDirectory))
@@ -78,6 +77,8 @@ public class DtekSiteParser : BackgroundService
                 var scope = _serviceProvider.CreateScope();
                 var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
                 var locations = await dbservice.GetLocations();
+
+                _configuationService = scope.ServiceProvider.GetRequiredService<ISqlConfiguationService>();
 
                 foreach (var location in locations)
                 {
