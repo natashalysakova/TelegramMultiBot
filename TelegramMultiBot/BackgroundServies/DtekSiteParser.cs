@@ -182,6 +182,7 @@ public class DtekSiteParser : BackgroundService
 
         foreach (var address in addressesToCheck)
         {
+            _logger.LogInformation("Parsing address job {id}", address.Id);
             try
             {
                 var buildingInfos = await infoParser.ParseAddress(address, DateTimeOffset.Now);
@@ -202,7 +203,7 @@ public class DtekSiteParser : BackgroundService
                 continue;
             }
         }
-
+        _logger.LogInformation("Finished parsing address jobs for location {region}", location.Region);
     }
 
     private async Task AskForHelp(IMonitorDataService dataService, ElectricityLocation location)
@@ -431,7 +432,7 @@ public class DtekSiteParser : BackgroundService
 
         var scheduleUpdateDate = schedule.Updated;
 
-        if (location.LastUpdated >= scheduleUpdateDate && !await HasMissingImages(dbservice, location))
+        if (location.LastUpdated >= scheduleUpdateDate)
         {
             _logger.LogDebug("location was not updated. Last update at {date}", location.LastUpdated);
             return;
@@ -597,6 +598,7 @@ public class AddressParser(ISqlConfiguationService configuationService)
     public async Task<BuildingInfo> ParseAddress(AddressJob addressJob, DateTimeOffset date)
     {
         var responseContent = string.Empty;
+        var requestContent = string.Empty;
         try
         {
             var url = addressJob.Location.Url.Replace("shutdowns", "ajax");
@@ -621,6 +623,7 @@ public class AddressParser(ISqlConfiguationService configuationService)
             };
             var content = new FormUrlEncodedContent(collection);
             request.Content = content;
+            requestContent = await content.ReadAsStringAsync();
             var response = await client.SendAsync(request);
             response.EnsureSuccessStatusCode();
 
@@ -647,7 +650,7 @@ public class AddressParser(ISqlConfiguationService configuationService)
         }
         catch (Exception ex)
         {
-            throw new ParseException($"Failed to fetch HTML: {ex.Message} Response content: {responseContent}");
+            throw new ParseException($"Failed to fetch HTML: {ex.Message}. Request: {requestContent} Response content: {responseContent}");
         }
     }
 }
