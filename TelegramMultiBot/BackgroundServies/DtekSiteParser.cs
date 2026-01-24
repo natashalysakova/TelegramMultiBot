@@ -596,6 +596,7 @@ public class AddressParser(ISqlConfiguationService configuationService)
 
     public async Task<BuildingInfo> ParseAddress(AddressJob addressJob, DateTimeOffset date)
     {
+        var responseContent = string.Empty;
         try
         {
             var url = addressJob.Location.Url.Replace("shutdowns", "ajax");
@@ -623,7 +624,7 @@ public class AddressParser(ISqlConfiguationService configuationService)
             var response = await client.SendAsync(request);
             response.EnsureSuccessStatusCode();
 
-            var responseContent = await response.Content.ReadAsStringAsync();
+            responseContent = await response.Content.ReadAsStringAsync();
             var addressResponse = JsonSerializer.Deserialize<AddressResponse>(responseContent,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 
@@ -646,7 +647,7 @@ public class AddressParser(ISqlConfiguationService configuationService)
         }
         catch (Exception ex)
         {
-            throw new ParseException($"Failed to fetch HTML: {ex.Message}");
+            throw new ParseException($"Failed to fetch HTML: {ex.Message} Response content: {responseContent}");
         }
     }
 }

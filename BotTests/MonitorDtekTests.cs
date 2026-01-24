@@ -17,7 +17,13 @@ public class MonitorDtekTests
     [TestMethod]
     public async Task PageLoaded()
     {
-        var parser = new ScheduleParser(null!);
+        var sqlConfiguationService = new Mock<ISqlConfiguationService>();
+        sqlConfiguationService.Setup(c => c.SvitlobotSettings).Returns(new SvitlobotSettings()
+        {
+            KremCookie = Cookie.KREM,
+            KemCookie = Cookie.KEM
+        });
+        var parser = new ScheduleParser(sqlConfiguationService.Object);
 
         var html = await parser.GetHtmlFromUrl("https://www.dtek-krem.com.ua/ua/shutdowns");
 
@@ -28,7 +34,7 @@ public class MonitorDtekTests
 
     [TestMethod]
     [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", Cookie.KREM)]
-    [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns")]
+    [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns", Cookie.KEM)]
     [DataRow("https://www.dtek-oem.com.ua/ua/shutdowns")]
 
     public async Task PageParsed(string url, string? cookie = null)

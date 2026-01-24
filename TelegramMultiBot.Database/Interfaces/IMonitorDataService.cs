@@ -391,7 +391,7 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
 
     public Task<bool> AlertExists(Guid locationId)
     {
-        return context.Alerts.AnyAsync(x => x.LocationId == locationId && x.isResolved == false);
+        return context.Alerts.AnyAsync(x => x.LocationId == locationId && x.ResolvedAt == null);
     }
 
     public async Task<IEnumerable<AddressJob>> GetActiveAddresesJobs(Guid locationId)
