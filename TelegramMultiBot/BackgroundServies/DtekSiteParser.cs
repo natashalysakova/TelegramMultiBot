@@ -101,7 +101,7 @@ public class DtekSiteParser : BackgroundService
                             _logger.LogError(ex, "Incapsula blocking detected.Asking admin for cookie");
                             await AskForHelp(dbservice, location);
                             _logger.LogInformation("Admin notified. Stopping further retries for this location.");
-                            continue;
+                            retryCount = 2; // stop retrying
                         }
                         catch (ParseException ex) // parsing error - maybe page wasn't loaded correctly
                         {
