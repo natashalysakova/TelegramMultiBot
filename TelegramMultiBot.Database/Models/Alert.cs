@@ -16,5 +16,7 @@ namespace TelegramMultiBot.Database.Models
         public DateTimeOffset? ResolvedAt { get; set; }
         public bool AlertSent { get; set; }
         public DateTimeOffset? SentAt { get; set; }
+        public string? AlertMessage { get; set; }
+        public int FailureCount { get; set; } = 1;
     }
 }

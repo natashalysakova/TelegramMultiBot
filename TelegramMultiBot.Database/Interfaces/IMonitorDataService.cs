@@ -38,8 +38,8 @@ public interface IMonitorDataService
     Task<IEnumerable<SvitlobotData>> GetAllSvitlobots();
     Task DeleteAllHistory();
     Task<ElectricityGroup> GetGroupById(Guid value);
-    Task<IEnumerable<Alert>> GetUnresolvedAlerts();
-    Task<bool> AlertExists(Guid locationId);
+    Task<IEnumerable<Alert>> GetUnresolvedAlerts(int maxFailureCount = 5);
+    Task<Alert?> GetNotResolvedAlertByLocation(Guid locationId);
     Task<IEnumerable<AddressJob>> GetActiveAddresesJobs(Guid locationId);
     Task<IEnumerable<AddressJob>> GetAllAddressJobsNeedingToBeSent();
     Task<bool> AddressJobExists(AddressJob job);
@@ -66,7 +66,7 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     public async Task<MonitorJob?> GetJobBySubscriptionParameters(long chatId, string region, string? group)
     {
         return await GetJobsInternal()
-            .Where(x => x.ChatId == chatId && x.Location.Region == region && x.Group.GroupCode == group)
+            .Where(x => x.ChatId == chatId && x.Location!.Region == region && x.Group.GroupCode == group)
             .FirstOrDefaultAsync();
     }
 
@@ -80,7 +80,7 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     {
         var jobs = context.Monitor
             .Include(x => x.Location)
-                .ThenInclude(x => x.History)
+                .ThenInclude(x => x!.History)
                     .ThenInclude(x => x.Group)
             .Include(x => x.Group)
             .AsQueryable();
@@ -380,18 +380,19 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
         return context.ElectricityGroups.FirstAsync(x => x.Id == value);
     }
 
-    public async Task<IEnumerable<Alert>> GetUnresolvedAlerts()
+    public async Task<IEnumerable<Alert>> GetUnresolvedAlerts(int maxFailureCount = 5)
     {
         var date = DateTimeOffset.UtcNow.AddHours(-12);
 
         return await context.Alerts
             .Include(x=>x.Location)
-            .Where(x => x.AlertSent == false || x.SentAt < date).ToListAsync();
+            .Where(x => x.AlertSent == false || x.SentAt < date && x.FailureCount >= maxFailureCount).ToListAsync();
     }
 
-    public Task<bool> AlertExists(Guid locationId)
+    public Task<Alert?> GetNotResolvedAlertByLocation(Guid locationId)
     {
-        return context.Alerts.AnyAsync(x => x.LocationId == locationId && x.ResolvedAt == null);
+        return context.Alerts
+            .FirstOrDefaultAsync(x => x.LocationId == locationId && x.ResolvedAt == null);
     }
 
     public async Task<IEnumerable<AddressJob>> GetActiveAddresesJobs(Guid locationId)

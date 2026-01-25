@@ -148,13 +148,17 @@ public class ScheduleParser
 
     private static JObject GetJsonFromScriptVariables(string html, string variable)
     {
-        var incapsulaSection = html.Contains("Incapsula");
-        if(incapsulaSection)
-            throw new IncapsulaException("Incapsula protection detected. Cannot parse the schedule.");
-
         var section = GetLastScriptSectionContaining(html, "DisconSchedule.fact");
         if (section == null)
+        {
+            var incapsulaSection = html.Contains("Incapsula");
+            if(incapsulaSection)
+            {
+                throw new IncapsulaException("Incapsula protection detected. Cannot parse the schedule.");
+            }
+        
             throw new ParseException("Could not find script section containing DisconSchedule.fact");
+        }
 
         var groupsLine = section.First(line => line.StartsWith(variable)).Replace($"{variable} = ", "");
         return JObject.Parse(groupsLine);
@@ -302,7 +306,7 @@ public class ScheduleParser
     public async Task<string> GetHtmlFromUrl(string url)
     {
         HttpClient client = new HttpClient();
-
+        string content;
         try
         {
             var dtekCookie = GetCookie(url);
@@ -310,12 +314,22 @@ public class ScheduleParser
             {
                 client.DefaultRequestHeaders.Add("Cookie", dtekCookie);
             }
-            return await client.GetStringAsync(url);
-        }
+
+            var response = await client.GetAsync(url);
+            content = await response.Content.ReadAsStringAsync();
+
+          }
         catch (Exception ex)
         {
             throw new ParseException($"Failed to fetch HTML: {ex.Message}");
         }
+
+        if (content.Contains("META NAME=\"robots\" CONTENT=\"noindex,nofollow\"", StringComparison.OrdinalIgnoreCase))
+        {
+            throw new IncapsulaException("Incapsula protection detected. Cannot parse the schedule.");
+        }
+
+        return content;
     }
 
     private string? GetCookie(string url)

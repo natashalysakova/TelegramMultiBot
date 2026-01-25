@@ -62,6 +62,9 @@ public class DtekSiteParserTests2
         // Setup service provider to return the real IMonitorDataService with in-memory DB
         _serviceProviderMock.Setup(x => x.GetService(typeof(IMonitorDataService)))
             .Returns(_monitorDataService);
+        
+        _serviceProviderMock.Setup(x => x.GetService(typeof(ISqlConfiguationService)))
+            .Returns(_configurationService?.Object);
 
         // Setup scope disposal
         _scopeMock.Setup(x => x.Dispose());
@@ -71,7 +74,7 @@ public class DtekSiteParserTests2
 
 
         // Create instance of DtekSiteParser with mocked dependencies
-        _dtekSiteParser = new DtekSiteParser(_serviceProviderMock.Object, _loggerMock.Object, _svitlobotClientMock.Object, _configurationService.Object);
+        _dtekSiteParser = new DtekSiteParser(_serviceProviderMock.Object, _loggerMock.Object, _svitlobotClientMock.Object);
     }
 
     [TestCleanup]
