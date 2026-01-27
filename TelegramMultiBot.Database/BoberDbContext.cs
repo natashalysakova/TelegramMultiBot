@@ -31,6 +31,7 @@ public partial class BoberDbContext : DbContext
     public virtual DbSet<ChatHistory> ChatHistory { get; set; }
     
     public virtual DbSet<SvitlobotData> Svitlobot { get; set; }
+    public virtual DbSet<VideoDownload> VideoDownloads { get; set; }
 
     public void Seed()
     {

@@ -21,6 +21,7 @@ using TelegramMultiBot.Database.Profiles;
 using TelegramMultiBot.Database.Services;
 using TelegramMultiBot.ImageGeneration;
 using TelegramMultiBot.MessageCache;
+using VideoDownloader;
 using ServiceKeyAttribute = TelegramMultiBot.Commands.ServiceKeyAttribute;
 
 internal class Program
@@ -42,6 +43,8 @@ internal class Program
                 services.AddHostedService(provider => provider.GetRequiredService<DtekSiteParser>());
                 services.AddHostedService<BotService>();
                 RegisterServices(services, args);
+                services.AddHostedService<VideoDownloaderService>();
+                services.InstallVideoDownloader();
           })
          .UseConsoleLifetime()
          .Build();
@@ -126,6 +129,7 @@ internal class Program
         defaults.AddRange(new ImageGenerationSettings().ToList());
         defaults.AddRange(new GeneralSettings().ToList());
         defaults.AddRange(new SvitlobotSettings().ToList());
+        defaults.AddRange(new VideoDownloaderSettings().ToList());
 
         foreach (var setting in defaults)
         {

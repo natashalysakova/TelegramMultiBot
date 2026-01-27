@@ -178,11 +178,18 @@ public class ConfigurationService : ISqlConfiguationService
 
     public SvitlobotSettings SvitlobotSettings
     {
-               get
+        get
         {
             return BindSettings<SvitlobotSettings>(_context.Settings.Where(x => x.SettingSection == SvitlobotSettings.Name));
         }
+    }
 
+    public VideoDownloaderSettings VideoDownloaderSettings
+    {
+        get
+        {
+            return BindSettings<VideoDownloaderSettings>(_context.Settings.Where(x => x.SettingSection == VideoDownloaderSettings.Name));
+        }
     }
 
     private T BindSettings<T>(IEnumerable<Settings> settings) where T : class, new()
