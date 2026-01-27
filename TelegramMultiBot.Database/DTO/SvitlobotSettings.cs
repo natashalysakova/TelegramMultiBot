@@ -17,4 +17,5 @@ public class SvitlobotSettings : BaseSetting
     /// Set monitor delay in seconds
     /// </summary>
     public int MonitorDelay { get; set; } = 30;
+    public int AlertIgnoreMinutes { get; set; } = 120;
 }

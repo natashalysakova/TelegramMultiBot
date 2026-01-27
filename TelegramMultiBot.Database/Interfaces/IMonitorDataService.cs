@@ -39,10 +39,11 @@ public interface IMonitorDataService
     Task DeleteAllHistory();
     Task<ElectricityGroup> GetGroupById(Guid value);
     Task<IEnumerable<Alert>> GetUnresolvedAlerts(int maxFailureCount = 5);
-    Task<Alert?> GetNotResolvedAlertByLocation(Guid locationId);
+    Task<Alert?> GetNotResolvedAlertByLocation(Guid locationId, DateTimeOffset? createdBefore = null);
     Task<IEnumerable<AddressJob>> GetActiveAddresesJobs(Guid locationId);
     Task<IEnumerable<AddressJob>> GetAllAddressJobsNeedingToBeSent();
     Task<bool> AddressJobExists(AddressJob job);
+    Task<IEnumerable<Alert>> DeleteOldResolvedAlerts(DateTime cutoffDate);
 }
 
 public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -389,10 +390,12 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
             .Where(x => x.AlertSent == false || x.SentAt < date && x.FailureCount >= maxFailureCount).ToListAsync();
     }
 
-    public Task<Alert?> GetNotResolvedAlertByLocation(Guid locationId)
+    public Task<Alert?> GetNotResolvedAlertByLocation(Guid locationId, DateTimeOffset? createdBefore = null)
     {
         return context.Alerts
-            .FirstOrDefaultAsync(x => x.LocationId == locationId && x.ResolvedAt == null);
+            .FirstOrDefaultAsync(x => x.LocationId == locationId 
+                && x.ResolvedAt == null 
+                && (createdBefore == null || x.CreatedAt < createdBefore));
     }
 
     public async Task<IEnumerable<AddressJob>> GetActiveAddresesJobs(Guid locationId)
@@ -420,5 +423,17 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
                 x.Street == job.Street && 
                 x.Building == job.Building && 
                 x.ChatId == job.ChatId);
+    }
+
+    public async Task<IEnumerable<Alert>> DeleteOldResolvedAlerts(DateTime cutoffDate)
+    {
+        var toDelete = await context.Alerts
+            .Where(x => x.ResolvedAt != null && x.ResolvedAt < cutoffDate)
+            .ToListAsync();
+
+        context.Alerts.RemoveRange(toDelete);
+
+        await context.SaveChangesAsync();   
+        return toDelete;
     }
 }

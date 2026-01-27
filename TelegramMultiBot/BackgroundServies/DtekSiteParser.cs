@@ -101,6 +101,17 @@ public class DtekSiteParser : BackgroundService
             foreach (var location in locations)
             {
                 using var locationScope = _logger.BeginScope(location.Region);
+
+                var unresolvedAlerts = await dbservice
+                    .GetNotResolvedAlertByLocation(
+                        location.Id, 
+                        DateTimeOffset.Now.AddMinutes(-_configuationService.SvitlobotSettings.AlertIgnoreMinutes));
+                if (unresolvedAlerts != null)
+                {
+                    _logger.LogWarning("Location has unresolved alerts, skipping parsing");
+                    continue;
+                }
+
                 _logger.LogDebug("Parsing site");
                 var retryCount = 0;
                 bool success = false;
@@ -159,9 +170,9 @@ public class DtekSiteParser : BackgroundService
 
         if (existingAlert is not null)
         {
-            existingAlert.FailureCount = 0;
+            existingAlert.ResolvedAt = DateTimeOffset.Now;
             await dbservice.Update(existingAlert);
-            _logger.LogDebug("Reset alert failure count for location {region}", location.Region);
+            _logger.LogDebug("Resolve alert after success: {region}", location.Region);
         }
     }
 
@@ -420,7 +431,10 @@ public class DtekSiteParser : BackgroundService
                     _logger.LogInformation("Deleted file: {file}", fullPath);
                 }
             }
+            var removedAlerts = await dbservice.DeleteOldResolvedAlerts(cutoffDate);
+            _logger.LogInformation("Deleted {count} old resolved alerts", removedAlerts.Count());
         }
+
     }
 
     private async Task ParseSite(IMonitorDataService dbservice, ElectricityLocation location)
