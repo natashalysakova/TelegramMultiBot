@@ -432,7 +432,10 @@ public class DtekSiteParser : BackgroundService
                 }
             }
             var removedAlerts = await dbservice.DeleteOldResolvedAlerts(cutoffDate);
-            _logger.LogInformation("Deleted {count} old resolved alerts", removedAlerts.Count());
+            if(removedAlerts.Any())
+            {
+                _logger.LogInformation("Deleted {count} old resolved alerts", removedAlerts.Count());
+            }
         }
 
     }
