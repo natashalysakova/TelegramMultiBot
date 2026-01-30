@@ -102,16 +102,6 @@ public class DtekSiteParser : BackgroundService
             {
                 using var locationScope = _logger.BeginScope(location.Region);
 
-                var unresolvedAlerts = await dbservice
-                    .GetNotResolvedAlertsByLocation(
-                        location.Id, 
-                        DateTimeOffset.Now.AddMinutes(-_configuationService.SvitlobotSettings.AlertIgnoreMinutes));
-                if (unresolvedAlerts.Any())
-                {
-                    _logger.LogWarning("Location has unresolved alerts, skipping parsing");
-                    continue;
-                }
-
                 _logger.LogDebug("Parsing site");
                 var retryCount = 0;
                 bool success = false;
