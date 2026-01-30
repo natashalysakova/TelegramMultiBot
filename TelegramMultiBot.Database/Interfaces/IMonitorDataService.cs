@@ -39,7 +39,7 @@ public interface IMonitorDataService
     Task DeleteAllHistory();
     Task<ElectricityGroup> GetGroupById(Guid value);
     Task<IEnumerable<Alert>> GetUnresolvedAlerts(int maxFailureCount = 5);
-    Task<Alert?> GetNotResolvedAlertByLocation(Guid locationId, DateTimeOffset? createdBefore = null);
+    Task<IEnumerable<Alert>> GetNotResolvedAlertsByLocation(Guid locationId, DateTimeOffset? createdBefore = null);
     Task<IEnumerable<AddressJob>> GetActiveAddresesJobs(Guid locationId);
     Task<IEnumerable<AddressJob>> GetAllAddressJobsNeedingToBeSent();
     Task<bool> AddressJobExists(AddressJob job);
@@ -350,7 +350,8 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
 
     public async Task<bool> RemoveSvitlobotKey(string key, Guid id)
     {
-        var record = context.Svitlobot.FirstOrDefault(x => x.GroupId == id && x.SvitlobotKey == key);
+        var record = await context.Svitlobot
+            .FirstOrDefaultAsync(x => x.GroupId == id && x.SvitlobotKey == key);
         if (record != null)
         {
             context.Svitlobot.Remove(record);
@@ -387,15 +388,21 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
 
         return await context.Alerts
             .Include(x=>x.Location)
-            .Where(x => x.AlertSent == false || x.SentAt < date && x.FailureCount >= maxFailureCount).ToListAsync();
+            .Where(x => 
+                (x.AlertSent == false || 
+                x.SentAt < date ) && 
+                x.FailureCount >= maxFailureCount && 
+                x.ResolvedAt == null)
+            .ToListAsync(); 
     }
 
-    public Task<Alert?> GetNotResolvedAlertByLocation(Guid locationId, DateTimeOffset? createdBefore = null)
+    public async Task<IEnumerable<Alert>> GetNotResolvedAlertsByLocation(Guid locationId, DateTimeOffset? createdBefore = null)
     {
-        return context.Alerts
-            .FirstOrDefaultAsync(x => x.LocationId == locationId 
+        return await context.Alerts
+            .Where(x => x.LocationId == locationId 
                 && x.ResolvedAt == null 
-                && (createdBefore == null || x.CreatedAt < createdBefore));
+                && (createdBefore == null || x.CreatedAt < createdBefore))
+            .ToListAsync();
     }
 
     public async Task<IEnumerable<AddressJob>> GetActiveAddresesJobs(Guid locationId)

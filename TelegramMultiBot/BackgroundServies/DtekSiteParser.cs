@@ -103,7 +103,7 @@ public class DtekSiteParser : BackgroundService
                 using var locationScope = _logger.BeginScope(location.Region);
 
                 var unresolvedAlerts = await dbservice
-                    .GetNotResolvedAlertByLocation(
+                    .GetNotResolvedAlertsByLocation(
                         location.Id, 
                         DateTimeOffset.Now.AddMinutes(-_configuationService.SvitlobotSettings.AlertIgnoreMinutes));
                 if (unresolvedAlerts != null)
@@ -166,9 +166,9 @@ public class DtekSiteParser : BackgroundService
 
     private async Task ResetAlertAfterSuccess(IMonitorDataService dbservice, ElectricityLocation location)
     {
-        var existingAlert = await dbservice.GetNotResolvedAlertByLocation(location.Id);
+        var existingAlerts = await dbservice.GetNotResolvedAlertsByLocation(location.Id);
 
-        if (existingAlert is not null)
+        foreach (var existingAlert in existingAlerts)
         {
             existingAlert.ResolvedAt = DateTimeOffset.Now;
             await dbservice.Update(existingAlert);
@@ -210,9 +210,9 @@ public class DtekSiteParser : BackgroundService
 
     private async Task CreateOrUpdateAlertForIncapsulaBlocking(IMonitorDataService dataService, ElectricityLocation location)
     {
-        var existingAlert = await dataService.GetNotResolvedAlertByLocation(location.Id);
+        var existingAlerts = await dataService.GetNotResolvedAlertsByLocation(location.Id);
 
-        if (existingAlert is null)
+        if (!existingAlerts.Any())
         {
             Alert alert = new Alert()
             {
@@ -222,10 +222,13 @@ public class DtekSiteParser : BackgroundService
             };
             await dataService.Add(alert);
         }
-        else
+        else // actually should be only one
         {
-            existingAlert.FailureCount += 1;
-            await dataService.Update(existingAlert);
+            foreach (var existingAlert in existingAlerts)
+            {
+                existingAlert.FailureCount += 1;
+                await dataService.Update(existingAlert);
+            }
         }
     }
 
