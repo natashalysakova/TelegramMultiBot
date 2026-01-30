@@ -106,7 +106,7 @@ public class DtekSiteParser : BackgroundService
                     .GetNotResolvedAlertsByLocation(
                         location.Id, 
                         DateTimeOffset.Now.AddMinutes(-_configuationService.SvitlobotSettings.AlertIgnoreMinutes));
-                if (unresolvedAlerts != null)
+                if (unresolvedAlerts.Any())
                 {
                     _logger.LogWarning("Location has unresolved alerts, skipping parsing");
                     continue;

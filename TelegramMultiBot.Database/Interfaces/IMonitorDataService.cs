@@ -39,7 +39,7 @@ public interface IMonitorDataService
     Task DeleteAllHistory();
     Task<ElectricityGroup> GetGroupById(Guid value);
     Task<IEnumerable<Alert>> GetUnresolvedAlerts(int maxFailureCount = 5);
-    Task<IEnumerable<Alert>> GetNotResolvedAlertsByLocation(Guid locationId, DateTimeOffset? createdBefore = null);
+    Task<IEnumerable<Alert>> GetNotResolvedAlertsByLocation(Guid locationId, DateTimeOffset? createdBefore = null, int maxFailureCount = 20);
     Task<IEnumerable<AddressJob>> GetActiveAddresesJobs(Guid locationId);
     Task<IEnumerable<AddressJob>> GetAllAddressJobsNeedingToBeSent();
     Task<bool> AddressJobExists(AddressJob job);
@@ -396,12 +396,13 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
             .ToListAsync(); 
     }
 
-    public async Task<IEnumerable<Alert>> GetNotResolvedAlertsByLocation(Guid locationId, DateTimeOffset? createdBefore = null)
+    public async Task<IEnumerable<Alert>> GetNotResolvedAlertsByLocation(Guid locationId, DateTimeOffset? createdBefore = null, int maxFailureCount = 20)
     {
         return await context.Alerts
             .Where(x => x.LocationId == locationId 
                 && x.ResolvedAt == null 
-                && (createdBefore == null || x.CreatedAt < createdBefore))
+                && (createdBefore == null || x.CreatedAt < createdBefore)
+                && x.FailureCount <= maxFailureCount)
             .ToListAsync();
     }
 
