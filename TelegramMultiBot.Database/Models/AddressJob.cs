@@ -14,4 +14,5 @@ public class AddressJob
     public bool ShouldBeSent { get; set; }
     public long ChatId { get; set; }
     public int? MessageThreadId { get; set; }
+    public string Group { get; set; }
 }

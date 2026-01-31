@@ -181,10 +181,22 @@ public class DtekSiteParser : BackgroundService
 
                 var fetchedInfo = JsonSerializer.Serialize(buildingInfos);
 
+                bool isUpdated = false;
                 if (address.LastFetchedInfo != fetchedInfo && buildingInfos.Type != "")
                 {
                     address.LastFetchedInfo = JsonSerializer.Serialize(buildingInfos);
                     address.ShouldBeSent = true;
+                    isUpdated = true;
+                }
+                var groupInfo = string.Join(", ", buildingInfos.SubTypeReason);
+                if(address.Group != groupInfo)
+                {
+                    address.Group = groupInfo;
+                    isUpdated = true;
+                }
+
+                if(isUpdated)
+                {
                     await dbservice.Update(address);
                     _logger.LogInformation("Address job {id} info updated", address.Id);
                 }
