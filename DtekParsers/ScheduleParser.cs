@@ -259,11 +259,31 @@ public class ScheduleParser
         
             throw new ParseException("Could not find script section containing DisconSchedule.fact");
         }
-        
+
         try
         {
             var groupsLine = section.First(line => line.StartsWith(variable)).Replace($"{variable} = ", "");
-            return JObject.Parse(groupsLine);
+            
+            // Try to parse as JToken first to handle both objects and arrays
+            var token = JToken.Parse(groupsLine);
+            
+            // If it's already a JObject, return it
+            if (token is JObject jobject)
+            {
+                return jobject;
+            }
+            
+            // If it's a JArray, wrap it in a JObject with a default property
+            if (token is JArray jarray)
+            {
+                return new JObject
+                {
+                    ["data"] = jarray   
+                };
+            }
+            
+            // For any other token type, try to convert to JObject
+            return JObject.FromObject(token);
         }
         catch (Exception ex)
         {

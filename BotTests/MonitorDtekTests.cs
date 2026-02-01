@@ -57,12 +57,12 @@ public class MonitorDtekTests
         Assert.HasCount(7, schedule.PlannedSchedule);
         foreach (var item in schedule.PlannedSchedule)
         {
-            Assert.HasCount(12, item.Statuses);
+            Assert.HasCount(66, item.Statuses);
         }
         Assert.HasCount(2, schedule.RealSchedule);
         foreach (var item in schedule.RealSchedule)
         {
-            Assert.HasCount(12, item.Statuses);
+            Assert.HasCount(60, item.Statuses);
         }
         Assert.IsFalse(string.IsNullOrEmpty(schedule.AttentionNote));
     }
