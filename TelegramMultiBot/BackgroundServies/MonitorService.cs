@@ -86,6 +86,7 @@ public class MonitorService
                 {
                     Type = BotMessageType.AddressJobInfo,
                     ChatId = addressJob.ChatId,
+                    MessageThreadId = addressJob.MessageThreadId,
                     Filenames = new List<string>(),
                     Caption = $"🏘 {addressJob.City.Escaped()} {addressJob.Street.Escaped()} {addressJob.Number.Escaped()}\n" +
                     $"*{addresInfo.SubType.Escaped()}*\n" +

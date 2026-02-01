@@ -109,6 +109,11 @@ public class DtekSiteParser : BackgroundService
                         _logger.LogError(ex, "Error occurred while parsing: {message}", ex.Message);
                         await Task.Delay(TimeSpan.FromSeconds(20 * retryCount)); // wait before retry
                     }
+                    catch (Exception ex)
+                    {
+                        retryCount++;
+                        _logger.LogError(ex, "Error occurred while execution. {message}", ex.Message);
+                    }
                 }
                 while (retryCount < 2 && !success);
                 if (!success)

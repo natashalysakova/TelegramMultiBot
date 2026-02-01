@@ -12,10 +12,12 @@ namespace DtekParsers;
 public class ScheduleParser
 {
     private readonly ISqlConfiguationService _configuationService;
+    private readonly ILogger<ScheduleParser>? _logger;
 
-    public ScheduleParser(ISqlConfiguationService configuationService)
+    public ScheduleParser(ISqlConfiguationService configuationService, ILogger<ScheduleParser>? logger = null)
     {
         _configuationService = configuationService;
+        _logger = logger;
     }
 
     public async Task<Schedule> Parse(string url)
@@ -244,7 +246,7 @@ public class ScheduleParser
         return DateTime.ParseExact(stringValue, "dd.MM.yyyy HH:mm", System.Globalization.CultureInfo.InvariantCulture);
     }
 
-    private static JObject GetJsonFromScriptVariables(string html, string variable)
+    private JObject GetJsonFromScriptVariables(string html, string variable)
     {
         var section = GetLastScriptSectionContaining(html, "DisconSchedule.fact");
         if (section == null)
@@ -257,9 +259,23 @@ public class ScheduleParser
         
             throw new ParseException("Could not find script section containing DisconSchedule.fact");
         }
+        
+        try
+        {
+            var groupsLine = section.First(line => line.StartsWith(variable)).Replace($"{variable} = ", "");
+            return JObject.Parse(groupsLine);
+        }
+        catch (Exception ex)
+        {
+            _logger?.LogError(
+                ex, 
+                "Failed to parse JSON from variable {variable}: {message}. {html}", 
+                variable, 
+                ex.Message, 
+                html);
 
-        var groupsLine = section.First(line => line.StartsWith(variable)).Replace($"{variable} = ", "");
-        return JObject.Parse(groupsLine);
+            throw new ParseException($"Failed to parse JSON from variable {variable}: {ex.Message}");
+        }
     }
 
     private List<ScheduleGroup> GetGroups(JObject presetJson)

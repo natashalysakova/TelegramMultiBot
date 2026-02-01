@@ -256,7 +256,7 @@ public class AddressParserTests
             // MUST match exact street name in server database
             Street = "вул. Величка Михайла",
             // Building key must exist in server response for this city/street
-            Building = "14-А",
+            Number = "14-А",
             Location = new ElectricityLocation
             {
                 Id = Guid.NewGuid(),
@@ -280,7 +280,8 @@ public class AddressParserTests
 
         //Assert
          Assert.IsNotNull(result);
-        Assert.AreEqual("2", result.Type);
+         var buildingInfo = result[addressJob.Number];
+        Assert.AreEqual("2", buildingInfo.Type);
     }
 
     #endregion
