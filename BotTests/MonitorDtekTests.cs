@@ -34,10 +34,11 @@ public class MonitorDtekTests
 
     [TestMethod]
     [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", Cookie.KREM)]
-    [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns", Cookie.KEM)]
+    [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns", Cookie.KEM, 66, 60)]
     [DataRow("https://www.dtek-oem.com.ua/ua/shutdowns", Cookie.OEM)]
 
-    public async Task PageParsed(string url, string? cookie = null)
+    public async Task PageParsed(string url, string? cookie = null, 
+        int expectedPlanned = 12, int expectedReal = 12)
     {
         var settings = new SvitlobotSettings();
         if (cookie != null)
@@ -57,12 +58,12 @@ public class MonitorDtekTests
         Assert.HasCount(7, schedule.PlannedSchedule);
         foreach (var item in schedule.PlannedSchedule)
         {
-            Assert.HasCount(66, item.Statuses);
+            Assert.HasCount(expectedPlanned, item.Statuses);
         }
         Assert.HasCount(2, schedule.RealSchedule);
         foreach (var item in schedule.RealSchedule)
         {
-            Assert.HasCount(60, item.Statuses);
+            Assert.HasCount(expectedReal, item.Statuses);
         }
         Assert.IsFalse(string.IsNullOrEmpty(schedule.AttentionNote));
     }
