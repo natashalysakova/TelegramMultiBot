@@ -66,32 +66,17 @@ public class ScheduleParser
             
         foreach (var property in streets.Properties())
         {
-            var groupKey = property.Name;
+            var city = property.Name;
             var streetArray = property.Value as JArray;
-            
+
             if (streetArray == null) 
-                continue;
-                
-            var cityStreets = new Dictionary<string, List<string>>();
-            
-            foreach (var streetToken in streetArray)
-            {
-                var streetName = streetToken.ToString();
-                var (city, street) = ParseStreetWithCity(streetName);
-                
-                if (!cityStreets.ContainsKey(city))
-                {
-                    cityStreets[city] = new List<string>();
-                }
-                
-                cityStreets[city].Add(street);
-            }
-            
+                continue;   
+
             // Add to result with city prefix
-            foreach (var cityGroup in cityStreets)
+            foreach (var street in streetArray)
             {
-                var resultKey = cityGroup.Key == "Київ" ? groupKey : $"{cityGroup.Key}_{groupKey}";
-                result[resultKey] = cityGroup.Value;
+                var resultKey = city;
+                result[resultKey] = streetArray.Select(s => s.ToString()).ToList();
             }
         }
         
@@ -278,8 +263,8 @@ public class ScheduleParser
             {
                 return new JObject
                 {
-                    ["data"] = jarray   
-                };
+                    ["м. Київ"] = jarray   
+                };  
             }
             
             // For any other token type, try to convert to JObject
