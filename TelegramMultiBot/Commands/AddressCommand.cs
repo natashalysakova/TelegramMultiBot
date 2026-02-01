@@ -20,6 +20,8 @@ internal class AddressCommand(
     {
         return query.Query.StartsWith("address|");
     }
+
+    private string format = "/address | <регіон> | <місто> | <вулиця> | <будинок> | [<chatId>]";
     public async override Task Handle(Message message)
     {
         var split = message.Text.Split('|', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
@@ -27,42 +29,34 @@ internal class AddressCommand(
         // /command region city street building <optional chatId>
         // /command region street building <optional chatId> - for KEM ONLY
 
-        if(split.Length > 6 || split.Length < 4)
+        if(split.Length > 6 || split.Length < 5)
         {
             await client.SendMessageAsync(
                 message.Chat.Id, 
-                "Невірний формат команди. Використання:\n/address | <регіон> | <місто> | <вулиця> | <будинок> | [<chatId>]\nабо\n/address | <регіон> | <вулиця> | <будинок> | [<chatId>] (тільки для м.Київ)",
+                $"Невірний формат команди. Використання:\n{format}",
                 messageThreadId: message.MessageThreadId);
             return;
         }
 
-        var region = split[1];
         var chatId = message.Chat.Id;
-        var city = "м. Київ";
-        var street = "";
-        var building = "";
-
-        if (long.TryParse(split[split.Length-1], out long parsedChatId))
+        bool hasChatId = split.Length == 6;
+        if (hasChatId)
         {
-            chatId = parsedChatId;
-
-            building = split[split.Length - 2];
-            street = split[split.Length - 3];
-
-            if(split.Length-4 == 2)
+            if(!long.TryParse(split[5], out chatId))
             {
-                city = split[2];
+                await client.SendMessageAsync(
+                    message.Chat.Id, 
+                    $"Невірний формат chatId. Використання:\n{format}",
+                    messageThreadId: message.MessageThreadId);
+                return;
             }
         }
-        else
-        {
-            building = split[split.Length - 1];
-            street = split[split.Length - 2];
-            if (split.Length - 3 == 2)
-            {
-                city = split[2];
-            }
-        }
+
+        var region = split[1];
+        var city = split[2];
+        var street = split[3];
+        var building = split[4];
+ 
         var messageThread = chatId == message.Chat.Id ? message.MessageThreadId : null;
         await monitorService.AddAddressJob(chatId, region, city, street, building, messageThread);
         await client.SendMessageAsync(message.Chat, "Addres job saved", messageThreadId: messageThread);
