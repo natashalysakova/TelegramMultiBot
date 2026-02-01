@@ -3,6 +3,7 @@ using System;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Metadata;
+using Microsoft.EntityFrameworkCore.Migrations;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using TelegramMultiBot.Database;
 
@@ -11,9 +12,11 @@ using TelegramMultiBot.Database;
 namespace TelegramMultiBot.Database.Migrations
 {
     [DbContext(typeof(BoberDbContext))]
-    partial class BoberDbContextModelSnapshot : ModelSnapshot
+    [Migration("20260201093607_CityParser")]
+    partial class CityParser
     {
-        protected override void BuildModel(ModelBuilder modelBuilder)
+        /// <inheritdoc />
+        protected override void BuildTargetModel(ModelBuilder modelBuilder)
         {
 #pragma warning disable 612, 618
             modelBuilder
@@ -76,6 +79,10 @@ namespace TelegramMultiBot.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("Building")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<Guid?>("BuildingId")
                         .HasColumnType("char(36)");
 
@@ -98,10 +105,6 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Property<int?>("MessageThreadId")
                         .HasColumnType("int");
 
-                    b.Property<string>("Number")
-                        .IsRequired()
-                        .HasColumnType("longtext");
-
                     b.Property<bool>("ShouldBeSent")
                         .HasColumnType("tinyint(1)");
 
@@ -110,8 +113,6 @@ namespace TelegramMultiBot.Database.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
-
-                    b.HasIndex("BuildingId");
 
                     b.HasIndex("LocationId");
 
@@ -716,17 +717,11 @@ namespace TelegramMultiBot.Database.Migrations
 
             modelBuilder.Entity("TelegramMultiBot.Database.Models.AddressJob", b =>
                 {
-                    b.HasOne("TelegramMultiBot.Database.Building", "Building")
-                        .WithMany()
-                        .HasForeignKey("BuildingId");
-
                     b.HasOne("TelegramMultiBot.Database.Models.ElectricityLocation", "Location")
                         .WithMany()
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
-
-                    b.Navigation("Building");
 
                     b.Navigation("Location");
                 });

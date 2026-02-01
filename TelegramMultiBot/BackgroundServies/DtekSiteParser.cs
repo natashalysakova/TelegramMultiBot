@@ -1,5 +1,6 @@
 ﻿using AngleSharp.Dom;
 using DtekParsers;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -7,36 +8,14 @@ using System;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using TelegramMultiBot.Database;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Database.Services;
 
 namespace TelegramMultiBot.BackgroundServies;
-
-public interface IDtekSiteParserService
-{
-    public Task ParseImmediately();
-}
-
-public class DtekSiteParserService : IDtekSiteParserService
-{
-    private readonly DtekSiteParser _dtekSiteParser;
-
-    public DtekSiteParserService(DtekSiteParser dtekSiteParser)
-    {
-        _dtekSiteParser = dtekSiteParser;
-    }
-
-    public async Task ParseImmediately()
-    {
-        _dtekSiteParser.CancelDelay();
-        await Task.CompletedTask;
-    }
-}
-
 public class DtekSiteParser : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
@@ -179,24 +158,16 @@ public class DtekSiteParser : BackgroundService
             {
                 var buildingInfos = await infoParser.ParseAddress(address, DateTimeOffset.Now);
 
-                var fetchedInfo = JsonSerializer.Serialize(buildingInfos);
+                await CreateMissingAddreses(dbservice, address, buildingInfos);
 
-                bool isUpdated = false;
-                if (address.LastFetchedInfo != fetchedInfo && buildingInfos.Type != "")
+                var validatedBuilding = address.Number.ValidateAndTrimCyrillicText();
+                var buildingInfo = buildingInfos[validatedBuilding];
+                var fetchedInfo = JsonSerializer.Serialize(buildingInfo);
+
+                if (address.LastFetchedInfo != fetchedInfo && buildingInfo.Type != "")
                 {
-                    address.LastFetchedInfo = JsonSerializer.Serialize(buildingInfos);
+                    address.LastFetchedInfo = JsonSerializer.Serialize(buildingInfo);
                     address.ShouldBeSent = true;
-                    isUpdated = true;
-                }
-                var groupInfo = string.Join(", ", buildingInfos.SubTypeReason);
-                if(address.Group != groupInfo)
-                {
-                    address.Group = groupInfo;
-                    isUpdated = true;
-                }
-
-                if(isUpdated)
-                {
                     await dbservice.Update(address);
                     _logger.LogInformation("Address job {id} info updated", address.Id);
                 }
@@ -208,6 +179,68 @@ public class DtekSiteParser : BackgroundService
             }
         }
         _logger.LogInformation("Finished parsing address jobs for location {region}", location.Region);
+    }
+
+    private async Task CreateMissingAddreses(IMonitorDataService dbservice, AddressJob address, Dictionary<string, BuildingInfo> buildingInfos)
+    {
+        var validatedBuilding = address.Number  .ValidateAndTrimCyrillicText();
+        var validatedStreet = address.Street.ValidateAndTrimCyrillicText();
+        var validatedCity = address.City.ValidateAndTrimCyrillicText();
+        var region = address.Location.Region;
+
+        var existingBuildings = await dbservice
+            .GetAvailableBuildingsByRegionCityAndStreet(
+                region, 
+                validatedCity, 
+                validatedStreet);
+        
+        var existingStrets = await dbservice
+            .GetAvailableStreetsByRegionAndCity(region, validatedCity);
+
+        if (!existingStrets.Any())
+        {
+            _logger.LogWarning("No streets found for region {region} and city {city}", region, validatedCity);
+            return;
+        }
+
+        var street = existingStrets.FirstOrDefault(x => x.Name == validatedStreet);
+        if(street == null)
+        {
+            _logger.LogWarning("Street {street} not found for region {region} and city {city}", validatedStreet, region, validatedCity);
+            return;
+        }
+
+        foreach (var buildingName in buildingInfos.Keys)
+        {
+            var building = existingBuildings.FirstOrDefault(x => x.Number == buildingName);
+            var groupNames = buildingInfos[buildingName].SubTypeReason;
+            if(building == null)
+            {
+                building = new Building()
+                {
+                    Id = Guid.NewGuid(),
+                    Number = buildingName,
+                    StreetId = street.Id,
+                    GroupNames = groupNames
+                };
+
+                await dbservice.Add(building, false);
+            }
+            else
+            {
+                if(building.GroupNames != groupNames)
+                {
+                    building.GroupNames = groupNames;
+                }
+            }
+
+            if(address.BuildingId == null && building.Number == validatedBuilding)
+            {
+                address.BuildingId = building.Id;
+            }
+        }
+
+        await dbservice.ApplyChanges();
     }
 
     private async Task CreateOrUpdateAlertForIncapsulaBlocking(IMonitorDataService dataService, ElectricityLocation location)
@@ -448,7 +481,6 @@ public class DtekSiteParser : BackgroundService
     private async Task ParseSite(IMonitorDataService dbservice, ElectricityLocation location)
     {
         var schedule = await new ScheduleParser(_configuationService).Parse(location.Url);
-        //locationSchedules.Add(location.Id, schedule);
 
         location.LastChecked = DateTime.Now;
 
@@ -461,6 +493,11 @@ public class DtekSiteParser : BackgroundService
         }
 
         _logger.LogInformation("Location was updated");
+        location.LastUpdated = scheduleUpdateDate;
+        location.ConfigSnapshots.Add(new RegionConfigSnapshot()
+        {
+            ConfigJson = JsonSerializer.Serialize(schedule.Streets),
+        });
 
         var images = await ScheduleImageGenerator.GenerateAllImages(schedule);
 
@@ -485,12 +522,12 @@ public class DtekSiteParser : BackgroundService
                         GroupName = group.GroupName,
                         DataSnapshot = group.DataSnapshot,
                     };
-                    await dbservice.Add(dbGroup);
+                    await dbservice.Add(dbGroup, false);
                 }
                 else
                 {
                     dbGroup.DataSnapshot = group.DataSnapshot;
-                    await dbservice.Update(dbGroup);
+                    await dbservice.Update(dbGroup, false);
                 }
             }
 
@@ -502,9 +539,9 @@ public class DtekSiteParser : BackgroundService
                 LocationId = location.Id,
                 ScheduleDay = image.Date.HasValue ? image.Date.Value : 0,
                 JobType = GetJobType(image)
-            });
+            }, false);
         }
-
+        await dbservice.ApplyChanges();
         _logger.LogInformation("Schedule and images updated in database");
     }
 
@@ -596,174 +633,3 @@ public class DtekSiteParser : BackgroundService
         _delayCancellationTokenSource.Cancel();
     }
 }
-
-public class AddressParser(ISqlConfiguationService configuationService)
-{
-
-    private string? GetCookie(string url)
-    {
-        if (configuationService == null)
-            return null;
-
-        var location = LocationNameUtility.GetRegionByUrl(url);
-        switch (location)
-        {
-            case "kem": return configuationService.SvitlobotSettings.KemCookie;
-            case "krem": return configuationService.SvitlobotSettings.KremCookie;
-
-            default:
-                return null;
-        }
-
-    }
-
-    public async Task<BuildingInfo> ParseAddress(AddressJob addressJob, DateTimeOffset date)
-    {
-        var responseContent = string.Empty;
-        var requestContent = string.Empty;
-        try
-        {
-            var url = addressJob.Location.Url.Replace("shutdowns", "ajax");
-            var client = new HttpClient();
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-
-            var dtekCookie = GetCookie(url);
-            if (!string.IsNullOrEmpty(dtekCookie))
-            {
-                client.DefaultRequestHeaders.Add("Cookie", dtekCookie);
-            }
-
-            // Validate and trim city and street before adding to collection
-            var validatedCity = ValidateAndTrimCyrillicText(addressJob.City, "City");
-            var validatedStreet = ValidateAndTrimCyrillicText(addressJob.Street, "Street");
-
-            var collection = new List<KeyValuePair<string, string>>
-            {
-                new("method", "getHomeNum"),
-                new("data[0][name]", "city"),
-                new("data[0][value]", validatedCity),
-                new("data[1][name]", "street"),
-                new("data[1][value]", validatedStreet),
-                new("data[2][name]", "updateFact"),
-                new("data[2][value]", date.ToString("dd.MM.yyyy HH:mm"))
-            };
-            var content = new FormUrlEncodedContent(collection);
-            request.Content = content;
-            requestContent = await content.ReadAsStringAsync();
-            var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-
-            responseContent = await response.Content.ReadAsStringAsync();
-            var addressResponse = JsonSerializer.Deserialize<AddressResponse>(responseContent,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-            // Check if response is successful and has data
-            if (addressResponse?.Result == true && addressResponse.Data != null)
-            {
-                var validatedBuilding = ValidateAndTrimCyrillicText(addressJob.Building, "Building");
-                // Find the specific building in the data dictionary
-                if (addressResponse.Data.TryGetValue(validatedBuilding, out var buildingInfo))
-                {
-                    return buildingInfo;
-                }
-                else
-                {
-                    // Building not found - you might want to log this
-                    throw new ParseException($"Building '{addressJob.Building}' not found in response");
-                }
-            }
-
-            throw new ParseException("Invalid response from server");
-        }
-        catch (Exception ex)
-        {
-            throw new ParseException($"Failed to fetch HTML: {ex.Message}. Request: {requestContent} Response content: {responseContent}");
-        }
-    }
-
-    private static string ValidateAndTrimCyrillicText(string text, string fieldName)
-    {
-        if (string.IsNullOrWhiteSpace(text))
-        {
-            throw new ArgumentException($"{fieldName} cannot be null or empty", nameof(text));
-        }
-
-        var trimmedText = text.Trim();
-
-        // Try to replace latin characters with cyrillic equivalents
-        var convertedText = ConvertLatinToCyrillic(trimmedText);
-
-        // Check if text contains only cyrillic letters, numbers, spaces, dots, hyphens, and common punctuation
-        // This regex allows: cyrillic letters, numbers, spaces, dots, hyphens, apostrophes, and parentheses
-        var cyrillicPattern = @"^[А-Яа-яІіЇїЄєʼ0-9\s\.\-\(\)№\/]+$";
-
-        if (!Regex.IsMatch(convertedText, cyrillicPattern))
-        {
-            throw new ArgumentException($"{fieldName} contains invalid characters. Only cyrillic letters, numbers, spaces, dots, hyphens and basic punctuation are allowed. Original: '{trimmedText}', Converted: '{convertedText}'", nameof(text));
-        }
-
-        return convertedText;
-    }
-
-    private static string ConvertLatinToCyrillic(string text)
-    {
-        // Dictionary of latin to cyrillic character mappings for visually similar characters
-        var latinToCyrillic = new Dictionary<char, char>
-        {
-            // Lowercase mappings
-            { 'a', 'а' }, { 'e', 'е' }, { 'o', 'о' }, { 'p', 'р' }, { 'c', 'с' },
-            { 'x', 'х' }, { 'y', 'у' }, { 'k', 'к' }, { 'h', 'н' }, { 'm', 'м' },
-            { 'i', 'і' }, { 'b', 'б' }, { 't', 'т' }, { 'v', 'в' },
-            
-            // Uppercase mappings
-            { 'A', 'А' }, { 'E', 'Е' }, { 'O', 'О' }, { 'P', 'Р' }, { 'C', 'С' },
-            { 'X', 'Х' }, { 'Y', 'У' }, { 'K', 'К' }, { 'H', 'Н' }, { 'M', 'М' },
-            { 'I', 'І' }, { 'B', 'В' }, { 'T', 'Т' }, { 'V', 'В' }
-        };
-
-        var result = new StringBuilder(text.Length);
-
-        foreach (char c in text)
-        {
-            if (latinToCyrillic.TryGetValue(c, out char cyrillicChar))
-            {
-                result.Append(cyrillicChar);
-            }
-            else
-            {
-                result.Append(c);
-            }
-        }
-
-        return result.ToString();
-    }
-}
-public class AddressResponse
-{
-    public bool Result { get; set; }
-    public Dictionary<string, BuildingInfo>? Data { get; set; }
-    // Add other properties if needed (showCurOutageParam, fact, preset, etc.)
-}
-
-public class BuildingInfo
-{
-    [JsonPropertyName("sub_type")]
-    public string SubType { get; set; } = string.Empty;
-
-    [JsonPropertyName("start_date")]
-    public string StartDate { get; set; } = string.Empty;
-
-    [JsonPropertyName("end_date")]
-    public string EndDate { get; set; } = string.Empty;
-
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = string.Empty;
-
-    [JsonPropertyName("sub_type_reason")]
-    public List<string> SubTypeReason { get; set; } = new();
-
-    [JsonPropertyName("voluntarily")]
-    public object? Voluntarily { get; set; }
-}
-
-

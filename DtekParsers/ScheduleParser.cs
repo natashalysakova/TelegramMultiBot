@@ -27,10 +27,13 @@ public class ScheduleParser
         var realVariableJobject = GetJsonFromScriptVariables(html, "DisconSchedule.fact");
         var presetVariableJobject = GetJsonFromScriptVariables(html, "DisconSchedule.preset");
 
+        var streets = GetJsonFromScriptVariables(html, "DisconSchedule.streets");
+
         var schedule = new Schedule();
 
         schedule.TimeZones = GetTimeZones(presetVariableJobject);
         schedule.Groups = GetGroups(presetVariableJobject);
+        schedule.Streets = GetStreetsInfo(streets);
         schedule.Location = location;
         schedule.AttentionNote = GetAttentionNote(html);
 
@@ -50,6 +53,101 @@ public class ScheduleParser
         }
 
         return schedule;
+    }
+
+    private Dictionary<string, List<string>> GetStreetsInfo(JObject streets)
+    {
+        var result = new Dictionary<string, List<string>>();
+
+        if (streets == null) 
+            return result;
+            
+        foreach (var property in streets.Properties())
+        {
+            var groupKey = property.Name;
+            var streetArray = property.Value as JArray;
+            
+            if (streetArray == null) 
+                continue;
+                
+            var cityStreets = new Dictionary<string, List<string>>();
+            
+            foreach (var streetToken in streetArray)
+            {
+                var streetName = streetToken.ToString();
+                var (city, street) = ParseStreetWithCity(streetName);
+                
+                if (!cityStreets.ContainsKey(city))
+                {
+                    cityStreets[city] = new List<string>();
+                }
+                
+                cityStreets[city].Add(street);
+            }
+            
+            // Add to result with city prefix
+            foreach (var cityGroup in cityStreets)
+            {
+                var resultKey = cityGroup.Key == "Київ" ? groupKey : $"{cityGroup.Key}_{groupKey}";
+                result[resultKey] = cityGroup.Value;
+            }
+        }
+        
+        return result;
+    }
+    
+    private (string city, string street) ParseStreetWithCity(string streetName)
+    {
+        // Default city is Kyiv (Київ)
+        var defaultCity = "Київ";
+        
+        if (string.IsNullOrEmpty(streetName))
+            return (defaultCity, string.Empty);
+            
+        // Look for patterns like "За межами с. Гнідин" - check this FIRST
+        if (streetName.StartsWith("За межами "))
+        {
+            var cityPart = streetName.Substring("За межами ".Length);
+            return (cityPart.Trim(), "За межами");
+        }
+            
+        // Check for city prefixes like "м. Бровари", "с-т Святише", "пров.", etc.
+        var cityPrefixes = new[] { "м. ", "с-т ", "с. ", "смт ", "пров. ", "вул. " };
+        
+        // Look for patterns that indicate a city
+        foreach (var prefix in cityPrefixes)
+        {
+            var index = streetName.IndexOf(prefix);
+            if (index >= 0)
+            {
+                var beforePrefix = streetName.Substring(0, index).Trim();
+                var afterPrefix = streetName.Substring(index + prefix.Length).Trim();
+                
+                // If there's text before the prefix, it's likely a city name
+                if (!string.IsNullOrEmpty(beforePrefix) && beforePrefix != "вул" && beforePrefix != "пров")
+                {
+                    // Extract city name (remove trailing comma or other punctuation)
+                    var cityName = beforePrefix.TrimEnd(',', ' ');
+                    var streetPart = prefix.TrimEnd() + " " + afterPrefix;
+                    return (cityName, streetPart.Trim());
+                }
+            }
+        }
+        
+        // Look for patterns like "Дарницький р-н, вул. Лугова"
+        if (streetName.Contains("р-н, "))
+        {
+            var parts = streetName.Split(new[] { "р-н, " }, StringSplitOptions.RemoveEmptyEntries);
+            if (parts.Length == 2)
+            {
+                var district = parts[0].Trim() + " р-н";
+                var street = parts[1].Trim();
+                return (district, street);
+            }
+        }
+        
+        // If no city pattern found, default to Kyiv
+        return (defaultCity, streetName);
     }
 
     private string GetAttentionNote(string html)

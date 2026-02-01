@@ -25,6 +25,10 @@ public partial class BoberDbContext : DbContext
     public virtual DbSet<ElectricityLocation> ElectricityLocations { get; set; }
     public virtual DbSet<ElectricityHistory> ElectricityHistory { get; set; }
     public virtual DbSet<ElectricityGroup> ElectricityGroups { get; set; }
+    public virtual DbSet<City> Cities { get; set; }
+    public virtual DbSet<Street> Streets { get; set; }
+    public virtual DbSet<Building> Buildings { get; set; }
+    public virtual DbSet<RegionConfigSnapshot> RegionConfigSnapshots { get; set; }
     public virtual DbSet<Alert> Alerts { get; set; }
 
     public virtual DbSet<AssistantSubscriber> Assistants { get; set; }
@@ -32,7 +36,29 @@ public partial class BoberDbContext : DbContext
     
     public virtual DbSet<SvitlobotData> Svitlobot { get; set; }
     public virtual DbSet<VideoDownload> VideoDownloads { get; set; }
+    
+    override protected void OnModelCreating(ModelBuilder modelBuilder)
+    {
+        base.OnModelCreating(modelBuilder);
 
+        modelBuilder.Entity<City>()
+            .HasIndex(c => new { c.Name });
+        modelBuilder.Entity<Street>()
+            .HasIndex(s => new { s.Name });
+        modelBuilder.Entity<Building>()
+            .HasIndex(b => new { b.Number });
+        modelBuilder.Entity<Building>()
+            .Property(b => b.GroupNames)
+            .HasConversion(
+                v => string.Join("|", v),
+                v => v.Split('|', StringSplitOptions.RemoveEmptyEntries).ToList()
+            )
+            .Metadata.SetValueComparer(new Microsoft.EntityFrameworkCore.ChangeTracking.ValueComparer<ICollection<string>>(
+                (c1, c2) => c1!.SequenceEqual(c2!),
+                c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
+                c => c.ToList()));
+
+    }
     public void Seed()
     {
         var locations = new ElectricityLocation[]

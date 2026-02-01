@@ -159,8 +159,7 @@ internal class BotService(
         {
             try
             {
-                var escapedText = Telegram.Bot.Extensions.Markdown.Escape(info.Caption ?? "Alert");
-                await client.SendMessage(info.ChatId, escapedText, messageThreadId: info.MessageThreadId, parseMode: ParseMode.MarkdownV2);
+                await client.SendMessage(info.ChatId, info.Caption, messageThreadId: info.MessageThreadId, parseMode: ParseMode.MarkdownV2);
             }
             catch (Exception ex)
             {

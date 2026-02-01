@@ -41,6 +41,8 @@ internal class Program
           .ConfigureServices((hostContext, services) => {
                 services.AddSingleton<DtekSiteParser>();
                 services.AddHostedService(provider => provider.GetRequiredService<DtekSiteParser>());
+                services.AddSingleton<CityConfigUpdateService>();
+                services.AddHostedService(provider => provider.GetRequiredService<CityConfigUpdateService>());
                 services.AddHostedService<BotService>();
                 RegisterServices(services, args);
                 services.AddHostedService<VideoDownloaderService>();

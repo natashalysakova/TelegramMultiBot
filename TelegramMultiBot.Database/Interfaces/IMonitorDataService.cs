@@ -28,8 +28,8 @@ public interface IMonitorDataService
     Task<IEnumerable<ElectricityGroup>> GetAllGroups();
     Task<ElectricityGroup?> GetGroupByCodeAndLocationRegion(string region, string code, bool partialMatch = false);
 
-    Task<int> Add<T>(T entity) where T : class;
-    Task Update<T>(T entity) where T : class;
+    Task<int> Add<T>(T entity, bool saveChanges = true) where T : class;
+    Task Update<T>(T entity, bool saveChanges = true) where T : class;
     Task<IEnumerable<ElectricityHistory>> DeleteOldHistory(DateTime cutoffDate);
     Task<IEnumerable<string>> GetLatestUpdateFiles(Guid locationId);
     Task DeleteHistoryWithMissingFiles(IEnumerable<string> missingFiles);
@@ -44,6 +44,16 @@ public interface IMonitorDataService
     Task<IEnumerable<AddressJob>> GetAllAddressJobsNeedingToBeSent();
     Task<bool> AddressJobExists(AddressJob job);
     Task<IEnumerable<Alert>> DeleteOldResolvedAlerts(DateTime cutoffDate);
+    Task<IEnumerable<string>> GetGroupNamesByCodes(string region, List<string> subTypeReason);
+    Task<IEnumerable<City>> GetAvailableCitiesByRegionAndPartialName(string regionPart, string partialCityName  );
+    Task<IEnumerable<Street>> GetAvailableStreetsByRegionAndCity(string regionPart, string cityPart);
+    Task<IEnumerable<Building>> GetAvailableBuildingsByRegionCityAndStreet(string regionPart, string cityPart, string streetPart);
+    Task<City?> GetCityByNameAndLocation(Guid locationId, string citytName);
+    Task<City> CreateCity(Guid id, string city, List<string> street, bool saveChanges = true);
+    Task<Street?> GetStreetByNameAndCity(Guid cityId, string street);
+    Task ApplyChanges();
+    Task<IEnumerable<RegionConfigSnapshot>> GetNotProcessedSnapshots();
+    Task<int> RemoveProcessedSnapshots();
 }
 
 public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -181,16 +191,27 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     }
 
 
-    public async Task Update<T>(T entity) where T : class
+    public async Task Update<T>(T entity, bool saveChanges = true) where T : class
     {
         context.Entry(entity).State = EntityState.Modified;
-        await context.SaveChangesAsync();
+        if (saveChanges)
+        {
+            await context.SaveChangesAsync();
+        }
     }
 
-    public Task<int> Add<T>(T entity) where T : class
+    public Task<int> Add<T>(T entity, bool saveChanges = true) where T : class
     {
         context.Add(entity);
-        return context.SaveChangesAsync();
+        
+        if (saveChanges)
+        {
+            return context.SaveChangesAsync();
+        }
+        else
+        {
+            return Task.FromResult(0);
+        }
     }
 
     public async Task<ElectricityGroup?> GetGroupByCodeAndLocationRegion(string region, string code, bool partialMatch = false)
@@ -443,5 +464,99 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
 
         await context.SaveChangesAsync();   
         return toDelete;
+    }
+
+    public async Task<IEnumerable<string>> GetGroupNamesByCodes(string region, List<string> subTypeReason)
+    {
+        return await context.ElectricityGroups
+            .Where(x => x.LocationRegion == region && subTypeReason.Contains(x.GroupCode))
+            .Select(x => x.GroupName)
+            .ToListAsync();
+    }
+
+    async Task<IEnumerable<City>> IMonitorDataService.GetAvailableCitiesByRegionAndPartialName(string regionPart, string partialCityName)
+    {
+        return await context.Cities
+            .Include(c => c.Location)
+            .Where(c => c.Location.Region == regionPart && EF.Functions.Like(c.Name, $"%{partialCityName}%"))
+            .ToListAsync();
+    }
+
+    async Task<IEnumerable<Street>> IMonitorDataService.GetAvailableStreetsByRegionAndCity(string regionPart, string cityPart)
+    {
+        return await context.Streets
+            .Include(s => s.City)
+                .ThenInclude(c => c.Location)
+            .Where(s => s.City.Location.Region == regionPart && s.City.Name == cityPart)
+            .ToListAsync();
+    }
+
+    async Task<IEnumerable<Building>> IMonitorDataService.GetAvailableBuildingsByRegionCityAndStreet(string regionPart, string cityPart, string streetPart)
+    {
+        return await context.Buildings
+            .Include(b => b.Street)
+                .ThenInclude(s => s.City)
+                    .ThenInclude(c => c.Location)
+            .Where(b => b.Street.City.Location.Region == regionPart 
+                && b.Street.City.Name == cityPart 
+                && b.Street.Name == streetPart)
+            .ToListAsync();
+    }
+
+    public async Task<City?> GetCityByNameAndLocation(Guid locationId, string citytName)
+    {
+        return await context.Cities
+            .FirstOrDefaultAsync(c => c.LocationId == locationId && c.Name == citytName);
+    }
+
+    public async Task<City> CreateCity(Guid id, string city, List<string> streets, bool saveChanges = true)
+    {
+        var newCity = new City
+        {
+            Id = Guid.NewGuid(),
+            LocationId = id,
+            Name = city
+        };
+
+        foreach (var streetName in streets)
+        {
+            var dbStreet = new Street
+            {
+                Id = Guid.NewGuid(),
+                CityId = newCity.Id,
+                Name = streetName
+            };
+            newCity.Streets.Add(dbStreet);
+        }    
+
+        await Add(newCity, saveChanges: saveChanges);    
+        return newCity;
+    }
+
+    public async Task<Street?> GetStreetByNameAndCity(Guid cityId, string street)
+    {
+        return await context.Streets
+            .FirstOrDefaultAsync(s => s.CityId == cityId && s.Name == street);
+    }
+
+    public async Task ApplyChanges()
+    {
+        await context.SaveChangesAsync();
+    }
+
+    public async Task<IEnumerable<RegionConfigSnapshot>> GetNotProcessedSnapshots()
+    {
+        return await context.RegionConfigSnapshots
+            .Where(x => !x.IsProcessed)
+            .ToListAsync();
+    }
+
+    public async Task<int> RemoveProcessedSnapshots()
+    {
+        var toDelete = await context.RegionConfigSnapshots
+            .Where(x => x.IsProcessed).ToListAsync();
+
+        context.RegionConfigSnapshots.RemoveRange(toDelete);
+        return await context.SaveChangesAsync();
     }
 }

@@ -13,6 +13,7 @@ internal class GroupCommand(TelegramClientWrapper client, ILogger<GroupCommand> 
         var chatId = message.Chat.Id;
 
         var addressJobs = await context.AddressJobs
+            .Include(aj => aj.Location)
             .Where(x => x.ChatId == chatId && x.IsActive)
             .ToListAsync();
 
@@ -22,7 +23,28 @@ internal class GroupCommand(TelegramClientWrapper client, ILogger<GroupCommand> 
             return;
         }
 
-        var responseLines = addressJobs.Select(job => $"Адреса: {job.City}, {job.Street}, {job.Building}\nГрупа відключень: {job.Group}");
+        var responseLines = addressJobs.Select(job => 
+        {
+            var line = $"Адреса: {job.City}, {job.Street}, {job.Number}\n";
+            if(job.BuildingId == null)
+            {
+                return $"{line}Група відключень: Невідомо (будівля не знайдена)";
+            }
+
+            var groupCodes = context.Buildings.FirstOrDefault(b => b.Id == job.BuildingId)?.GroupNames;
+            if(groupCodes == null || !groupCodes.Any())
+            {
+                return $"{line}Група відключень: Невідомо (групи не знайдені)";
+            }
+
+            var groupNames = context.ElectricityGroups
+                .Where(g => g.LocationRegion == job.Location.Region && groupCodes.Contains(g.GroupCode))
+                .Select(g => g.GroupName)
+                .ToList();
+
+            var groupInfo = string.Join(", ", groupNames);
+            return $"{line}Група відключень: {groupInfo}";
+        });
 
         var response = string.Join("\n\n", responseLines);
 
