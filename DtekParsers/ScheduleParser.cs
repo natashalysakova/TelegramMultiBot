@@ -297,13 +297,30 @@ public class ScheduleParser
                 Id = group.Name,
                 GroupName = group.Value.ToString(),
                 DataSnapshot = string.Empty,
+                GroupNumber = ExtractNumber(group.Value.ToString()),
             };
             result.Add(groupSchedule);
         }
-
+        result = result.OrderBy(g => g.GroupNumber).ToList();
         return result;
     }
 
+    private double ExtractNumber(string groupName)
+    {
+        if (string.IsNullOrEmpty(groupName))
+            return 0;
+            
+        var numbers = new StringBuilder();
+        foreach (char c in groupName)
+        {
+            if (char.IsDigit(c) || c == '.')
+            {
+                numbers.Append(c);
+            }
+        }
+        
+        return numbers.Length > 0 ? double.Parse(numbers.ToString()) : 0;
+    }
 
     private Dictionary<string, IEnumerable<LightStatus>> GetScheduleStatuses(IEnumerable<JToken> groupSchedule, int day)
     {
