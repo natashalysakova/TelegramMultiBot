@@ -261,14 +261,16 @@ public class DtekSiteParser : BackgroundService
                 AlertMessage = "Incapsula blocking detected. Please update the cookie using /cookie command."
             };
             await dataService.Add(alert);
+            return;
         }
         else // actually should be only one
         {
             foreach (var existingAlert in existingAlerts)
             {
                 existingAlert.FailureCount += 1;
-                await dataService.Update(existingAlert);
+                await dataService.Update(existingAlert, false);
             }
+            await dataService.ApplyChanges();
         }
     }
 
