@@ -1,5 +1,4 @@
 ﻿using System.Runtime.Serialization.Formatters;
-using System.Text;
 using System.Text.Json;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
@@ -30,7 +29,11 @@ public class MonitorService
         {
             while (!token.IsCancellationRequested)
             {
-                try
+            using var scope = _serviceProvider.CreateScope();
+            var configurationService = scope.ServiceProvider.GetRequiredService<ISqlConfiguationService>();
+            var delay = configurationService.SvitlobotSettings.MonitorDelay;
+
+            try
                 {
                     await CheckForUpdates();
                 }
@@ -57,7 +60,7 @@ public class MonitorService
                     _logger.LogError(ex, "Error occurred while checking address job: {message}", ex.Message);
                 }
 
-                await Task.Delay(TimeSpan.FromSeconds(30));
+                await Task.Delay(TimeSpan.FromSeconds(delay));
             }
 
         }, token);
@@ -66,6 +69,7 @@ public class MonitorService
     private async Task CheckAddressJobs()
     {
         using var scope = _serviceProvider.CreateScope();
+        using var loggerScope = _logger.BeginScope("CheckAddressJobs");
         var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
         var addressJobs = await dbservice.GetAllAddressJobsNeedingToBeSent();
@@ -82,14 +86,15 @@ public class MonitorService
                 {
                     Type = BotMessageType.AddressJobInfo,
                     ChatId = addressJob.ChatId,
+                    MessageThreadId = addressJob.MessageThreadId,
                     Filenames = new List<string>(),
-                    Caption = $"🏘 {addressJob.City} {addressJob.Street} {addressJob.Building}\n" +
-                    $"*{addresInfo.SubType}*\n" +
-                    $"🕔 Час початку: *{addresInfo.StartDate}*\n" +
-                    $"⌛️ Орієнтовний час відновлення електроенергії: *{addresInfo.EndDate}*",
+                    Caption = $"🏘 {addressJob.City.Escaped()} {addressJob.Street.Escaped()} {addressJob.Number.Escaped()}\n" +
+                    $"*{addresInfo.SubType.Escaped()}*\n" +
+                    $"🕔 Час початку: *{addresInfo.StartDate.Escaped()}*\n" +
+                    $"⌛️ Орієнтовний час відновлення електроенергії: *{addresInfo.EndDate.Escaped()}*",
                 }; 
 
-                info.Caption = EncodeForMarkup(info.Caption);
+                //info.Caption = EncodeForMarkup(info.Caption);
 
                 ReadyToSend?.Invoke(info);
                 addressJob.ShouldBeSent = false;
@@ -114,13 +119,14 @@ public class MonitorService
     private async Task CheckForHelpNeeded()
     {
         using var scope = _serviceProvider.CreateScope();
-        var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        using var loggerScope = _logger.BeginScope("CheckForHelpNeeded");
 
+        var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
         var locationsNeedingHelp = await dbservice.GetUnresolvedAlerts();
 
         foreach (var alert in locationsNeedingHelp)
         {
-            using var locationScope = _logger.BeginScope("AlertId:{locationId}", alert.Id);
+            using var locationScope = _logger.BeginScope("AlertId: {id}", alert.Id);
             try
             {
                 _logger.LogInformation("Location {region} needs help alert", alert.Location.Region);
@@ -129,7 +135,7 @@ public class MonitorService
                     Type = BotMessageType.Alert,
                     ChatId = 80413249,
                     Filenames = new List<string>(),
-                    Caption = $"Location {alert.Location.Region} needs new cookie",
+                    Caption = $"{alert.Location.Region} Failures: {alert.FailureCount} -> {alert.AlertMessage}".Escaped(),
                 };
                 ReadyToSend?.Invoke(info);
 
@@ -149,6 +155,7 @@ public class MonitorService
     private async Task CheckForUpdates()
     {
         using var scope = _serviceProvider.CreateScope();
+        using var loggerScope = _logger.BeginScope("MonitorJobsCheck");
         var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
         var activeJobs = await dbservice.GetActiveJobs();
@@ -438,7 +445,7 @@ public class MonitorService
         return await dataService.GetSubscriptionList(chatId, region);
     }
 
-    internal async Task AddAddressJob(long chatId, string region, string city, string street, string building, int? messageThreadId)
+    internal async Task AddAddressJob(long chatId, string region, string city, string street, string number, int? messageThreadId)
     {
         using var scope = _serviceProvider.CreateScope();
         var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
@@ -453,13 +460,20 @@ public class MonitorService
         {
             ChatId = chatId,
             LocationId = location.Id,
-            City = city,
-            Street = street,
-            Building = building,
+            City = city.ValidateAndTrimCyrillicText(),
+            Street = street.ValidateAndTrimCyrillicText(),
+            Number = number.ValidateAndTrimCyrillicText(),
             MessageThreadId = messageThreadId,
             ShouldBeSent = true,
             IsActive = true
         };
+
+        var buildings = await dataService.GetAvailableBuildingsByRegionCityAndStreet(region, city, street);
+        var building = buildings.FirstOrDefault(b => b.Number.Equals(job.Number, StringComparison.OrdinalIgnoreCase));
+        if(building != null)
+        {
+            job.BuildingId = building.Id;
+        }
 
         if(await dataService.AddressJobExists(job))
         {

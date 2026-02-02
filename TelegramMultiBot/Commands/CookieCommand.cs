@@ -29,10 +29,13 @@ internal class CookieCommand(TelegramClientWrapper client, ILogger<CookieCommand
                 setting = await context.Settings.SingleOrDefaultAsync(x=>x.SettingSection=="Svitlobot" && x.SettingsKey=="KremCookie");
                 break;
             case "kem":
-                setting = await context.Settings.SingleOrDefaultAsync(x => x.SettingSection == "Svitlobot" && x.SettingsKey == "KremCookie");
+                setting = await context.Settings.SingleOrDefaultAsync(x => x.SettingSection == "Svitlobot" && x.SettingsKey == "KemCookie");
+                break;
+            case "oem":
+                setting = await context.Settings.SingleOrDefaultAsync(x => x.SettingSection == "Svitlobot" && x.SettingsKey == "OemCookie");
                 break;
             default:
-                await client.SendMessageAsync(message.Chat.Id, "Невідомий регіон. Підтримувані регіони: krem, kem", messageThreadId: message.MessageThreadId);
+                await client.SendMessageAsync(message.Chat.Id, "Невідомий регіон. Підтримувані регіони: krem, kem, oem", messageThreadId: message.MessageThreadId);
                 break;
         }
 
@@ -43,15 +46,15 @@ internal class CookieCommand(TelegramClientWrapper client, ILogger<CookieCommand
         }
 
         setting.SettingsValue = cookieValue;
-
-        var alerts = context.Alerts.Include(x=>x.Location).Where(x => x.Location.Region == region && x.isResolved == false);
-        foreach (var item in alerts)
+        try
         {
-            item.ResolvedAt = DateTimeOffset.UtcNow;
+            await context.SaveChangesAsync();
+            await client.SendMessageAsync(message.Chat.Id, $"Кука для регіону {region} успішно встановлена!", messageThreadId: message.MessageThreadId);
         }
-
-        await context.SaveChangesAsync();
-        await client.SendMessageAsync(message.Chat.Id, $"Кука для регіону {region} успішно встановлена!", messageThreadId: message.MessageThreadId);
-
+        catch(Exception ex)
+        {
+            logger.LogError(ex, "Failed to update cookie for region {Region}", region);
+            await client.SendMessageAsync(message.Chat.Id, $"Не вдалося оновити куку для регіону {region}: {ex.Message}", messageThreadId: message.MessageThreadId);
+        }
     }
 }

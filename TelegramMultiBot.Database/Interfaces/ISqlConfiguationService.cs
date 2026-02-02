@@ -13,4 +13,5 @@ public interface ISqlConfiguationService
     public GeneralSettings GeneralSettings { get; }
 
     public SvitlobotSettings SvitlobotSettings { get; }
+    public VideoDownloaderSettings VideoDownloaderSettings { get;  }
 }

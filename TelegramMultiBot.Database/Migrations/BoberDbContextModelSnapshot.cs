@@ -22,15 +22,62 @@ namespace TelegramMultiBot.Database.Migrations
 
             MySqlModelBuilderExtensions.AutoIncrementColumns(modelBuilder);
 
+            modelBuilder.Entity("TelegramMultiBot.Database.Building", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("GroupNames")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.Property<Guid>("StreetId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("Number");
+
+                    b.HasIndex("StreetId");
+
+                    b.ToTable("Buildings");
+                });
+
+            modelBuilder.Entity("TelegramMultiBot.Database.City", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("Cities");
+                });
+
             modelBuilder.Entity("TelegramMultiBot.Database.Models.AddressJob", b =>
                 {
                     b.Property<Guid>("Id")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
-                    b.Property<string>("Building")
-                        .IsRequired()
-                        .HasColumnType("longtext");
+                    b.Property<Guid?>("BuildingId")
+                        .HasColumnType("char(36)");
 
                     b.Property<long>("ChatId")
                         .HasColumnType("bigint");
@@ -51,6 +98,10 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Property<int?>("MessageThreadId")
                         .HasColumnType("int");
 
+                    b.Property<string>("Number")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
                     b.Property<bool>("ShouldBeSent")
                         .HasColumnType("tinyint(1)");
 
@@ -59,6 +110,8 @@ namespace TelegramMultiBot.Database.Migrations
                         .HasColumnType("longtext");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("BuildingId");
 
                     b.HasIndex("LocationId");
 
@@ -71,11 +124,17 @@ namespace TelegramMultiBot.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<string>("AlertMessage")
+                        .HasColumnType("longtext");
+
                     b.Property<bool>("AlertSent")
                         .HasColumnType("tinyint(1)");
 
                     b.Property<DateTimeOffset>("CreatedAt")
                         .HasColumnType("datetime(6)");
+
+                    b.Property<int>("FailureCount")
+                        .HasColumnType("int");
 
                     b.Property<Guid>("LocationId")
                         .HasColumnType("char(36)");
@@ -216,6 +275,9 @@ namespace TelegramMultiBot.Database.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("char(36)");
 
+                    b.Property<DateTimeOffset>("CreatedAt")
+                        .HasColumnType("datetime(6)");
+
                     b.Property<Guid?>("GroupId")
                         .HasColumnType("char(36)");
 
@@ -251,6 +313,9 @@ namespace TelegramMultiBot.Database.Migrations
                         .HasColumnType("char(36)");
 
                     b.Property<DateTime>("LastChecked")
+                        .HasColumnType("datetime(6)");
+
+                    b.Property<DateTime>("LastUpdated")
                         .HasColumnType("datetime(6)");
 
                     b.Property<string>("Region")
@@ -474,6 +539,29 @@ namespace TelegramMultiBot.Database.Migrations
                     b.ToTable("Monitor");
                 });
 
+            modelBuilder.Entity("TelegramMultiBot.Database.Models.RegionConfigSnapshot", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("ConfigJson")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<bool>("IsProcessed")
+                        .HasColumnType("tinyint(1)");
+
+                    b.Property<Guid>("LocationId")
+                        .HasColumnType("char(36)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("LocationId");
+
+                    b.ToTable("RegionConfigSnapshots");
+                });
+
             modelBuilder.Entity("TelegramMultiBot.Database.Models.ReminderJob", b =>
                 {
                     b.Property<Guid>("Id")
@@ -525,6 +613,28 @@ namespace TelegramMultiBot.Database.Migrations
                     b.ToTable("Settings");
                 });
 
+            modelBuilder.Entity("TelegramMultiBot.Database.Street", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<Guid>("CityId")
+                        .HasColumnType("char(36)");
+
+                    b.Property<string>("Name")
+                        .IsRequired()
+                        .HasColumnType("varchar(255)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("CityId");
+
+                    b.HasIndex("Name");
+
+                    b.ToTable("Streets");
+                });
+
             modelBuilder.Entity("TelegramMultiBot.Database.SvitlobotData", b =>
                 {
                     b.Property<Guid>("Id")
@@ -548,13 +658,75 @@ namespace TelegramMultiBot.Database.Migrations
                     b.ToTable("Svitlobot");
                 });
 
-            modelBuilder.Entity("TelegramMultiBot.Database.Models.AddressJob", b =>
+            modelBuilder.Entity("TelegramMultiBot.Database.VideoDownload", b =>
+                {
+                    b.Property<Guid>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("char(36)");
+
+                    b.Property<int>("BotMessage")
+                        .HasColumnType("int");
+
+                    b.Property<long>("ChatId")
+                        .HasColumnType("bigint");
+
+                    b.Property<string>("DownloadedFilePath")
+                        .HasColumnType("longtext");
+
+                    b.Property<int>("MessageThreadId")
+                        .HasColumnType("int");
+
+                    b.Property<int>("MessageToDelete")
+                        .HasColumnType("int");
+
+                    b.Property<string>("Status")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.Property<string>("VideoUrl")
+                        .IsRequired()
+                        .HasColumnType("longtext");
+
+                    b.HasKey("Id");
+
+                    b.ToTable("VideoDownloads");
+                });
+
+            modelBuilder.Entity("TelegramMultiBot.Database.Building", b =>
+                {
+                    b.HasOne("TelegramMultiBot.Database.Street", "Street")
+                        .WithMany("Buildings")
+                        .HasForeignKey("StreetId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Street");
+                });
+
+            modelBuilder.Entity("TelegramMultiBot.Database.City", b =>
                 {
                     b.HasOne("TelegramMultiBot.Database.Models.ElectricityLocation", "Location")
                         .WithMany()
                         .HasForeignKey("LocationId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("TelegramMultiBot.Database.Models.AddressJob", b =>
+                {
+                    b.HasOne("TelegramMultiBot.Database.Building", "Building")
+                        .WithMany()
+                        .HasForeignKey("BuildingId");
+
+                    b.HasOne("TelegramMultiBot.Database.Models.ElectricityLocation", "Location")
+                        .WithMany()
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Building");
 
                     b.Navigation("Location");
                 });
@@ -626,6 +798,28 @@ namespace TelegramMultiBot.Database.Migrations
                     b.Navigation("Location");
                 });
 
+            modelBuilder.Entity("TelegramMultiBot.Database.Models.RegionConfigSnapshot", b =>
+                {
+                    b.HasOne("TelegramMultiBot.Database.Models.ElectricityLocation", "Location")
+                        .WithMany("ConfigSnapshots")
+                        .HasForeignKey("LocationId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Location");
+                });
+
+            modelBuilder.Entity("TelegramMultiBot.Database.Street", b =>
+                {
+                    b.HasOne("TelegramMultiBot.Database.City", "City")
+                        .WithMany("Streets")
+                        .HasForeignKey("CityId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("City");
+                });
+
             modelBuilder.Entity("TelegramMultiBot.Database.SvitlobotData", b =>
                 {
                     b.HasOne("TelegramMultiBot.Database.Models.ElectricityGroup", "Group")
@@ -635,6 +829,11 @@ namespace TelegramMultiBot.Database.Migrations
                         .IsRequired();
 
                     b.Navigation("Group");
+                });
+
+            modelBuilder.Entity("TelegramMultiBot.Database.City", b =>
+                {
+                    b.Navigation("Streets");
                 });
 
             modelBuilder.Entity("TelegramMultiBot.Database.Models.AssistantSubscriber", b =>
@@ -653,6 +852,8 @@ namespace TelegramMultiBot.Database.Migrations
 
             modelBuilder.Entity("TelegramMultiBot.Database.Models.ElectricityLocation", b =>
                 {
+                    b.Navigation("ConfigSnapshots");
+
                     b.Navigation("History");
 
                     b.Navigation("Jobs");
@@ -661,6 +862,11 @@ namespace TelegramMultiBot.Database.Migrations
             modelBuilder.Entity("TelegramMultiBot.Database.Models.ImageJob", b =>
                 {
                     b.Navigation("Results");
+                });
+
+            modelBuilder.Entity("TelegramMultiBot.Database.Street", b =>
+                {
+                    b.Navigation("Buildings");
                 });
 #pragma warning restore 612, 618
         }

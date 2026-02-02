@@ -16,6 +16,9 @@ public static class SvitlobotSettingsExtensions
             case "kem":
                 settings.KemCookie = cookie;
                 break;
+            case "oem":
+                settings.OemCookie = cookie;
+                break;
             default:
                 throw new ArgumentException($"Unknown region '{region}' for URL '{url}'.", nameof(url));
         }

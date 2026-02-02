@@ -1,5 +1,6 @@
 ﻿using AngleSharp.Dom;
 using DtekParsers;
+using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -7,52 +8,30 @@ using System;
 using System.Net.Http;
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
+using TelegramMultiBot.Database;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Database.Services;
 
 namespace TelegramMultiBot.BackgroundServies;
-
-public interface IDtekSiteParserService
-{
-    public Task ParseImmediately();
-}
-
-public class DtekSiteParserService : IDtekSiteParserService
-{
-    private readonly DtekSiteParser _dtekSiteParser;
-
-    public DtekSiteParserService(DtekSiteParser dtekSiteParser)
-    {
-        _dtekSiteParser = dtekSiteParser;
-    }
-
-    public async Task ParseImmediately()
-    {
-        _dtekSiteParser.CancelDelay();
-        await Task.CompletedTask;
-    }
-}
-
 public class DtekSiteParser : BackgroundService
 {
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<DtekSiteParser> _logger;
     private readonly ISvitlobotClient _svitlobotClient;
-    private readonly ISqlConfiguationService _configuationService;
+    private ISqlConfiguationService _configuationService;
     private CancellationTokenSource _delayCancellationTokenSource;
 
     const string baseDirectory = "monitor";
+    private static volatile int delay = 300;
 
-    public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger, ISvitlobotClient svitlobotClient, ISqlConfiguationService configuationService)
+    public DtekSiteParser(IServiceProvider serviceProvider, ILogger<DtekSiteParser> logger, ISvitlobotClient svitlobotClient)
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _svitlobotClient = svitlobotClient;
-        _configuationService = configuationService;
         _delayCancellationTokenSource = new CancellationTokenSource();
 
         if (!Directory.Exists(baseDirectory))
@@ -61,102 +40,16 @@ public class DtekSiteParser : BackgroundService
         }
     }
 
-#if DEBUG
-    const int STANDART_DELAY = 60; // 30 seconds
-#else
-    const int STANDART_DELAY = 300; // 5 minutes
-#endif
-
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        int delay = STANDART_DELAY;
-
         while (!stoppingToken.IsCancellationRequested)
         {
-            try
-            {
-                var scope = _serviceProvider.CreateScope();
-                var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
-                var locations = await dbservice.GetLocations();
+            await ParseSites();
 
-                foreach (var location in locations)
-                {
-                    using var locationScope = _logger.BeginScope("Location: {region}", location.Region);
-                    _logger.LogDebug("Parsing site");
-                    var retryCount = 0;
-                    bool success = false;
-                    do
-                    {
-                        try
-                        {
-                            await ParseSite(dbservice, location);
+            await SendUpdatesToSvitlobot();
 
-                            await ParseAddreses(dbservice, location);
+            await DoCleanup();
 
-                            success = true;
-                            delay = STANDART_DELAY; // reset delay on success
-                        }
-                        catch (IncapsulaException ex) // incapsula blocking
-                        {
-                            _logger.LogError(ex, "Incapsula blocking detected.Asking admin for cookie");
-                            await AskForHelp(dbservice, location);
-                        }
-                        catch (ParseException ex) // parsing error - maybe page wasn't loaded correctly
-                        {
-                            retryCount++;
-                            _logger.LogError(ex, "Error occurred while parsing: {message}", ex.Message);
-                            await Task.Delay(TimeSpan.FromSeconds(20 * retryCount)); // wait before retry
-                        }
-                    }
-                    while (retryCount < 2 && !success);
-                    if (!success)
-                    {
-                        _logger.LogError("Failed to parse site after {retries} retries", retryCount);
-                    }
-                    else
-                    {
-                        _logger.LogInformation("Finished parsing site");
-                    }
-                }
-            }
-            catch (Exception ex)
-            {
-                var newDelay = Math.Min(delay * 2, 6000); // exponential backoff up to 100 minutes
-                _logger.LogError(ex, "Error occurred while execution. Delay {delay} seconds: {message}", newDelay, ex.Message);
-                delay = newDelay;
-            }
-            finally
-            {
-                _logger.LogTrace("checking all locations ended");
-            }
-
-            try
-            {
-                _logger.LogTrace("Starting sending updates to svitlobot");
-                await SendUpdatesToSvitlobot();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Error during sending updates to svitlobot: {message}", ex.Message);
-            }
-            finally
-            {
-                _logger.LogTrace("Sending updates to svitlobot ended");
-            }
-
-            try
-            {
-                _logger.LogTrace("Starting cleanup process");
-                await DoCleanup();
-            }
-            catch (Exception ex)
-            {
-                _logger.LogError("Error during cleanup: {message}", ex.Message);
-            }
-            finally
-            {
-                _logger.LogTrace("Cleanup ended");
-            }
             try
             {
                 _logger.LogDebug("Waiting for {delay} seconds before next check", delay);
@@ -173,6 +66,89 @@ public class DtekSiteParser : BackgroundService
         }
     }
 
+    private async Task ParseSites()
+    {
+        try
+        {
+            using var scope = _serviceProvider.CreateScope();
+            using var loggerScope = _logger.BeginScope("ParseSites");
+            _configuationService = scope.ServiceProvider.GetRequiredService<ISqlConfiguationService>();
+            delay = _configuationService.SvitlobotSettings.DtekParserDelay;
+
+            var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+            var locations = await dbservice.GetLocations();
+            foreach (var location in locations)
+            {
+                using var locationScope = _logger.BeginScope(location.Region);
+
+                _logger.LogDebug("Parsing site");
+                var retryCount = 0;
+                bool success = false;
+                do
+                {
+                    try
+                    {
+                        await ParseSite(dbservice, location);
+
+                        await ParseAddreses(dbservice, location);
+
+                        success = true;
+                        delay = _configuationService.SvitlobotSettings.DtekParserDelay; // reset delay on success
+
+                        await ResetAlertAfterSuccess(dbservice, location);
+                    }
+                    catch (IncapsulaException ex) // incapsula blocking
+                    {
+                        _logger.LogError(ex, "Incapsula blocking detected. Updating alert");
+                        await CreateOrUpdateAlertForIncapsulaBlocking(dbservice, location);
+                        retryCount = 2; // stop retrying
+                    }
+                    catch (ParseException ex) // parsing error - maybe page wasn't loaded correctly
+                    {
+                        retryCount++;
+                        _logger.LogError(ex, "Error occurred while parsing: {message}", ex.Message);
+                        await Task.Delay(TimeSpan.FromSeconds(20 * retryCount)); // wait before retry
+                    }
+                    catch (Exception ex)
+                    {
+                        retryCount++;
+                        _logger.LogError(ex, "Error occurred while execution. {message}", ex.Message);
+                    }
+                }
+                while (retryCount < 2 && !success);
+                if (!success)
+                {
+                    _logger.LogError("Failed to parse site after {retries} retries", retryCount);
+                }
+                else
+                {
+                    _logger.LogInformation("Finished parsing site");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            var newDelay = Math.Min(delay * 2, 6000); // exponential backoff up to 100 minutes
+            _logger.LogError(ex, "Error occurred while execution. Delay {delay} seconds: {message}", newDelay, ex.Message);
+            delay = newDelay;
+        }
+        finally
+        {
+            _logger.LogTrace("checking all locations ended");
+        }
+    }
+
+    private async Task ResetAlertAfterSuccess(IMonitorDataService dbservice, ElectricityLocation location)
+    {
+        var existingAlerts = await dbservice.GetNotResolvedAlertsByLocation(location.Id);
+
+        foreach (var existingAlert in existingAlerts)
+        {
+            existingAlert.ResolvedAt = DateTimeOffset.Now;
+            await dbservice.Update(existingAlert);
+            _logger.LogDebug("Resolve alert after success: {region}", location.Region);
+        }
+    }
 
     private async Task ParseAddreses(IMonitorDataService dbservice, ElectricityLocation location)
     {
@@ -182,15 +158,20 @@ public class DtekSiteParser : BackgroundService
 
         foreach (var address in addressesToCheck)
         {
+            _logger.LogInformation("Parsing address job {id}", address.Id);
             try
             {
                 var buildingInfos = await infoParser.ParseAddress(address, DateTimeOffset.Now);
 
-                var fetchedInfo = JsonSerializer.Serialize(buildingInfos);
+                await CreateMissingAddreses(dbservice, address, buildingInfos);
 
-                if (address.LastFetchedInfo != fetchedInfo && buildingInfos.Type != "")
+                var validatedBuilding = address.Number.ValidateAndTrimCyrillicText();
+                var buildingInfo = buildingInfos[validatedBuilding];
+                var fetchedInfo = JsonSerializer.Serialize(buildingInfo);
+
+                if (address.LastFetchedInfo != fetchedInfo && buildingInfo.Type != "")
                 {
-                    address.LastFetchedInfo = JsonSerializer.Serialize(buildingInfos);
+                    address.LastFetchedInfo = JsonSerializer.Serialize(buildingInfo);
                     address.ShouldBeSent = true;
                     await dbservice.Update(address);
                     _logger.LogInformation("Address job {id} info updated", address.Id);
@@ -202,34 +183,122 @@ public class DtekSiteParser : BackgroundService
                 continue;
             }
         }
-
+        _logger.LogInformation("Finished parsing address jobs for location {region}", location.Region);
     }
 
-    private async Task AskForHelp(IMonitorDataService dataService, ElectricityLocation location)
+    private async Task CreateMissingAddreses(IMonitorDataService dbservice, AddressJob address, Dictionary<string, BuildingInfo> buildingInfos)
     {
-        if (!await dataService.AlertExists(location.Id))
+        var validatedBuilding = address.Number  .ValidateAndTrimCyrillicText();
+        var validatedStreet = address.Street.ValidateAndTrimCyrillicText();
+        var validatedCity = address.City.ValidateAndTrimCyrillicText();
+        var region = address.Location.Region;
+
+        var existingBuildings = await dbservice
+            .GetAvailableBuildingsByRegionCityAndStreet(
+                region, 
+                validatedCity, 
+                validatedStreet);
+        
+        var existingStrets = await dbservice
+            .GetAvailableStreetsByRegionAndCity(region, validatedCity);
+
+        if (!existingStrets.Any())
+        {
+            _logger.LogWarning("No streets found for region {region} and city {city}", region, validatedCity);
+            return;
+        }
+
+        var street = existingStrets.FirstOrDefault(x => x.Name == validatedStreet);
+        if(street == null)
+        {
+            _logger.LogWarning("Street {street} not found for region {region} and city {city}", validatedStreet, region, validatedCity);
+            return;
+        }
+
+        foreach (var buildingName in buildingInfos.Keys)
+        {
+            var building = existingBuildings.FirstOrDefault(x => x.Number == buildingName);
+            var groupNames = buildingInfos[buildingName].SubTypeReason;
+            if(building == null)
+            {
+                building = new Building()
+                {
+                    Id = Guid.NewGuid(),
+                    Number = buildingName,
+                    StreetId = street.Id,
+                    GroupNames = groupNames
+                };
+
+                await dbservice.Add(building, false);
+            }
+            else
+            {
+                if(building.GroupNames != groupNames)
+                {
+                    building.GroupNames = groupNames;
+                }
+            }
+
+            if(address.BuildingId == null && building.Number == validatedBuilding)
+            {
+                address.BuildingId = building.Id;
+            }
+        }
+
+        await dbservice.ApplyChanges();
+    }
+
+    private async Task CreateOrUpdateAlertForIncapsulaBlocking(IMonitorDataService dataService, ElectricityLocation location)
+    {
+        var existingAlerts = await dataService.GetNotResolvedAlertsByLocation(location.Id);
+
+        if (!existingAlerts.Any())
         {
             Alert alert = new Alert()
             {
                 LocationId = location.Id,
                 CreatedAt = DateTimeOffset.Now,
+                AlertMessage = "Incapsula blocking detected. Please update the cookie using /cookie command."
             };
-
             await dataService.Add(alert);
+        }
+        else // actually should be only one
+        {
+            foreach (var existingAlert in existingAlerts)
+            {
+                existingAlert.FailureCount += 1;
+                await dataService.Update(existingAlert);
+            }
         }
     }
 
     public async Task SendUpdatesToSvitlobot()
     {
-        using var scope = _serviceProvider.CreateScope();
-        var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
-
-        var svitlobots = await dbservice.GetAllSvitlobots();
-        foreach (var svitlobot in svitlobots)
+        using var loggerscope = _logger.BeginScope("SendUpdatesToSvitlobot");
+        try
         {
-            string data = string.Empty;
-            try
+            _logger.LogTrace("Starting sending updates to svitlobot");
+            await SendUpdatesToSvitlobotInternal();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error during sending updates to svitlobot: {message}", ex.Message);
+        }
+        finally
+        {
+            _logger.LogTrace("Sending updates to svitlobot ended");
+        }
+
+        async Task SendUpdatesToSvitlobotInternal()
+        {
+            var scope = _serviceProvider.CreateScope();
+            var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+
+            var svitlobots = await dbservice.GetAllSvitlobots();
+            foreach (var svitlobot in svitlobots)
             {
+                string data = string.Empty;
+
                 if (svitlobot.LastSentData == svitlobot.Group.DataSnapshot)
                 {
                     _logger.LogTrace("Svitlobot key {key} data snapshot not changed, skipping", svitlobot.SvitlobotKey);
@@ -262,11 +331,7 @@ public class DtekSiteParser : BackgroundService
 
                 svitlobot.LastSentData = svitlobot.Group.DataSnapshot;
                 await dbservice.Update(svitlobot);
-            }
-            catch (Exception)
-            {
-                _logger.LogError("Error during updating svitlobot key {key} with data {data}", svitlobot.SvitlobotKey, data);
-                throw;
+
             }
         }
     }
@@ -372,72 +437,72 @@ public class DtekSiteParser : BackgroundService
         };
     }
 
-    private async Task DoCleanup()
+    public async Task DoCleanup()
     {
-        using var scope = _serviceProvider.CreateScope();
-        var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
-        var cutoffDate = DateTime.Today.AddDays(-7);
-
-        var removedHistory = await dbservice.DeleteOldHistory(cutoffDate);
-
-        var files = Directory.GetFiles(baseDirectory, "*.png", SearchOption.AllDirectories);
-
-        foreach (var file in removedHistory)
+        using var loggerscope = _logger.BeginScope("DoCleanup");
+        try
         {
-            var fullPath = files.SingleOrDefault(x => x.Contains(file.ImagePath));
-
-            if (file != null && File.Exists(fullPath))
-            {
-                File.Delete(fullPath);
-                _logger.LogInformation("Deleted file: {file}", fullPath);
-            }
+            _logger.LogTrace("Starting cleanup process");
+            await DoCleanupInternal();
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError("Error during cleanup: {message}", ex.Message);
+        }
+        finally
+        {
+            _logger.LogTrace("Cleanup ended");
         }
 
-        //_logger.LogInformation("found {count} files in db", filesInDb.Count());
+        async Task DoCleanupInternal()
+        {
+            using var scope = _serviceProvider.CreateScope();
+            var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+            var cutoffDate = DateTime.Today.AddDays(-7);
 
-        //if (!Directory.Exists(baseDirectory))
-        //{
-        //    _logger.LogWarning("Base directory {dir} does not exist. Skipping cleanup.", baseDirectory);
-        //    await dbservice.DeleteAllHistory();
-        //    return;
-        //}
+            var removedHistory = await dbservice.DeleteOldHistory(cutoffDate);
 
-        //var files = Directory.GetFiles(baseDirectory, "*.png", SearchOption.AllDirectories);
-        //var ophanedFiles = files.Except(filesInDb);
+            var files = Directory.GetFiles(baseDirectory, "*.png", SearchOption.AllDirectories);
 
-        //if (ophanedFiles.Any())
-        //{
-        //    _logger.LogInformation("ophanedFiles:" + string.Join('\n', ophanedFiles));
+            foreach (var file in removedHistory)
+            {
+                var fullPath = files.SingleOrDefault(x => x.Contains(file.ImagePath));
 
-        //    foreach (var file in ophanedFiles)
-        //    {
-        //        if (File.Exists(file))
-        //        {
-        //            File.Delete(file);
-        //            _logger.LogInformation("Deleted file: {file}", file);
-        //        }
-        //    }
-        //}
-
+                if (file != null && File.Exists(fullPath))
+                {
+                    File.Delete(fullPath);
+                    _logger.LogInformation("Deleted file: {file}", fullPath);
+                }
+            }
+            var removedAlerts = await dbservice.DeleteOldResolvedAlerts(cutoffDate);
+            if(removedAlerts.Any())
+            {
+                _logger.LogInformation("Deleted {count} old resolved alerts", removedAlerts.Count());
+            }
+        }
 
     }
 
     private async Task ParseSite(IMonitorDataService dbservice, ElectricityLocation location)
     {
         var schedule = await new ScheduleParser(_configuationService).Parse(location.Url);
-        //locationSchedules.Add(location.Id, schedule);
 
         location.LastChecked = DateTime.Now;
 
         var scheduleUpdateDate = schedule.Updated;
 
-        if (location.LastUpdated >= scheduleUpdateDate && !await HasMissingImages(dbservice, location))
+        if (location.LastUpdated >= scheduleUpdateDate)
         {
             _logger.LogDebug("location was not updated. Last update at {date}", location.LastUpdated);
             return;
         }
 
         _logger.LogInformation("Location was updated");
+        location.LastUpdated = scheduleUpdateDate;
+        location.ConfigSnapshots.Add(new RegionConfigSnapshot()
+        {
+            ConfigJson = JsonSerializer.Serialize(schedule.Streets),
+        });
 
         var images = await ScheduleImageGenerator.GenerateAllImages(schedule);
 
@@ -462,12 +527,12 @@ public class DtekSiteParser : BackgroundService
                         GroupName = group.GroupName,
                         DataSnapshot = group.DataSnapshot,
                     };
-                    await dbservice.Add(dbGroup);
+                    await dbservice.Add(dbGroup, false);
                 }
                 else
                 {
                     dbGroup.DataSnapshot = group.DataSnapshot;
-                    await dbservice.Update(dbGroup);
+                    await dbservice.Update(dbGroup, false);
                 }
             }
 
@@ -479,9 +544,9 @@ public class DtekSiteParser : BackgroundService
                 LocationId = location.Id,
                 ScheduleDay = image.Date.HasValue ? image.Date.Value : 0,
                 JobType = GetJobType(image)
-            });
+            }, false);
         }
-
+        await dbservice.ApplyChanges();
         _logger.LogInformation("Schedule and images updated in database");
     }
 
@@ -573,109 +638,3 @@ public class DtekSiteParser : BackgroundService
         _delayCancellationTokenSource.Cancel();
     }
 }
-
-public class AddressParser(ISqlConfiguationService configuationService)
-{
-
-    private string? GetCookie(string url)
-    {
-        if (configuationService == null)
-            return null;
-
-        var location = LocationNameUtility.GetRegionByUrl(url);
-        switch (location)
-        {
-            case "kem": return configuationService.SvitlobotSettings.KemCookie;
-            case "krem": return configuationService.SvitlobotSettings.KremCookie;
-
-            default:
-                return null;
-        }
-
-    }
-
-    public async Task<BuildingInfo> ParseAddress(AddressJob addressJob, DateTimeOffset date)
-    {
-        try
-        {
-            var url = addressJob.Location.Url.Replace("shutdowns", "ajax");
-            var client = new HttpClient();
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-
-            var dtekCookie = GetCookie(url);
-            if (!string.IsNullOrEmpty(dtekCookie))
-            {
-                client.DefaultRequestHeaders.Add("Cookie", dtekCookie);
-            }
-
-            var collection = new List<KeyValuePair<string, string>>
-            {
-                new("method", "getHomeNum"),
-                new("data[0][name]", "city"),
-                new("data[0][value]", addressJob.City),
-                new("data[1][name]", "street"),
-                new("data[1][value]", addressJob.Street),
-                new("data[2][name]", "updateFact"),
-                new("data[2][value]", date.ToString("dd.MM.yyyy HH:mm"))
-            };
-            var content = new FormUrlEncodedContent(collection);
-            request.Content = content;
-            var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode();
-
-            var responseContent = await response.Content.ReadAsStringAsync();
-            var addressResponse = JsonSerializer.Deserialize<AddressResponse>(responseContent,
-                new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
-
-            // Check if response is successful and has data
-            if (addressResponse?.Result == true && addressResponse.Data != null)
-            {
-                // Find the specific building in the data dictionary
-                if (addressResponse.Data.TryGetValue(addressJob.Building, out var buildingInfo))
-                {
-                    return buildingInfo;
-                }
-                else
-                {
-                    // Building not found - you might want to log this
-                    throw new ParseException($"Building '{addressJob.Building}' not found in response");
-                }
-            }
-
-            throw new ParseException("Invalid response from server");
-        }
-        catch (Exception ex)
-        {
-            throw new ParseException($"Failed to fetch HTML: {ex.Message}");
-        }
-    }
-}
-public class AddressResponse
-{
-    public bool Result { get; set; }
-    public Dictionary<string, BuildingInfo>? Data { get; set; }
-    // Add other properties if needed (showCurOutageParam, fact, preset, etc.)
-}
-
-public class BuildingInfo
-{
-    [JsonPropertyName("sub_type")]
-    public string SubType { get; set; } = string.Empty;
-
-    [JsonPropertyName("start_date")]
-    public string StartDate { get; set; } = string.Empty;
-
-    [JsonPropertyName("end_date")]
-    public string EndDate { get; set; } = string.Empty;
-
-    [JsonPropertyName("type")]
-    public string Type { get; set; } = string.Empty;
-
-    [JsonPropertyName("sub_type_reason")]
-    public List<string> SubTypeReason { get; set; } = new();
-
-    [JsonPropertyName("voluntarily")]
-    public object? Voluntarily { get; set; }
-}
-
-

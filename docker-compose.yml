@@ -86,17 +86,6 @@ services:
       - .env
     << : *base-db
 
-  cloud-beaver:
-    image: dbeaver/cloudbeaver:latest
-    container_name: database-ui
-    restart: unless-stopped
-    networks:
-      - bober-net-dev
-    ports:
-      - 5269:8978
-    volumes:
-      - cloudbeaver:/opt/cloudbeaver/workspace
-
   config-ui:
     image: ghcr.io/natashalysakova/bober-config-ui:latest
     container_name: config 
@@ -147,6 +136,4 @@ volumes:
   images:
     driver: local
   dbdata-dev:
-    driver: local
-  cloudbeaver:
     driver: local

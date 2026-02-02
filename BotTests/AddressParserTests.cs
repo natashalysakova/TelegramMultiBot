@@ -256,7 +256,7 @@ public class AddressParserTests
             // MUST match exact street name in server database
             Street = "вул. Величка Михайла",
             // Building key must exist in server response for this city/street
-            Building = "14-А",
+            Number = "14-А",
             Location = new ElectricityLocation
             {
                 Id = Guid.NewGuid(),
@@ -280,7 +280,154 @@ public class AddressParserTests
 
         //Assert
          Assert.IsNotNull(result);
-        Assert.AreEqual("2", result.Type);
+         var buildingInfo = result[addressJob.Number];
+        Assert.AreEqual("2", buildingInfo.Type);
+    }
+
+    #endregion
+
+    #region Validation Tests
+
+    [TestMethod]
+    public void ValidateAndTrimCyrillicText_WithValidCyrillicText_ReturnsTrimmiedText()
+    {
+        // Arrange
+        var input = "  м. Київ  ";
+        var expected = "м. Київ";
+
+        // Act
+        var result = InvokeValidateAndTrimCyrillicText(input, "City");
+
+        // Assert
+        Assert.AreEqual(expected, result);
+    }
+
+    [TestMethod]
+    public void ValidateAndTrimCyrillicText_WithValidStreetName_ReturnsTrimmiedText()
+    {
+        // Arrange
+        var input = "  вул. Величка Михайла  ";
+        var expected = "вул. Величка Михайла";
+
+        // Act
+        var result = InvokeValidateAndTrimCyrillicText(input, "Street");
+
+        // Assert
+        Assert.AreEqual(expected, result);
+    }
+
+    [TestMethod]
+    public void ValidateAndTrimCyrillicText_WithLatinCharacters_ConvertsAndReturnsText()
+    {
+        // Arrange
+        var input = "м. Kyiv"; // Latin 'K' and latin characters that should be converted
+        var expected = "м. Куів"; // Should convert 'K' to 'К', 'y' to 'у', 'i' to 'і', 'v' to 'в'
+
+        // Act
+        var result = InvokeValidateAndTrimCyrillicText(input, "City");
+
+        // Assert
+        Assert.AreEqual(expected, result);
+    }
+
+    [TestMethod]
+    public void ValidateAndTrimCyrillicText_WithMixedLatinCyrillic_ConvertsLatinToCyrillic()
+    {
+        // Arrange
+        var input = "вул. Maxa Kpoвa"; // Mix of latin and cyrillic
+        var expected = "вул. Маха Крова"; // Should convert latin characters to cyrillic
+
+        // Act
+        var result = InvokeValidateAndTrimCyrillicText(input, "Street");
+
+        // Assert
+        Assert.AreEqual(expected, result);
+    }
+
+    [TestMethod]
+    public void ValidateAndTrimCyrillicText_WithInvalidLatinCharacters_ThrowsArgumentException()
+    {
+        // Arrange - using characters that cannot be converted (like 'q', 'w', 'z')
+        var input = "Kyiv Street with q and w";
+
+        // Act & Assert
+        try
+        {
+            InvokeValidateAndTrimCyrillicText(input, "City");
+            Assert.Fail("Expected ArgumentException was not thrown");
+        }
+        catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is ArgumentException)
+        {   
+            Assert.Contains("contains invalid characters", ex.InnerException.Message);
+            // Should show both original and converted text
+            Assert.Contains("Original:", ex.InnerException.Message);
+            Assert.Contains("Converted:", ex.InnerException.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            Assert.Contains("contains invalid characters", ex.Message);
+            Assert.Contains("Original:", ex.Message);
+            Assert.Contains("Converted:", ex.Message);
+        }
+    }
+
+    [TestMethod]
+    public void ValidateAndTrimCyrillicText_WithEmptyString_ThrowsArgumentException()
+    {
+        // Arrange
+        var input = "";
+
+        // Act & Assert
+        try
+        {
+            InvokeValidateAndTrimCyrillicText(input, "City");
+            Assert.Fail("Expected ArgumentException was not thrown");
+        }
+        catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is ArgumentException)
+        {
+            Assert.Contains("cannot be null or empty", ex.InnerException.Message);
+        }
+        catch (ArgumentException ex)
+        {
+            Assert.Contains("cannot be null or empty", ex.Message);
+        }
+    }
+
+    [TestMethod]
+    public void ValidateAndTrimCyrillicText_WithOnlyWhitespace_ThrowsArgumentException()
+    {
+        // Arrange
+        var input = "   ";
+
+        // Act & Assert
+        try
+        {
+            InvokeValidateAndTrimCyrillicText(input, "Street");
+            Assert.Fail("Expected ArgumentException was not thrown");
+        }
+        catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is ArgumentException)
+        {
+            Assert.IsTrue(ex.InnerException.Message.Contains("cannot be null or empty"));
+        }
+        catch (ArgumentException ex)
+        {
+            Assert.IsTrue(ex.Message.Contains("cannot be null or empty"));
+        }
+    }
+
+    private static string InvokeValidateAndTrimCyrillicText(string text, string fieldName)
+    {
+        // Use reflection to call the private static method
+        var type = typeof(AddressParser);
+        var method = type.GetMethod("ValidateAndTrimCyrillicText", 
+            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
+        
+        if (method == null)
+        {
+            throw new InvalidOperationException("ValidateAndTrimCyrillicText method not found");
+        }
+
+        return (string)method.Invoke(null, new object[] { text, fieldName });
     }
 
     #endregion

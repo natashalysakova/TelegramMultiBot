@@ -159,7 +159,7 @@ internal class BotService(
         {
             try
             {
-                await client.SendMessage(info.ChatId, info.Caption ?? "Alert", messageThreadId: info.MessageThreadId, parseMode: ParseMode.MarkdownV2);
+                await client.SendMessage(info.ChatId, info.Caption, messageThreadId: info.MessageThreadId, parseMode: ParseMode.MarkdownV2);
             }
             catch (Exception ex)
             {
