@@ -49,11 +49,11 @@ public interface IMonitorDataService
     Task<IEnumerable<Street>> GetAvailableStreetsByRegionAndCity(string regionPart, string cityPart);
     Task<IEnumerable<Building>> GetAvailableBuildingsByRegionCityAndStreet(string regionPart, string cityPart, string streetPart);
     Task<City?> GetCityByNameAndLocation(Guid locationId, string citytName);
-    Task<City> CreateCity(Guid id, string city, List<string> street, bool saveChanges = true);
     Task<Street?> GetStreetByNameAndCity(Guid cityId, string street);
     Task ApplyChanges();
     Task<IEnumerable<RegionConfigSnapshot>> GetNotProcessedSnapshots();
     Task<int> RemoveProcessedSnapshots();
+    Task<T?> Get<T>(Guid id) where T : class;
 }
 
 public class MonitorDataService(BoberDbContext context) : IMonitorDataService
@@ -420,6 +420,7 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     public async Task<IEnumerable<Alert>> GetNotResolvedAlertsByLocation(Guid locationId, DateTimeOffset? createdBefore = null)
     {
         return await context.Alerts
+            .Include(x=>x.Location)
             .Where(x => x.LocationId == locationId 
                 && x.ResolvedAt == null 
                 && (createdBefore == null || x.CreatedAt < createdBefore))
@@ -505,6 +506,7 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
     public async Task<City?> GetCityByNameAndLocation(Guid locationId, string citytName)
     {
         return await context.Cities
+            .Include(c=>c.Streets)
             .FirstOrDefaultAsync(c => c.LocationId == locationId && c.Name == citytName);
     }
 
@@ -557,5 +559,10 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
 
         context.RegionConfigSnapshots.RemoveRange(toDelete);
         return await context.SaveChangesAsync();
+    }
+
+    public async Task<T?> Get<T>(Guid id) where T : class
+    {
+        return await context.FindAsync<T>(id);
     }
 }

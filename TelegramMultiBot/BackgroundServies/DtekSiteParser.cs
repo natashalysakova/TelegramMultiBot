@@ -52,16 +52,13 @@ public class DtekSiteParser : BackgroundService
 
             try
             {
+                _delayCancellationTokenSource = new CancellationTokenSource();
                 _logger.LogDebug("Waiting for {delay} seconds before next check", delay);
                 await Task.Delay(TimeSpan.FromSeconds(delay), _delayCancellationTokenSource.Token);
             }
             catch (OperationCanceledException)
             {
                 _logger.LogInformation("Delay cancelled, running the parser again immediately");
-            }
-            finally
-            {
-                _delayCancellationTokenSource = new CancellationTokenSource();
             }
         }
     }
@@ -88,19 +85,19 @@ public class DtekSiteParser : BackgroundService
                 {
                     try
                     {
-                        await ParseSite(dbservice, location);
+                        await ParseSite(location.Id);
 
-                        await ParseAddreses(dbservice, location);
+                        await ParseAddreses(location.Id);
 
                         success = true;
                         delay = _configuationService.SvitlobotSettings.DtekParserDelay; // reset delay on success
 
-                        await ResetAlertAfterSuccess(dbservice, location);
+                        await ResetAlertAfterSuccess(location.Id);
                     }
                     catch (IncapsulaException ex) // incapsula blocking
                     {
                         _logger.LogError(ex, "Incapsula blocking detected. Updating alert");
-                        await CreateOrUpdateAlertForIncapsulaBlocking(dbservice, location);
+                        await CreateOrUpdateAlertForIncapsulaBlocking(location.Id);
                         retryCount = 2; // stop retrying
                     }
                     catch (ParseException ex) // parsing error - maybe page wasn't loaded correctly
@@ -138,21 +135,27 @@ public class DtekSiteParser : BackgroundService
         }
     }
 
-    private async Task ResetAlertAfterSuccess(IMonitorDataService dbservice, ElectricityLocation location)
+    private async Task ResetAlertAfterSuccess(Guid locationId)
     {
-        var existingAlerts = await dbservice.GetNotResolvedAlertsByLocation(location.Id);
+        using var scope = _serviceProvider.CreateScope();
+        var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+
+        var existingAlerts = await dbservice.GetNotResolvedAlertsByLocation(locationId);
 
         foreach (var existingAlert in existingAlerts)
         {
             existingAlert.ResolvedAt = DateTimeOffset.Now;
             await dbservice.Update(existingAlert);
-            _logger.LogDebug("Resolve alert after success: {region}", location.Region);
+            _logger.LogDebug("Resolve alert after success: {region}", existingAlert.Location.Region);
         }
     }
 
-    private async Task ParseAddreses(IMonitorDataService dbservice, ElectricityLocation location)
+    private async Task ParseAddreses(Guid locationId)
     {
-        var addressesToCheck = await dbservice.GetActiveAddresesJobs(location.Id);
+        using var scope = _serviceProvider.CreateScope();
+        var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+
+        var addressesToCheck = await dbservice.GetActiveAddresesJobs(locationId);
 
         var infoParser = new AddressParser(_configuationService);
 
@@ -183,7 +186,6 @@ public class DtekSiteParser : BackgroundService
                 continue;
             }
         }
-        _logger.LogInformation("Finished parsing address jobs for location {region}", location.Region);
     }
 
     private async Task CreateMissingAddreses(IMonitorDataService dbservice, AddressJob address, Dictionary<string, BuildingInfo> buildingInfos)
@@ -248,15 +250,18 @@ public class DtekSiteParser : BackgroundService
         await dbservice.ApplyChanges();
     }
 
-    private async Task CreateOrUpdateAlertForIncapsulaBlocking(IMonitorDataService dataService, ElectricityLocation location)
+    private async Task CreateOrUpdateAlertForIncapsulaBlocking(Guid locationId)
     {
-        var existingAlerts = await dataService.GetNotResolvedAlertsByLocation(location.Id);
+        using var scope = _serviceProvider.CreateScope();
+        var dataService = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+
+        var existingAlerts = await dataService.GetNotResolvedAlertsByLocation(locationId);
 
         if (!existingAlerts.Any())
         {
             Alert alert = new Alert()
             {
-                LocationId = location.Id,
+                LocationId = locationId,
                 CreatedAt = DateTimeOffset.Now,
                 AlertMessage = "Incapsula blocking detected. Please update the cookie using /cookie command."
             };
@@ -485,8 +490,19 @@ public class DtekSiteParser : BackgroundService
 
     }
 
-    private async Task ParseSite(IMonitorDataService dbservice, ElectricityLocation location)
+    private async Task ParseSite(Guid locationId)
     {
+        using var scope = _serviceProvider.CreateScope();
+        var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
+        var scheduleImageGenerator = scope.ServiceProvider.GetRequiredService<ScheduleImageGenerator>();
+
+        var location = await dbservice.Get<ElectricityLocation>(locationId);
+        if(location == null)
+        {
+            _logger.LogWarning("Location with id {id} not found", locationId);
+            return;
+        }
+
         var schedule = await new ScheduleParser(_configuationService).Parse(location.Url);
 
         location.LastChecked = DateTime.Now;
@@ -506,7 +522,8 @@ public class DtekSiteParser : BackgroundService
             ConfigJson = JsonSerializer.Serialize(schedule.Streets),
         });
 
-        var images = await ScheduleImageGenerator.GenerateAllImages(schedule);
+
+        var images = await scheduleImageGenerator.GenerateAllImages(schedule);
 
         _logger.LogInformation("Generated {count} images", images.Count());
 
@@ -637,6 +654,6 @@ public class DtekSiteParser : BackgroundService
 
     internal void CancelDelay()
     {
-        _delayCancellationTokenSource.Cancel();
+        _delayCancellationTokenSource?.Cancel();
     }
 }

@@ -12,8 +12,14 @@ public class ScheduleImageGenerator
     private const int ROW_HEIGHT = 35;
     private const int SCALE_FACTOR = 2;
     private const int HEADER_HEIGHT = 175;
+    private readonly ILogger<ScheduleImageGenerator> _logger;
 
-    public static async Task<IEnumerable<ImageGenerationModel>> GenerateRealScheduleSingleGroupImages(Schedule schedule)
+    public ScheduleImageGenerator(ILogger<ScheduleImageGenerator> logger)
+    {
+        _logger = logger;
+    }
+
+    public async Task<IEnumerable<ImageGenerationModel>> GenerateRealScheduleSingleGroupImages(Schedule schedule)
     {
         return await GenerateSingleGroupImages(
             $"Графік відключень {schedule.Location}",
@@ -22,7 +28,7 @@ public class ScheduleImageGenerator
             schedule.RealSchedule, schedule.AttentionNote);
     }
 
-    public static async Task<IEnumerable<ImageGenerationModel>> GeneratePlannedScheduleSingleGroupImages(Schedule schedule)
+    public async Task<IEnumerable<ImageGenerationModel>> GeneratePlannedScheduleSingleGroupImages(Schedule schedule)
     {
         return await GenerateSingleGroupImages(
             $"Графік можливих відключень {schedule.Location}",
@@ -31,7 +37,7 @@ public class ScheduleImageGenerator
             schedule.PlannedSchedule, schedule.AttentionNote);
     }
 
-    public static async Task<IEnumerable<ImageGenerationModel>> GenerateSingleGroupImages(
+    async Task<IEnumerable<ImageGenerationModel>> GenerateSingleGroupImages(
         string title,
         IEnumerable<ScheduleGroup> groups,
         IEnumerable<string> timeZones,
@@ -71,7 +77,7 @@ public class ScheduleImageGenerator
         return images;
     }
 
-    public static async Task<IEnumerable<ImageGenerationModel>> GenerateAllGroupsRealSchedule(Schedule schedule)
+    async Task<IEnumerable<ImageGenerationModel>> GenerateAllGroupsRealSchedule(Schedule schedule)
     {
         var tables = new List<PrintTable>();
         foreach (var day in schedule.RealSchedule.OrderBy(x => x.DateTimeStamp))
@@ -108,7 +114,7 @@ public class ScheduleImageGenerator
         return images;
     }
 
-    private static async Task<string> GenerateScheduleBody(
+    private async Task<string> GenerateScheduleBody(
         string title,
         IEnumerable<PrintTable> tables, string attentionNote)
     {
@@ -207,7 +213,7 @@ public class ScheduleImageGenerator
         return doc.DocumentNode.OuterHtml;
     }
 
-    private static async Task<List<ImageGenerationModel>> GetHtmlImage(List<ImageGenerationModel> requests)
+    private async Task<List<ImageGenerationModel>> GetHtmlImage(List<ImageGenerationModel> requests)
     {
         int retry = 0;
         var maxretry = 3;
@@ -255,6 +261,8 @@ public class ScheduleImageGenerator
                         Type = ScreenshotType.Png,
                         CaptureBeyondViewport = true,
                     });
+
+                    _logger.LogDebug($"Generated image for group {renderRequest.Group}");
                 }
 
                 return requests;
@@ -262,7 +270,7 @@ public class ScheduleImageGenerator
             catch (Exception ex)
             {
                 await Task.Delay(1000);
-                Console.WriteLine("retry to make an image: " + ex.Message);
+                _logger.LogWarning("retry to make an image: " + ex.Message);
                 retry += 1;
             }
         } while (retry < maxretry);
@@ -270,7 +278,7 @@ public class ScheduleImageGenerator
         throw new Exception("Cannot make a screenshot of page");
     }
 
-    public static async Task<IEnumerable<ImageGenerationModel>> GenerateAllImages(Schedule schedule)
+    public async Task<IEnumerable<ImageGenerationModel>> GenerateAllImages(Schedule schedule)
     {
         var allGroupsRealScheduleImages = await GenerateAllGroupsRealSchedule(schedule);
         var singleGroupRealScheduleImages = await GenerateRealScheduleSingleGroupImages(schedule);
