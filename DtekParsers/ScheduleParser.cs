@@ -6,6 +6,7 @@ using System.Net.Sockets;
 using System.Text;
 using TelegramMultiBot.Database.Interfaces;
 using HtmlAgilityPack;
+using TelegramMultiBot.Database.DTO;
 
 namespace DtekParsers;
 
@@ -611,6 +612,8 @@ public class ScheduleParser
 
         HttpClient client = new HttpClient();
         client.DefaultRequestHeaders.Add("Cookie", string.Join("; ", incapCookies.Select(c => $"{c.Name}={c.Value}")));
+        
+        _configuationService.SvitlobotSettings.SetCookie(url, string.Join("; ", incapCookies.Select(c => $"{c.Name}={c.Value}")));
 
         var str = await client.GetStringAsync(url); // Make a request to establish session with Incapsula
 
@@ -623,5 +626,27 @@ public class ScheduleParser
         DateTime dateTime = new DateTime(1970, 1, 1, 0, 0, 0, 0, DateTimeKind.Utc);
         dateTime = dateTime.AddSeconds(unixTimeStamp).ToLocalTime();
         return dateTime;
+    }
+}
+
+public static class SvitlobotSettingsExtensions
+{
+    public static void SetCookie(this SvitlobotSettings settings, string url, string cookie)
+    {
+        var region = LocationNameUtility.GetRegionByUrl(url);
+        switch (region)
+        {
+            case "krem":
+                settings.KremCookie = cookie;
+                break;
+            case "kem":
+                settings.KemCookie = cookie;
+                break;
+            case "oem":
+                settings.OemCookie = cookie;
+                break;
+            default:
+                throw new ArgumentException($"Unknown region '{region}' for URL '{url}'.", nameof(url));
+        }
     }
 }

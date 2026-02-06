@@ -19,3 +19,4 @@ public class SvitlobotSettings : BaseSetting
     public int MonitorDelay { get; set; } = 30;
     public int AlertIgnoreMinutes { get; set; } = 120;
 }
+

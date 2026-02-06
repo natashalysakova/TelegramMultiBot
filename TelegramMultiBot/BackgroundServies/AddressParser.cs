@@ -18,6 +18,7 @@ public class AddressParser(ISqlConfiguationService configuationService)
         {
             case "kem": return configuationService.SvitlobotSettings.KemCookie;
             case "krem": return configuationService.SvitlobotSettings.KremCookie;
+            case "oem": return configuationService.SvitlobotSettings.OemCookie;
 
             default:
                 return null;

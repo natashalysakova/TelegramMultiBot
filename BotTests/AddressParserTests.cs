@@ -273,8 +273,6 @@ public class AddressParserTests
         var addressJob = CreateAddressJob();
         var date = DateTimeOffset.Now;
 
-        _svitlobotSettings.KremCookie = Cookie.KREM;
-
         // Act
         var result = await _addressParser.ParseAddress(addressJob, date);
 

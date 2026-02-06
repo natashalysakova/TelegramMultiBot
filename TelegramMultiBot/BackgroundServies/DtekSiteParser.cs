@@ -11,6 +11,7 @@ using System.Text.Json;
 using System.Text.RegularExpressions;
 using System.Threading.Tasks;
 using TelegramMultiBot.Database;
+using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
 using TelegramMultiBot.Database.Services;
