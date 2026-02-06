@@ -77,7 +77,7 @@ public class ScheduleImageGenerator
         return images;
     }
 
-    async Task<IEnumerable<ImageGenerationModel>> GenerateAllGroupsRealSchedule(Schedule schedule)
+    public async Task<IEnumerable<ImageGenerationModel>> GenerateAllGroupsRealSchedule(Schedule schedule)
     {
         var tables = new List<PrintTable>();
         foreach (var day in schedule.RealSchedule.OrderBy(x => x.DateTimeStamp))

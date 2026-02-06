@@ -25,7 +25,7 @@ public class MonitorDtekTests
         });
         var parser = new ScheduleParser(sqlConfiguationService.Object);
 
-        var html = await parser.GetHtmlFromUrl("https://www.dtek-krem.com.ua/ua/shutdowns");
+        var html = await parser.GetHtmlUsingPuppeteer("https://www.dtek-krem.com.ua/ua/shutdowns");
 
         Assert.IsNotNull(html);
         Assert.Contains("DisconSchedule.fact", html);

@@ -22,7 +22,7 @@ public class ScheduleParser
 
     public async Task<Schedule> Parse(string url)
     {
-        var html = await GetHtmlFromUrl(url);
+        var html = await GetHtmlUsingPuppeteer(url);
 
         var location = LocationNameUtility.GetLocationByUrl(url);
 
@@ -483,6 +483,138 @@ public class ScheduleParser
                 return null;
         }
 
+    }
+
+    public async Task<string> GetHtmlUsingPuppeteer(string url)
+    {
+        var browserFetcher = new BrowserFetcher();
+        await browserFetcher.DownloadAsync();
+
+        await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions
+        {
+            Headless = true,
+            Args = new[]
+            {
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-infobars",
+                "--disable-web-security",
+                "--disable-features=IsolateOrigins,site-per-process",
+                "--window-size=1920,1080",
+                "--start-maximized",
+                "--lang=en-US"
+            },
+        });
+
+        await using var page = await browser.NewPageAsync();
+        
+        // Set more realistic user agent (Chrome on Windows)
+        await page.SetUserAgentAsync("Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36");
+        
+        // Set extra HTTP headers
+        await page.SetExtraHttpHeadersAsync(new Dictionary<string, string>
+        {
+            { "Accept", "text/html,application/xhtml+xml,application/xml;q=0.9,image/avif,image/webp,image/apng,*/*;q=0.8" },
+            { "Accept-Language", "en-US,en;q=0.9" },
+            { "Accept-Encoding", "gzip, deflate, br" },
+            { "Sec-Ch-Ua", "\"Not_A Brand\";v=\"8\", \"Chromium\";v=\"120\", \"Google Chrome\";v=\"120\"" },
+            { "Sec-Ch-Ua-Mobile", "?0" },
+            { "Sec-Ch-Ua-Platform", "\"Windows\"" },
+            { "Sec-Fetch-Dest", "document" },
+            { "Sec-Fetch-Mode", "navigate" },
+            { "Sec-Fetch-Site", "none" },
+            { "Sec-Fetch-User", "?1" },
+            { "Upgrade-Insecure-Requests", "1" }
+        });
+
+        await page.SetViewportAsync(new ViewPortOptions
+        {
+            Width = 1920,
+            Height = 1080,
+        });
+
+        // Evaluate anti-detection scripts before navigation
+        await page.EvaluateExpressionOnNewDocumentAsync(@"
+            // Override the navigator.webdriver property
+            Object.defineProperty(navigator, 'webdriver', {
+                get: () => false
+            });
+
+            // Override the navigator.plugins to add some
+            Object.defineProperty(navigator, 'plugins', {
+                get: () => [1, 2, 3, 4, 5]
+            });
+
+            // Override navigator.languages
+            Object.defineProperty(navigator, 'languages', {
+                get: () => ['en-US', 'en']
+            });
+
+            // Override permissions
+            const originalQuery = window.navigator.permissions.query;
+            window.navigator.permissions.query = (parameters) => (
+                parameters.name === 'notifications' ?
+                    Promise.resolve({ state: Notification.permission }) :
+                    originalQuery(parameters)
+            );
+
+            // Mock chrome object
+            window.chrome = {
+                runtime: {}
+            };
+
+            // Override toString of these functions to hide modifications
+            Object.defineProperty(navigator.webdriver, 'toString', {
+                value: () => 'false'
+            });
+        ");
+
+        // Navigate to the page and let Incapsula challenge run
+        await page.GoToAsync(url, new NavigationOptions 
+        { 
+            WaitUntil = new[] { WaitUntilNavigation.Networkidle0 },
+            Timeout = 60000
+        });
+
+        // Wait for Incapsula challenge to complete and page to fully load
+        // Incapsula typically needs 5-10 seconds to validate the browser
+        await Task.Delay(8000);
+
+        // Check if still on Incapsula challenge page and wait more if needed
+        var currentContent = await page.GetContentAsync();
+        if (currentContent.Contains("/_Incapsula_Resource") || currentContent.Contains("incap_ses"))
+        {
+            _logger?.LogInformation("Incapsula challenge detected, waiting for completion...");
+            await Task.Delay(7000);
+            
+            // Simulate human-like behavior: scroll down slightly
+            await page.EvaluateExpressionAsync("window.scrollTo(0, 52)");
+            await Task.Delay(1000);
+        }
+
+        // Get the final page content after challenge completion
+        var content = await page.GetContentAsync();
+
+        // Log cookies for debugging
+        var cookies = await page.GetCookiesAsync();
+        var incapCookies = cookies.Where(c => c.Name.StartsWith("incap_ses")).ToList();
+        if (incapCookies.Any())
+        {
+            _logger?.LogInformation($"Successfully obtained Incapsula cookies: {string.Join(", ", incapCookies.Select(c => $"{c.Name}={c.Value}"))}");
+        }
+        else
+        {
+            _logger?.LogWarning("No Incapsula session cookies found");
+        }
+
+        HttpClient client = new HttpClient();
+        client.DefaultRequestHeaders.Add("Cookie", string.Join("; ", incapCookies.Select(c => $"{c.Name}={c.Value}")));
+
+        var str = await client.GetStringAsync(url); // Make a request to establish session with Incapsula
+
+        return str;
     }
 
     private static DateTime UnixTimeStampToDateTime(double unixTimeStamp)
