@@ -1,4 +1,6 @@
 using DtekParsers;
+using Microsoft.Extensions.Logging;
+using Moq;
 using System.Runtime.Serialization;
 
 namespace BotTests;
@@ -12,10 +14,11 @@ public class  ImageGenerationTests
     public async Task Image_RealScheduleSingleGroupImageReady(string url, string folder)
     {
         var parser = new ScheduleParser(null!);
+        var logger = new Mock<ILogger<ScheduleImageGenerator>>();
 
         var schedule = await parser.Parse(url);
 
-        var image = await ScheduleImageGenerator.GenerateRealScheduleSingleGroupImages(schedule);
+        var image = await new ScheduleImageGenerator(logger.Object).GenerateRealScheduleSingleGroupImages(schedule);
 
         SaveImages(folder, image.Select(x=>x.ImageData));
 
@@ -44,10 +47,11 @@ public class  ImageGenerationTests
     public async Task Image_GenerateAllGroupsRealScheduleImageReady(string url, string folder)
     {
         var parser = new ScheduleParser(null!);
+        var logger = new Mock<ILogger<ScheduleImageGenerator>>();
 
         var schedule = await parser.Parse(url);
 
-        var image = await ScheduleImageGenerator.GenerateAllGroupsRealSchedule(schedule);
+        var image = await new ScheduleImageGenerator(logger.Object).GenerateAllGroupsRealSchedule(schedule);
 
         SaveImages(folder, image.Select(x => x.ImageData));
 
@@ -60,10 +64,10 @@ public class  ImageGenerationTests
     public async Task Image_GeneratePlannedScheduleSingleGroupImageReady(string url, string folder)
     {
         var parser = new ScheduleParser(null!);
-
+        var logger = new Mock<ILogger<ScheduleImageGenerator>>();
         var schedule = await parser.Parse(url);
 
-        var image = await ScheduleImageGenerator.GeneratePlannedScheduleSingleGroupImages(schedule);
+        var image = await new ScheduleImageGenerator(logger.Object).GeneratePlannedScheduleSingleGroupImages(schedule);
 
         SaveImages(folder, image.Select(x => x.ImageData));
 

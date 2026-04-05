@@ -1,5 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using AutoMapper;
+using DtekParsers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -43,6 +44,7 @@ internal class Program
                 services.AddHostedService(provider => provider.GetRequiredService<DtekSiteParser>());
                 services.AddSingleton<CityConfigUpdateService>();
                 services.AddHostedService(provider => provider.GetRequiredService<CityConfigUpdateService>());
+                services.AddScoped<ScheduleImageGenerator>();
                 services.AddHostedService<BotService>();
                 RegisterServices(services, args);
                 services.AddHostedService<VideoDownloaderService>();

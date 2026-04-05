@@ -74,7 +74,7 @@ public class CityConfigUpdateService : BackgroundService
         var snapshots = await dbservice.GetNotProcessedSnapshots();
         foreach (var snapshot in snapshots)
         {
-            using var loggerscope = _logger.BeginScope($"Location: {snapshot.LocationId}, Snapshot: {snapshot.Id}");
+            using var loggerscope = _logger.BeginScope($"Snapshot: {snapshot.Id}");
             try
             {
                 Stopwatch sw = Stopwatch.StartNew();
@@ -85,32 +85,40 @@ public class CityConfigUpdateService : BackgroundService
                     _logger.LogWarning("Failed to deserialize config json for snapshot {id}", snapshot.Id);
                     continue;
                 }
-
+                var progress = 0.0;
+                var total = config.Keys.Count;
                 foreach (var city in config.Keys)
                 {
-                    _logger.LogDebug("Processing city {city}", city);
+                    _logger.LogDebug("Processing city {city} ({progress}/{total})", city, progress + 1, total);
+                    progress += 1;
+
                     var cityStreets = config[city];
                     var dbCity = await dbservice.GetCityByNameAndLocation(snapshot.LocationId, city);
                     if (dbCity == null)
                     {
-                        dbCity = await dbservice.CreateCity(snapshot.LocationId, city, cityStreets);
-                        _logger.LogInformation("Created new city {city} in region {region}", city, snapshot.LocationId);
-                    }
-                    else
-                    {
-                        foreach (var street in cityStreets)
+                        dbCity = new City()
                         {
-                            var dbStreet = await dbservice.GetStreetByNameAndCity(dbCity.Id, street);
-                            if (dbStreet == null)
+                            LocationId = snapshot.LocationId,
+                            Name = city,
+                        };
+                        _logger.LogInformation("Created new city {city} in region {region}", city, snapshot.LocationId);
+                        await dbservice.Add(dbCity, false);
+                    }
+
+                    foreach (var street in cityStreets)
+                    {
+                        var dbStreet = dbCity.Streets
+                            .FirstOrDefault(s => s.Name.Equals(street, StringComparison.OrdinalIgnoreCase));
+
+                        if (dbStreet == null)
+                        {
+                            dbStreet = new Street()
                             {
-                                dbStreet = new Street()
-                                {
-                                    CityId = dbCity.Id,
-                                    Name = street
-                                };
-                                await dbservice.Add(dbStreet, false);
-                                _logger.LogInformation("Added new street {street} to city {city}", street, city);
-                            }
+                                CityId = dbCity.Id,
+                                Name = street
+                            };
+                            dbCity.Streets.Add(dbStreet);
+                            _logger.LogInformation("Added new street {street} to city {city}", street, city);
                         }
                     }
                 }

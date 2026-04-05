@@ -18,8 +18,17 @@ internal class GptCommand(
 
     public override bool CanHandle(Message message)
     {
+        if(message.Text == null)
+            return false;
+
+        if(message.Text.StartsWith("/") && !message.Text.StartsWith("/gpt"))
+        {
+            return false;
+        }
+
+
         var lookupWords = new[] { "бобер", "бобр", "бобрик", "боре", BotService.BotName };
-        if (lookupWords.Any(w => message.Text != null && message.Text.Contains(w, StringComparison.OrdinalIgnoreCase)))
+        if (lookupWords.Any(w => message.Text.Contains(w, StringComparison.OrdinalIgnoreCase)))
         {
             return true;
         }
