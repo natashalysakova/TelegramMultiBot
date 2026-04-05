@@ -87,11 +87,12 @@ internal class FixUrlCommand(TelegramClientWrapper client, IBotMessageDatabaseSe
 
     private readonly List<ServiceItem> _serviceItems =
 [
-    new ServiceItem("https://www.instagram.com", "instagram", "kkinstagram"),
+    new ServiceItem("https://www.instagram.com", "instagram", "kksave"),
     new ServiceItem("https://x.com", "x", "fixupx"),
     new ServiceItem("https://twitter.com", "twitter", "fxtwitter"),
     new ServiceItem("https://www.ddinstagram.com", null, null),
     new ServiceItem("https://www.kkinstagram.com", null, null),
+    new ServiceItem("https://www.kksave.com", null, null),
     new ServiceItem("https://facebook.com", null, null)
 ];
 
