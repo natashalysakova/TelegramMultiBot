@@ -17,8 +17,26 @@ x-base-config: &base-config
   restart: always
   environment:
       - ASPNETCORE_URLS=http://+:8080
-  
+
 services:
+  metube:
+    container_name: metube
+    networks:
+      - bober-net
+      - bober-net-dev
+    profiles:
+      - prod
+      - dev
+    volumes:
+      - metube-downloads:/downloads
+    image: ghcr.io/alexta69/metube
+    ports:
+        - "8081:8081"
+    restart: always
+    environment:
+      - YTDL_OPTIONS={"cookiesfrombrowser":null}
+      - OUTPUT_TEMPLATE=%(title)s [%(id)s].%(ext)s
+
   bot:
     image: ghcr.io/natashalysakova/bober-bot:latest
     container_name: bot
@@ -34,6 +52,9 @@ services:
     depends_on:
       database:
         condition: service_healthy
+        restart: true
+      metube:
+        condition: service_started
         restart: true
     << : *base-bot
     
@@ -53,6 +74,9 @@ services:
     depends_on:
       database-dev:
         condition: service_healthy
+        restart: true
+      metube:
+        condition: service_started
         restart: true
     << : *base-bot
 
@@ -136,4 +160,8 @@ volumes:
   images:
     driver: local
   dbdata-dev:
+    driver: local
+  metube-downloads:
+    driver: local
+  metube-downloads-dev:
     driver: local
