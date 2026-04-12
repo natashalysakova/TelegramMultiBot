@@ -29,6 +29,12 @@ public record MeTubeAddRequest
     [JsonPropertyName("format")]
     public required string Format { get; set; }
 
+    /// <summary>
+    /// h264, h265, av1, vp9
+    /// </summary>
+    [JsonPropertyName("codec")]
+    public string? Codec { get; set; }
+
     [JsonPropertyName("auto_start")]
     public bool AutoStart { get; set; } = true;
 
