@@ -12,7 +12,9 @@ public class MeTubeClient
     HttpClient _httpClient = new HttpClient();
     public MeTubeClient(ISqlConfiguationService sqlConfigurationService)
     {
-        _httpClient.BaseAddress = new Uri(sqlConfigurationService.VideoDownloaderSettings.MeTubeUrl);
+        var url = sqlConfigurationService.VideoDownloaderSettings.MeTubeUrl;
+        if (!string.IsNullOrEmpty(url))
+            _httpClient.BaseAddress = new Uri(url);
     }
 
     public async Task<MeTubeGenericResponse?> AddDownload(string url)
@@ -76,5 +78,12 @@ public class MeTubeClient
         var responseContent = await response.Content
             .ReadFromJsonAsync<MeTubeGenericResponse>();
         return responseContent!;
+    }
+
+    public async Task<HttpResponseMessage> GetFileResponseAsync(string filename)
+    {
+        var response = await _httpClient.GetAsync($"/download/{Uri.EscapeDataString(filename)}", HttpCompletionOption.ResponseHeadersRead);
+        response.EnsureSuccessStatusCode();
+        return response;
     }
 }

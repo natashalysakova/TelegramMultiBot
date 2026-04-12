@@ -16,5 +16,12 @@ public record MeTubeHistoryItem
     [JsonPropertyName("title")]
     public required string Title { get; set; }
 
+    [JsonPropertyName("filename")]
+    public string? Filename { get; set; }
 
+    [JsonPropertyName("ext")]
+    public string? Ext { get; set; }
+
+    [JsonPropertyName("size")]
+    public long? Size { get; set; }
 }

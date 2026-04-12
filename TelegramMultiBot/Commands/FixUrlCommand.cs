@@ -1,17 +1,18 @@
 ﻿using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
-using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.Database;
+using VideoDownloader.Client;
 
 namespace TelegramMultiBot.Commands;
 
-internal class FixUrlCommand(TelegramClientWrapper client, IBotMessageDatabaseService messageDatabaseService) : BaseCommand
+internal class FixUrlCommand(TelegramClientWrapper client, MeTubeClient meTubeClient, BoberDbContext context) : BaseCommand
 {
     public override bool CanHandle(Message message)
     {
         if (message.Text is null)
             return false;
 
-        return _serviceItems.Any(x => message.Text.Contains(x.Service, StringComparison.CurrentCultureIgnoreCase));
+        return _serviceItems.Any(x => message.Text.Contains(x, StringComparison.OrdinalIgnoreCase));
     }
 
     public override bool CanHandle(InlineQuery query)
@@ -24,85 +25,61 @@ internal class FixUrlCommand(TelegramClientWrapper client, IBotMessageDatabaseSe
         if (message.Text is null)
             throw new NullReferenceException(nameof(message.Text));
 
-        var links = message.Text.Split(' ', StringSplitOptions.RemoveEmptyEntries).Where(x => x.Contains("https://"));
-
-        if (links is null)
-            return;
+        var links = message.Text
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(x => x.StartsWith("https://") && _serviceItems.Any(s => x.Contains(s, StringComparison.OrdinalIgnoreCase)));
 
         foreach (var link in links)
         {
-            var service = _serviceItems.SingleOrDefault(x => link.Contains(x.Service));
-            if (service is null)
-                return;
-
-            string newlink = string.IsNullOrEmpty((string?)service.WhatReplace) || string.IsNullOrEmpty((string?)service.ReplaceWith)
-                ? link
-                : link.Replace((string)service.WhatReplace, (string)service.ReplaceWith);
-
-            newlink = CutTrackingInfo(newlink);
-
-            if (client.BotId == null)
-                throw new NullReferenceException(nameof(client.BotId));
-
-            var bot = await client.GetChatMemberAsync(message.Chat, client.BotId.Value);
-            var canDeleteMessages = bot.Status == ChatMemberStatus.Administrator || message.Chat.Type == ChatType.Private;
-
-            string newMessage = string.Empty;
-            if (canDeleteMessages)
+            bool canDeleteMessages = false;
+            if (client.BotId != null)
             {
+                var bot = await client.GetChatMemberAsync(message.Chat, client.BotId.Value);
+                canDeleteMessages = bot.Status == ChatMemberStatus.Administrator || message.Chat.Type == ChatType.Private;
+            }
+
+            if (canDeleteMessages)
                 await client.DeleteMessageAsync(message);
-                var oldMessage = message.Text.Replace(link, newlink);
 
-                if (message.From is null)
+            string statusText = canDeleteMessages
+                ? $"🦫 {GetUserName(message.From)}: {message.Text}\n⏳ Завантаження відео..."
+                : "⏳ Завантаження відео...";
+
+            var statusMessage = await client.SendMessageAsync(message, statusText, !canDeleteMessages, disableNotification: true);
+
+            var response = await meTubeClient.AddDownload(link);
+            if (response?.Status == MeTubeStatus.Ok)
+            {
+                context.VideoDownloads.Add(new VideoDownload
                 {
-                    throw new NullReferenceException(nameof(message.From));
-                }
-
-                string name = string.Empty;
-                if (message.From.Username is null)
-                {
-                    name = $"{message.From.FirstName}";
-                }
-                else
-                {
-                    name = "@" + message.From.Username;
-                }
-
-                newMessage = $"\U0001f9ab {name}: {oldMessage}\n";
-
-                //await _client.SendTextMessageAsync(message.Chat, newMessage, disableNotification: false, replyToMessageId: replyTo, messageThreadId: messageThread);
+                    Id = Guid.NewGuid(),
+                    VideoUrl = link,
+                    Status = "pending",
+                    ChatId = message.Chat.Id,
+                    MessageThreadId = message.IsTopicMessage ? message.MessageThreadId ?? 0 : 0,
+                    BotMessage = statusMessage.MessageId,
+                    MessageToDelete = 0
+                });
+                await context.SaveChangesAsync();
             }
             else
             {
-                newMessage = $"🦫 Дякую, я не можу видалити твоє повідомлення, тримай лінк: {newlink}";
-                //await _client.SendTextMessageAsync(message.Chat, newMessage, replyToMessageId: message.MessageId, disableNotification: true);
+                await client.EditMessageTextAsync(statusMessage, "❌ Не вдалося поставити відео в чергу завантаження");
             }
-
-            var botMessage = await client.SendMessageAsync(message, newMessage, true, disableNotification: true);
-            messageDatabaseService.AddMessage(new BotMessageAddInfo(botMessage.Chat.Id, botMessage.MessageId, botMessage.Chat.Type == ChatType.Private, botMessage.Date, message.From.Id));
         }
     }
 
-    private record ServiceItem(string Service, string? WhatReplace, string? ReplaceWith);
-
-    private readonly List<ServiceItem> _serviceItems =
-[
-    new ServiceItem("https://www.instagram.com", "instagram", "kksave"),
-    new ServiceItem("https://x.com", "x", "fixupx"),
-    new ServiceItem("https://twitter.com", "twitter", "fxtwitter"),
-    new ServiceItem("https://www.ddinstagram.com", null, null),
-    new ServiceItem("https://www.kkinstagram.com", null, null),
-    new ServiceItem("https://www.kksave.com", null, null),
-    new ServiceItem("https://facebook.com", null, null)
-];
-
-    private static string CutTrackingInfo(string link)
+    private static string GetUserName(User? user)
     {
-        if (link.Contains('?'))
-        {
-            return link.Replace(link[link.IndexOf('?')..], string.Empty);
-        }
-
-        return link;
+        if (user is null) return "Unknown";
+        return user.Username is null ? user.FirstName : "@" + user.Username;
     }
+
+    private readonly List<string> _serviceItems =
+    [
+        "instagram.com",
+        "x.com",
+        "twitter.com",
+        "facebook.com"
+    ];
 }
