@@ -1,7 +1,6 @@
 using DtekParsers;
 using Microsoft.Extensions.Logging;
 using Moq;
-using System.Runtime.Serialization;
 
 namespace BotTests;
 

@@ -3,7 +3,6 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramMultiBot.Database;
 using VideoDownloader.Client;
-using static System.Net.WebRequestMethods;
 
 namespace TelegramMultiBot.Commands;
 
@@ -46,7 +45,15 @@ internal class FixUrlCommand(TelegramClientWrapper client, MeTubeClient meTubeCl
 
         foreach (var link in links)
         {
-            string statusText = $"🦫 {GetUserName(message.From)}: {message.Text}\n⏳ Завантаження відео...";
+            string statusText;
+            if (canDeleteMessages)
+            {
+                statusText = $"🦫 {GetUserName(message.From)}: {message.Text}\n⏳ Завантаження відео...";
+            }
+            else
+            {
+                statusText = $"⏳ Завантаження відео...";
+            }
 
             var statusMessage = await client.SendMessageAsync(message, statusText, !canDeleteMessages, disableNotification: true);
             

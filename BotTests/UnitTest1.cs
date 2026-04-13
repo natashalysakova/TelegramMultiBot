@@ -1,6 +1,5 @@
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.ImageGeneration;
-using TelegramMultiBot.Reminder;
 
 namespace BotTests;
 

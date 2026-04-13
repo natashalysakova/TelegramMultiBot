@@ -1,7 +1,4 @@
-﻿
-using System.Diagnostics;
-
-namespace DtekParsers;
+﻿namespace DtekParsers;
 
 public class Schedule
 {

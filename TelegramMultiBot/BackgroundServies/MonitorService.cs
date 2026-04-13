@@ -1,7 +1,4 @@
-﻿using System.Runtime.Serialization.Formatters;
-using System.Text.Json;
-using System.Text.Json.Serialization;
-using System.Threading.Tasks;
+﻿using System.Text.Json;
 using DtekParsers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;

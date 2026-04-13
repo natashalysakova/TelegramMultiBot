@@ -1,7 +1,5 @@
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using DtekParsers;
 using Newtonsoft.Json.Linq;
-using System.Collections.Generic;
 using TelegramMultiBot.Database.Interfaces;
 using Moq;
 
