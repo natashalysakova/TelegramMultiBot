@@ -1,31 +1,19 @@
-﻿using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.DependencyInjection;
+﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using Telegram.Bot;
-using Telegram.Bot.Requests;
-using Telegram.Bot.Types;
-using TelegramMultiBot.Database;
-using VideoDownloader.Client;
 
 namespace VideoDownloader;
 
 public class VideoDownloaderService : BackgroundService
 {
     private readonly IServiceScopeFactory _scopeFactory;
-    private readonly MeTubeClient _meTubeClient;
-    private readonly TelegramBotClient _telegramBotClient;
     private readonly ILogger<VideoDownloaderService> _logger;
 
     public VideoDownloaderService(
         IServiceScopeFactory scopeFactory,
-        MeTubeClient meTubeClient,
-        TelegramBotClient telegramBotClient,
         ILogger<VideoDownloaderService> logger)
     {
         _scopeFactory = scopeFactory;
-        _meTubeClient = meTubeClient;
-        _telegramBotClient = telegramBotClient;
         _logger = logger;
     }
 
@@ -35,7 +23,9 @@ public class VideoDownloaderService : BackgroundService
         {
             try
             {
-                await ProcessDownloads(stoppingToken);
+                using var processScope = _scopeFactory.CreateScope();
+                var handler = processScope.ServiceProvider.GetRequiredService<IVideoProcessHandler>();
+                await handler.ProcessDownloads(stoppingToken);
             }
             catch (OperationCanceledException)
             {
@@ -46,8 +36,19 @@ public class VideoDownloaderService : BackgroundService
                 _logger.LogError(ex, "Error in video download processing loop");
             }
 
-            using var scope = _scopeFactory.CreateScope();
-            var settings = scope.ServiceProvider
+            try
+            {
+                using var cleanupScope = _scopeFactory.CreateScope();
+                var cleanupHandler = cleanupScope.ServiceProvider.GetRequiredService<IVideoCleanupHandler>();
+                await cleanupHandler.CleanupOld(stoppingToken);
+            }
+            catch (Exception ex)
+            {
+                _logger.LogError(ex, "Error in video cleanup processing loop");
+            }
+
+            using var waitScope = _scopeFactory.CreateScope();
+            var settings = waitScope.ServiceProvider
                 .GetRequiredService<TelegramMultiBot.Database.Interfaces.ISqlConfiguationService>()
                 .VideoDownloaderSettings;
             var interval = settings.PollingIntervalSeconds > 0 ? settings.PollingIntervalSeconds : 15;
@@ -56,263 +57,4 @@ public class VideoDownloaderService : BackgroundService
         }
     }
 
-    private async Task ProcessDownloads(CancellationToken cancellationToken)
-    {
-        using var scope = _scopeFactory.CreateScope();
-        var db = scope.ServiceProvider.GetRequiredService<BoberDbContext>();
-
-        var pendingJobs = await db.VideoDownloads
-            .Where(x => x.Status == VideoDownloadStatus.Pending)
-            .ToListAsync(cancellationToken);
-
-        if (!pendingJobs.Any())
-            return;
-
-        MeTubeHistoryResponse? history;
-        try
-        {
-            history = await _meTubeClient.GetHistory();
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to retrieve MeTube history");
-            return;
-        }
-
-        if (history == null)
-            return;
-
-        foreach (var item in history.Done)
-        {
-            var job = pendingJobs.FirstOrDefault(x=>item.Id.Contains(x.Id.ToString()));
-            if (job == null)
-                continue;
-
-            if (item.Status == "finished" && item.Filename != null)
-                await HandleFinishedDownload(job, item, db, cancellationToken);
-            else if (item.Status == "error")
-                await HandleFailedDownload(job, item, db, cancellationToken);
-        }
-
-        await db.SaveChangesAsync(cancellationToken);
-    }
-
-    private string GetId(string videoUrl)
-    {
-        if (videoUrl.Contains("youtube.com/watch"))
-        {
-            var index = videoUrl.LastIndexOf('=') + 1;
-            return videoUrl.Substring(index, videoUrl.Length - index);
-        }
-
-        if (videoUrl.Contains("youtube.com/shorts"))
-        {
-            var index = videoUrl.LastIndexOf('/') + 1;
-            return videoUrl.Substring(index, videoUrl.Length - index);
-        }
-
-        return string.Empty;
-    }
-
-    private const long MaxFileSizeBytes = 50L * 1024 * 1024;
-
-    private async Task HandleFinishedDownload(VideoDownload job, MeTubeHistoryItem item, BoberDbContext db, CancellationToken cancellationToken)
-    {
-        if (item.Size.HasValue && item.Size.Value > MaxFileSizeBytes)
-        {
-            _logger.LogWarning("Video too large ({size} bytes) for Telegram, falling back to URL replacement for {url}", item.Size.Value, item.Url);
-            _logger.LogTrace("Oversized video — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}, Size: {size}", job.Id, job.ChatId, job.BotMessage, item.Size.Value);
-            await HandleOversizedDownload(job, item, db, cancellationToken);
-            return;
-        }
-
-        try
-        {
-            using var response = await _meTubeClient.GetFileResponseAsync(item.Filename!, cancellationToken);
-            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
-
-            var chatId = new ChatId(job.ChatId);
-            var inputFile = InputFile.FromStream(stream, item.Filename);
-
-            bool sendWithCaption = true;
-            var caption = $"Відео від {job.RequestedBy}."
-                + (string.IsNullOrWhiteSpace(job.UserComment) && job.MessageToDelete == 0 ? string.Empty : $"\n{job.UserComment}")
-                + $"\nОригінальне відео: {job.VideoUrl}";
-
-            if (caption.Length > 1024)
-            {
-                caption = $"Відео від {job.RequestedBy}."
-                + $"\nОригінальне відео: {job.VideoUrl}";
-                sendWithCaption = false;
-            }
-
-            await _telegramBotClient.SendRequest(new SendVideoRequest
-            {
-                ChatId = chatId,
-                Video = inputFile,
-                MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
-                Caption = caption,
-                ShowCaptionAboveMedia = true,
-                SupportsStreaming = true
-            }, cancellationToken);
-
-            if (!sendWithCaption)
-            {
-                await _telegramBotClient.SendRequest(new SendMessageRequest
-                {
-                    ChatId = chatId,
-                    Text = $"Повідомлення від {job.RequestedBy}:\n{job.UserComment}",
-                    MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
-                }, cancellationToken);
-            }
-
-            _logger.LogInformation("Video sent for {url}", item.Url);
-
-            job.Status = VideoDownloadStatus.Completed;
-        }
-        catch (Exception ex)
-        {
-            _logger.LogError(ex, "Failed to send video for {url}", item.Url);
-            _logger.LogTrace("Send failure — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}, Filename: {filename}", job.Id, job.ChatId, job.BotMessage, item.Filename);
-            job.Status = VideoDownloadStatus.Failed;
-
-            await EditStatusMessage(job, $"❌ Помилка надсилання відео\n{job.VideoUrl}", cancellationToken);
-        }
-
-        if (job.Status == VideoDownloadStatus.Completed)
-        {
-            await DoCleanup(job, item, db, cancellationToken);
-        }
-    }
-
-    private async Task DoCleanup(VideoDownload job, MeTubeHistoryItem item, BoberDbContext db, CancellationToken cancellationToken)
-    {
-        await DeleteStatusMessage(job, cancellationToken);
-        await DeleteOriginalMessage(job, db, cancellationToken);
-        await _meTubeClient.DeleteDownload(item.Url);
-        db.VideoDownloads.Remove(job);
-    }
-
-    private async Task HandleOversizedDownload(VideoDownload job, MeTubeHistoryItem item, BoberDbContext db, CancellationToken cancellationToken)
-    {
-        var fallbackUrl = GetFallbackUrl(job.VideoUrl);
-        var sizeMb = item.Size!.Value / (1024 * 1024);
-
-        string statusText = $"Відео від {job.RequestedBy}."
-            + (string.IsNullOrWhiteSpace(job.UserComment) ? string.Empty : $"\n{job.UserComment}")
-            + $"\n⚠️ Відео завелике для Telegram ({sizeMb} MB)."
-            + (fallbackUrl != null ? $" {fallbackUrl}" : string.Empty);
-
-        await EditStatusMessage(job, statusText, cancellationToken);
-
-        try
-        {
-            await _meTubeClient.DeleteDownload(item.Id);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not delete oversized download {id}", item.Id);
-        }
-
-        db.VideoDownloads.Remove(job);
-    }
-
-    private static string GetFallbackUrl(string videoUrl)
-    {
-        if (videoUrl.Contains("instagram.com"))
-            return videoUrl.Replace("instagram", "kksave");
-        if (videoUrl.Contains("x.com"))
-            return videoUrl.Replace("x.com", "fixupx.com");
-        if (videoUrl.Contains("twitter.com"))
-            return videoUrl.Replace("twitter.com", "fxtwitter.com");
-        return videoUrl;
-    }
-
-    private async Task HandleFailedDownload(VideoDownload job, MeTubeHistoryItem item, BoberDbContext db, CancellationToken cancellationToken)
-    {
-        _logger.LogWarning("MeTube reported download error for {url}: {msg}", item.Url, item.Title);
-        _logger.LogTrace("Download failure — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}", job.Id, job.ChatId, job.BotMessage);
-
-        await EditStatusMessage(job, $"❌ Помилка завантаження відео\n{job.VideoUrl}", cancellationToken);
-
-        try
-        {
-            await _meTubeClient.DeleteDownload(item.Id);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not delete errored download {id}", item.Id);
-        }
-
-        db.VideoDownloads.Remove(job);
-    }
-
-    private async Task DeleteStatusMessage(VideoDownload job, CancellationToken cancellationToken)
-    {
-        if (job.BotMessage <= 0)
-            return;
-
-        try
-        {
-            await _telegramBotClient.SendRequest(new DeleteMessageRequest
-            {
-                ChatId = new ChatId(job.ChatId),
-                MessageId = job.BotMessage
-            }, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not delete status message {messageId}", job.BotMessage);
-        }
-    }
-
-    private async Task DeleteOriginalMessage(VideoDownload job, BoberDbContext db, CancellationToken cancellationToken)
-    {
-        if (job.MessageToDelete is null || job.MessageToDelete <= 0)
-            return;
-
-        var activeJobsFromMessage = db.VideoDownloads.Any(x =>
-            x.Id != job.Id &&
-            x.MessageToDelete == job.MessageToDelete &&
-            x.ChatId == job.ChatId);
-
-        if (activeJobsFromMessage)
-        {
-            return;
-        }
-
-        // only for last job for that specific message - remove the message
-        try
-        {
-            await _telegramBotClient.SendRequest(new DeleteMessageRequest
-            {
-                ChatId = new ChatId(job.ChatId),
-                MessageId = job.MessageToDelete.Value
-            }, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not delete original message {messageId}", job.MessageToDelete);
-        }
-    }
-
-    private async Task EditStatusMessage(VideoDownload job, string text, CancellationToken cancellationToken)
-    {
-        if (job.BotMessage <= 0)
-            return;
-
-        try
-        {
-            await _telegramBotClient.SendRequest(new EditMessageTextRequest
-            {
-                ChatId = new ChatId(job.ChatId),
-                MessageId = job.BotMessage,
-                Text = text
-            }, cancellationToken);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not edit status message {messageId}", job.BotMessage);
-        }
-    }
 }

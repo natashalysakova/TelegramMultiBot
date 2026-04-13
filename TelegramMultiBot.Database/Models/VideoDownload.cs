@@ -14,6 +14,7 @@ public class VideoDownload
     public int? MessageToDelete { get; set; }
     public required string RequestedBy { get; set; }
     public string? UserComment { get; set; }
+    public DateTimeOffset CreatedAt { get; set; }
 }
 
 public enum VideoDownloadStatus

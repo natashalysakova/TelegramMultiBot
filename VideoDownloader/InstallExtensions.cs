@@ -10,5 +10,8 @@ public static class InstallExtensions
         services.AddSingleton<MeTubeClient>();
         services.AddSingleton<VideoDownloaderService>();
         services.AddHostedService(provider => provider.GetRequiredService<VideoDownloaderService>());
+
+        services.AddTransient<IVideoProcessHandler, VideoProcessHandler>();
+        services.AddTransient<IVideoCleanupHandler, VideoCleanupHandler>();
     }
 }

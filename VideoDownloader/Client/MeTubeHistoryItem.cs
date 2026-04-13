@@ -24,4 +24,7 @@ public record MeTubeHistoryItem
 
     [JsonPropertyName("size")]
     public long? Size { get; set; }
+
+    [JsonPropertyName("timestamp")]
+    public long Timestamp { get; set; } = 0;
 }

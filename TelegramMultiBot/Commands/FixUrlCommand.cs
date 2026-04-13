@@ -70,7 +70,8 @@ internal class FixUrlCommand(TelegramClientWrapper client, MeTubeClient meTubeCl
                     BotMessage = statusMessage.MessageId,
                     MessageToDelete = canDeleteMessages ? message.MessageId : 0,
                     RequestedBy = GetUserName(message.From),
-                    UserComment = userComment
+                    UserComment = userComment,
+                    CreatedAt = DateTimeOffset.UtcNow
                 });
                 await context.SaveChangesAsync();
             }
