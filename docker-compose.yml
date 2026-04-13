@@ -35,6 +35,7 @@ services:
     restart: always
     environment:
       - YTDL_OPTIONS={"cookiesfrombrowser":null,"merge_output_format":"mp4","format":"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"}
+      - DELETE_FILE_ON_TRASHCAN=true
       - OUTPUT_TEMPLATE=%(title)s [%(id)s].%(ext)s
 
   bot:

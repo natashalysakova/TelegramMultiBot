@@ -1,27 +1,82 @@
-﻿using AutoMapper;
+﻿
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database.Profiles;
 
-public class ImageJobProfile : Profile
+public static partial class Mappers
 {
-    public ImageJobProfile()
+    public static JobInfo ToJobInfo(this ImageJob job)
     {
-        _ = CreateMap<ImageJob, JobInfo>()
-            .ForMember(x => x.Exception, act => act.Ignore())
-            .ReverseMap()
-            .ForMember(x => x.Progress, act => act.Ignore());
+        var result = new JobInfo()
+        {
+            Id = job.Id.ToString(),
+            BotMessageId = job.BotMessageId,
+            ChatId = job.ChatId,
+            MessageId = job.MessageId,
+            MessageThreadId = job.MessageId,
+            PostInfo = job.PostInfo,
+            Type = job.Type,
+            UpscaleModifyer = job.UpscaleModifyer,
+            Results = job.Results.Select(x=>x.ToJobResultInfoView()).ToList(),
+        };
+        return result;
+    }
 
-        _ = CreateMap<JobResult, JobResultInfoView>()
-            .ForMember(x => x.Seed, act => act.MapFrom(y => GetSeed(y.Info)));
+    public static ImageJob ToImageJob(this JobInfo job)
+    {
+        var result = new ImageJob()
+        {
+            Id = Guid.Parse(job.Id),
+            BotMessageId = job.BotMessageId,
+            ChatId = job.ChatId,
+            MessageId = job.MessageId,
+            MessageThreadId = job.MessageId,
+            PostInfo = job.PostInfo,
+            Type = job.Type,
+            UpscaleModifyer = job.UpscaleModifyer,
+            Results = job.Results.Select(x=>x.ToJobResultInfoView()).ToList(),
+        };
+        return result;
+    }
 
-        _ = CreateMap<JobResultInfoCreate, JobResult>()
-            .ForMember(x => x.Id, act => act.Ignore())
-            .ForMember(x => x.Index, act => act.Ignore())
-            .ForMember(x => x.Job, act => act.Ignore())
-            .ForMember(x => x.JobId, act => act.Ignore())
-            .ForMember(x => x.FileId, act => act.Ignore());
+    public static JobResultInfoView ToJobResultInfoView(this JobResult jobResult)
+    {
+        var item = new JobResultInfoView
+        {
+            Seed = GetSeed(jobResult.Info),
+            FilePath = jobResult.FilePath,
+            Info = jobResult.Info,
+            RenderTime = jobResult.RenderTime,
+            Id = jobResult.Id.ToString(),
+            FileId = jobResult.FileId
+        };
+        return item;
+    }
+
+    public static JobResult ToJobResultInfoView(this JobResultInfoView jobResult)
+    {
+        var item = new JobResult
+        {
+            FilePath = jobResult.FilePath,
+            Info = jobResult.Info,
+            RenderTime = jobResult.RenderTime,
+            FileId = jobResult.FileId,
+            Id = Guid.Parse(jobResult.Id)
+        };
+        return item;
+    }
+
+    public static JobResult ToJobResult(this JobResultInfoCreate jobResult)
+    {
+        var item = new JobResult
+        {
+            FilePath = jobResult.FilePath,
+            Info = jobResult.Info,
+            RenderTime = jobResult.RenderTime,
+            
+        };
+        return item;
     }
 
     private static long GetSeed(string? info)

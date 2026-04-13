@@ -1,5 +1,8 @@
+using Microsoft.EntityFrameworkCore.Storage.Json;
 using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
+using System.Text.Json;
+using System.Text.Json.Serialization;
 using TelegramMultiBot.Database.Interfaces;
 
 namespace VideoDownloader.Client;
@@ -29,7 +32,7 @@ public class MeTubeClient
         _httpClient.BaseAddress = baseUrl;
     }
 
-    public async Task<MeTubeGenericResponse?> AddDownload(string url)
+    public async Task<MeTubeGenericResponse?> AddDownload(string url, string idPrefix)
     {
         var requestBody = new MeTubeAddRequest
         {
@@ -38,7 +41,8 @@ public class MeTubeClient
             Format = "mp4",
             Codec = "h264",
             AutoStart = true,
-            SplitByChapters = false
+            SplitByChapters = false,
+            CustomNamePrefix = idPrefix
         };
 
         var content = JsonContent.Create(requestBody);
@@ -49,12 +53,18 @@ public class MeTubeClient
         return responseContent;
     }
 
-    public async Task<MeTubeHistoryResponse?> GetHistory()
+    public async Task<MeTubeHistoryResponse> GetHistory()
     {
         var response = await _httpClient.GetAsync("/history");
         response.EnsureSuccessStatusCode();
-        var responseContent = await response.Content
-            .ReadFromJsonAsync<MeTubeHistoryResponse>();
+        var content = await response.Content.ReadAsStringAsync();
+        var responseContent = JsonSerializer.Deserialize<MeTubeHistoryResponse>(content);
+
+        if(responseContent == null)
+        {
+            throw new Exception($"Failed to deserialize MeTube history response. Response: {content}");
+        }
+
         return responseContent;
     }
 
@@ -63,13 +73,13 @@ public class MeTubeClient
         return await DeleteDownloads([id]);
     }
 
-    public async Task<MeTubeGenericResponse?> DeleteDownloads(string[] ids)
+    public async Task<MeTubeGenericResponse?> DeleteDownloads(IEnumerable<string> ids)
     {
         // {"where":"done","ids":["https://www.youtube.com/watch?v=bxOLkxR6_6c"]}
         var requestBody = new MeTubeDeleteRequest
         {
             Where = "done",
-            Ids = ids
+            Ids = ids.ToArray()
         };
         var content = JsonContent.Create(requestBody);
         var response = await _httpClient.PostAsync("/delete", content);

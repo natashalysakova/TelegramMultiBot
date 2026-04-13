@@ -62,7 +62,7 @@ public class VideoDownloaderService : BackgroundService
         var db = scope.ServiceProvider.GetRequiredService<BoberDbContext>();
 
         var pendingJobs = await db.VideoDownloads
-            .Where(x => x.Status == "pending")
+            .Where(x => x.Status == VideoDownloadStatus.Pending)
             .ToListAsync(cancellationToken);
 
         if (!pendingJobs.Any())
@@ -84,7 +84,7 @@ public class VideoDownloaderService : BackgroundService
 
         foreach (var item in history.Done)
         {
-            var job = pendingJobs.FirstOrDefault(x => x.VideoUrl == item.Url || item.Id == GetId(x.VideoUrl));
+            var job = pendingJobs.FirstOrDefault(x=>item.Id.Contains(x.Id.ToString()));
             if (job == null)
                 continue;
 
@@ -125,7 +125,7 @@ public class VideoDownloaderService : BackgroundService
             await HandleOversizedDownload(job, item, db, cancellationToken);
             return;
         }
-        bool sent = false;
+
         try
         {
             using var response = await _meTubeClient.GetFileResponseAsync(item.Filename!, cancellationToken);
@@ -167,18 +167,19 @@ public class VideoDownloaderService : BackgroundService
             }
 
             _logger.LogInformation("Video sent for {url}", item.Url);
-            sent = true;
+
+            job.Status = VideoDownloadStatus.Completed;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send video for {url}", item.Url);
             _logger.LogTrace("Send failure — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}, Filename: {filename}", job.Id, job.ChatId, job.BotMessage, item.Filename);
-            job.Status = "error";
+            job.Status = VideoDownloadStatus.Failed;
 
             await EditStatusMessage(job, $"❌ Помилка надсилання відео\n{job.VideoUrl}", cancellationToken);
         }
 
-        if (sent)
+        if (job.Status == VideoDownloadStatus.Completed)
         {
             await DoCleanup(job, item, db, cancellationToken);
         }
@@ -188,7 +189,7 @@ public class VideoDownloaderService : BackgroundService
     {
         await DeleteStatusMessage(job, cancellationToken);
         await DeleteOriginalMessage(job, db, cancellationToken);
-        await _meTubeClient.DeleteDownload(item.Id);
+        await _meTubeClient.DeleteDownload(item.Url);
         db.VideoDownloads.Remove(job);
     }
 
@@ -267,7 +268,7 @@ public class VideoDownloaderService : BackgroundService
 
     private async Task DeleteOriginalMessage(VideoDownload job, BoberDbContext db, CancellationToken cancellationToken)
     {
-        if (job.MessageToDelete <= 0)
+        if (job.MessageToDelete is null || job.MessageToDelete <= 0)
             return;
 
         var activeJobsFromMessage = db.VideoDownloads.Any(x =>
@@ -286,7 +287,7 @@ public class VideoDownloaderService : BackgroundService
             await _telegramBotClient.SendRequest(new DeleteMessageRequest
             {
                 ChatId = new ChatId(job.ChatId),
-                MessageId = job.MessageToDelete
+                MessageId = job.MessageToDelete.Value
             }, cancellationToken);
         }
         catch (Exception ex)

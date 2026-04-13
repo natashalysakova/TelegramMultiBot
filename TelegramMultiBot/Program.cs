@@ -1,5 +1,4 @@
 ﻿// See https://aka.ms/new-console-template for more information
-using AutoMapper;
 using DtekParsers;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
@@ -205,13 +204,6 @@ internal class Program
         RegisterMyKeyedServices<ICommand>(serviceCollection);
 
         _ = serviceCollection.AddScoped<DialogHandlerFactory>();
-
-        var cfg = new MapperConfiguration(c =>
-        {
-            c.AddMaps(typeof(ImageJobProfile));
-        }, loggerFactory);
-        cfg.AssertConfigurationIsValid();
-        _ = serviceCollection.AddTransient(x => { return cfg.CreateMapper(); });
 
         return serviceCollection.BuildServiceProvider();
     }
