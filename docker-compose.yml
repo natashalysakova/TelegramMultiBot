@@ -163,5 +163,3 @@ volumes:
     driver: local
   metube-downloads:
     driver: local
-  metube-downloads-dev:
-    driver: local

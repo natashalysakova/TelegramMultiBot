@@ -121,37 +121,53 @@ public class VideoDownloaderService : BackgroundService
         if (item.Size.HasValue && item.Size.Value > MaxFileSizeBytes)
         {
             _logger.LogWarning("Video too large ({size} bytes) for Telegram, falling back to URL replacement for {url}", item.Size.Value, item.Url);
-                _logger.LogTrace("Oversized video — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}, Size: {size}", job.Id, job.ChatId, job.BotMessage, item.Size.Value);
-                await HandleOversizedDownload(job, item, db, cancellationToken);
+            _logger.LogTrace("Oversized video — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}, Size: {size}", job.Id, job.ChatId, job.BotMessage, item.Size.Value);
+            await HandleOversizedDownload(job, item, db, cancellationToken);
             return;
         }
-
+        bool sent = false;
         try
         {
-            using var response = await _meTubeClient.GetFileResponseAsync(item.Filename!);
+            using var response = await _meTubeClient.GetFileResponseAsync(item.Filename!, cancellationToken);
             using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
 
             var chatId = new ChatId(job.ChatId);
             var inputFile = InputFile.FromStream(stream, item.Filename);
+
+            bool sendWithCaption = true;
+            var caption = $"Відео від {job.RequestedBy}."
+                + (string.IsNullOrWhiteSpace(job.UserComment) && job.MessageToDelete == 0 ? string.Empty : $"\n{job.UserComment}")
+                + $"\nОригінальне відео: {job.VideoUrl}";
+
+            if (caption.Length > 1024)
+            {
+                caption = $"Відео від {job.RequestedBy}."
+                + $"\nОригінальне відео: {job.VideoUrl}";
+                sendWithCaption = false;
+            }
 
             await _telegramBotClient.SendRequest(new SendVideoRequest
             {
                 ChatId = chatId,
                 Video = inputFile,
                 MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
-                Caption = $"Відео від {job.RequestedBy}."
-                    + (string.IsNullOrWhiteSpace(job.UserComment) ? string.Empty : $"\n{job.UserComment}")
-                    + $"\nОригінальне відео: {job.VideoUrl}",
+                Caption = caption,
                 ShowCaptionAboveMedia = true,
                 SupportsStreaming = true
             }, cancellationToken);
 
-            await DeleteStatusMessage(job, cancellationToken);
-            await DeleteOriginalMessage(job, cancellationToken);
-            await _meTubeClient.DeleteDownload(item.Id);
-            db.VideoDownloads.Remove(job);
+            if (!sendWithCaption)
+            {
+                await _telegramBotClient.SendRequest(new SendMessageRequest
+                {
+                    ChatId = chatId,
+                    Text = $"Повідомлення від {job.RequestedBy}:\n{job.UserComment}",
+                    MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
+                }, cancellationToken);
+            }
 
             _logger.LogInformation("Video sent for {url}", item.Url);
+            sent = true;
         }
         catch (Exception ex)
         {
@@ -161,6 +177,19 @@ public class VideoDownloaderService : BackgroundService
 
             await EditStatusMessage(job, $"❌ Помилка надсилання відео\n{job.VideoUrl}", cancellationToken);
         }
+
+        if (sent)
+        {
+            await DoCleanup(job, item, db, cancellationToken);
+        }
+    }
+
+    private async Task DoCleanup(VideoDownload job, MeTubeHistoryItem item, BoberDbContext db, CancellationToken cancellationToken)
+    {
+        await DeleteStatusMessage(job, cancellationToken);
+        await DeleteOriginalMessage(job, db, cancellationToken);
+        await _meTubeClient.DeleteDownload(item.Id);
+        db.VideoDownloads.Remove(job);
     }
 
     private async Task HandleOversizedDownload(VideoDownload job, MeTubeHistoryItem item, BoberDbContext db, CancellationToken cancellationToken)
@@ -187,7 +216,7 @@ public class VideoDownloaderService : BackgroundService
         db.VideoDownloads.Remove(job);
     }
 
-    private static string? GetFallbackUrl(string videoUrl)
+    private static string GetFallbackUrl(string videoUrl)
     {
         if (videoUrl.Contains("instagram.com"))
             return videoUrl.Replace("instagram", "kksave");
@@ -236,11 +265,22 @@ public class VideoDownloaderService : BackgroundService
         }
     }
 
-    private async Task DeleteOriginalMessage(VideoDownload job, CancellationToken cancellationToken)
+    private async Task DeleteOriginalMessage(VideoDownload job, BoberDbContext db, CancellationToken cancellationToken)
     {
         if (job.MessageToDelete <= 0)
             return;
 
+        var activeJobsFromMessage = db.VideoDownloads.Any(x =>
+            x.Id != job.Id &&
+            x.MessageToDelete == job.MessageToDelete &&
+            x.ChatId == job.ChatId);
+
+        if (activeJobsFromMessage)
+        {
+            return;
+        }
+
+        // only for last job for that specific message - remove the message
         try
         {
             await _telegramBotClient.SendRequest(new DeleteMessageRequest
