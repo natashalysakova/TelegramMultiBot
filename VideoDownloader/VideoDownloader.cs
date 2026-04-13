@@ -121,7 +121,8 @@ public class VideoDownloaderService : BackgroundService
         if (item.Size.HasValue && item.Size.Value > MaxFileSizeBytes)
         {
             _logger.LogWarning("Video too large ({size} bytes) for Telegram, falling back to URL replacement for {url}", item.Size.Value, item.Url);
-            await HandleOversizedDownload(job, item, db, cancellationToken);
+                _logger.LogTrace("Oversized video — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}, Size: {size}", job.Id, job.ChatId, job.BotMessage, item.Size.Value);
+                await HandleOversizedDownload(job, item, db, cancellationToken);
             return;
         }
 
@@ -146,6 +147,7 @@ public class VideoDownloaderService : BackgroundService
             }, cancellationToken);
 
             await DeleteStatusMessage(job, cancellationToken);
+            await DeleteOriginalMessage(job, cancellationToken);
             await _meTubeClient.DeleteDownload(item.Id);
             db.VideoDownloads.Remove(job);
 
@@ -154,9 +156,10 @@ public class VideoDownloaderService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to send video for {url}", item.Url);
+            _logger.LogTrace("Send failure — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}, Filename: {filename}", job.Id, job.ChatId, job.BotMessage, item.Filename);
             job.Status = "error";
 
-            await EditStatusMessage(job, "❌ Помилка надсилання відео", cancellationToken);
+            await EditStatusMessage(job, $"❌ Помилка надсилання відео\n{job.VideoUrl}", cancellationToken);
         }
     }
 
@@ -198,8 +201,9 @@ public class VideoDownloaderService : BackgroundService
     private async Task HandleFailedDownload(VideoDownload job, MeTubeHistoryItem item, BoberDbContext db, CancellationToken cancellationToken)
     {
         _logger.LogWarning("MeTube reported download error for {url}: {msg}", item.Url, item.Title);
+        _logger.LogTrace("Download failure — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}", job.Id, job.ChatId, job.BotMessage);
 
-        await EditStatusMessage(job, "❌ Помилка завантаження відео", cancellationToken);
+        await EditStatusMessage(job, $"❌ Помилка завантаження відео\n{job.VideoUrl}", cancellationToken);
 
         try
         {
@@ -229,6 +233,25 @@ public class VideoDownloaderService : BackgroundService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "Could not delete status message {messageId}", job.BotMessage);
+        }
+    }
+
+    private async Task DeleteOriginalMessage(VideoDownload job, CancellationToken cancellationToken)
+    {
+        if (job.MessageToDelete <= 0)
+            return;
+
+        try
+        {
+            await _telegramBotClient.SendRequest(new DeleteMessageRequest
+            {
+                ChatId = new ChatId(job.ChatId),
+                MessageId = job.MessageToDelete
+            }, cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not delete original message {messageId}", job.MessageToDelete);
         }
     }
 
