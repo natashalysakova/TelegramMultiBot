@@ -1,12 +1,7 @@
 using DtekParsers;
-using Microsoft.EntityFrameworkCore;
-using Microsoft.Extensions.Logging;
 using Moq;
-using TelegramMultiBot.BackgroundServies;
-using TelegramMultiBot.Database;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
-using TelegramMultiBot.ImageCompare;
 
 namespace BotTests;
 

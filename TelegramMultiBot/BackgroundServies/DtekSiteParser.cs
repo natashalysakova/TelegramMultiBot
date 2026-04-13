@@ -1,20 +1,13 @@
-﻿using AngleSharp.Dom;
-using DtekParsers;
-using Microsoft.EntityFrameworkCore.Query.SqlExpressions;
+﻿using DtekParsers;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
-using System;
-using System.Net.Http;
 using System.Text;
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using System.Threading.Tasks;
 using TelegramMultiBot.Database;
-using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
-using TelegramMultiBot.Database.Services;
 
 namespace TelegramMultiBot.BackgroundServies;
 public class DtekSiteParser : BackgroundService

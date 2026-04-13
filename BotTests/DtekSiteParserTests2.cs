@@ -1,16 +1,7 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Net;
-using System.Net.Http;
-using System.Threading;
-using System.Threading.Tasks;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using Microsoft.VisualStudio.TestTools.UnitTesting;
 using Moq;
-using Moq.Protected;
 using TelegramMultiBot.BackgroundServies;
 using TelegramMultiBot.Database;
 using TelegramMultiBot.Database.Interfaces;

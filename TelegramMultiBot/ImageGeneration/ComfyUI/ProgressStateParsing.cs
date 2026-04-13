@@ -13,14 +13,8 @@
 
 // Implementation:
 
-using AngleSharp.Dom;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
-using System;
-using System.Collections.Generic;
-using System.Diagnostics;
-using Telegram.Bot.Types;
-using static System.Runtime.InteropServices.JavaScript.JSType;
 
 namespace TelegramMultiBot.ImageGeneration.ComfyUI
 {

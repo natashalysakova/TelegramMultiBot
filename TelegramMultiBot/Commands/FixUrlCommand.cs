@@ -3,7 +3,6 @@ using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramMultiBot.Database;
 using VideoDownloader.Client;
-using static System.Net.WebRequestMethods;
 
 namespace TelegramMultiBot.Commands;
 

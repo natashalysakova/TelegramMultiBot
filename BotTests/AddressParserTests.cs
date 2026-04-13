@@ -1,7 +1,5 @@
 using DtekParsers;
 using Moq;
-using System.Net;
-using System.Net.Http;
 using System.Text.Json;
 using TelegramMultiBot.BackgroundServies;
 using TelegramMultiBot.Database.DTO;

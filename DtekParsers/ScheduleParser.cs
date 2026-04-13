@@ -1,8 +1,6 @@
 ﻿using Microsoft.Extensions.Logging;
 using Newtonsoft.Json.Linq;
 using PuppeteerSharp;
-using System.Net.Http;
-using System.Net.Sockets;
 using System.Text;
 using TelegramMultiBot.Database.Interfaces;
 using HtmlAgilityPack;

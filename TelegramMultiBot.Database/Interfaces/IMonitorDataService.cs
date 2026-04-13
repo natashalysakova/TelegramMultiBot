@@ -1,7 +1,4 @@
 ﻿using Microsoft.EntityFrameworkCore;
-using System.Threading.Tasks;
-using System.Xml.Schema;
-using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database.Interfaces;
