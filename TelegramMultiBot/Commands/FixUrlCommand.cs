@@ -1,4 +1,5 @@
-﻿using Telegram.Bot.Types;
+﻿using Microsoft.Extensions.Logging;
+using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramMultiBot.Database;
 using VideoDownloader.Client;
@@ -6,7 +7,7 @@ using static System.Net.WebRequestMethods;
 
 namespace TelegramMultiBot.Commands;
 
-internal class FixUrlCommand(TelegramClientWrapper client, MeTubeClient meTubeClient, BoberDbContext context) : BaseCommand
+internal class FixUrlCommand(TelegramClientWrapper client, MeTubeClient meTubeClient, BoberDbContext context, ILogger<FixUrlCommand> logger) : BaseCommand
 {
     public override bool CanHandle(Message message)
     {
@@ -36,24 +37,19 @@ internal class FixUrlCommand(TelegramClientWrapper client, MeTubeClient meTubeCl
 
         var userComment = GetUserComment(message.Text, links);
 
+        bool canDeleteMessages = false;
+        if (client.BotId != null)
+        {
+            var bot = await client.GetChatMemberAsync(message.Chat, client.BotId.Value);
+            canDeleteMessages = bot.Status == ChatMemberStatus.Administrator || message.Chat.Type == ChatType.Private;
+        }
+
         foreach (var link in links)
         {
-            bool canDeleteMessages = false;
-            if (client.BotId != null)
-            {
-                var bot = await client.GetChatMemberAsync(message.Chat, client.BotId.Value);
-                canDeleteMessages = bot.Status == ChatMemberStatus.Administrator || message.Chat.Type == ChatType.Private;
-            }
-
-            if (canDeleteMessages)
-                await client.DeleteMessageAsync(message);
-
-            string statusText = canDeleteMessages
-                ? $"🦫 {GetUserName(message.From)}: {message.Text}\n⏳ Завантаження відео..."
-                : "⏳ Завантаження відео...";
+            string statusText = $"🦫 {GetUserName(message.From)}: {message.Text}\n⏳ Завантаження відео...";
 
             var statusMessage = await client.SendMessageAsync(message, statusText, !canDeleteMessages, disableNotification: true);
-
+            
             var response = await meTubeClient.AddDownload(link);
             if (response?.Status == MeTubeStatus.Ok)
             {
@@ -65,7 +61,7 @@ internal class FixUrlCommand(TelegramClientWrapper client, MeTubeClient meTubeCl
                     ChatId = message.Chat.Id,
                     MessageThreadId = message.IsTopicMessage ? message.MessageThreadId ?? 0 : 0,
                     BotMessage = statusMessage.MessageId,
-                    MessageToDelete = 0,
+                    MessageToDelete = canDeleteMessages ? message.MessageId : 0,
                     RequestedBy = GetUserName(message.From),
                     UserComment = userComment
                 });
@@ -74,6 +70,7 @@ internal class FixUrlCommand(TelegramClientWrapper client, MeTubeClient meTubeCl
             else
             {
                 await client.EditMessageTextAsync(statusMessage, "❌ Не вдалося поставити відео в чергу завантаження");
+                logger.LogError("Failed to add download for link {Link}. Response: {Response}", link, response);
             }
         }
     }

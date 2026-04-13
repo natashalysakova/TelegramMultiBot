@@ -10,13 +10,11 @@ public class IndexModel : PageModel
 {
     private readonly ILogger<IndexModel> _logger;
     private readonly BoberDbContext _dbContext;
-    private readonly IConfiguration _configuration;
 
-    public IndexModel(ILogger<IndexModel> logger, BoberDbContext dbContext, IConfiguration configuration)
+    public IndexModel(ILogger<IndexModel> logger, BoberDbContext dbContext)
     {
         _logger = logger;
         _dbContext = dbContext;
-        _configuration = configuration;
     }
 
     public IEnumerable<Model> Models { get; set; }
