@@ -1,10 +1,10 @@
-﻿using AutoMapper;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Enums;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
+using TelegramMultiBot.Database.Profiles;
 
 namespace TelegramMultiBot.Database.Services;
 
@@ -12,13 +12,11 @@ public class ImageService : IImageDatabaseService
 {
     private readonly BoberDbContext _context;
     private readonly ILogger<ImageService> _logger;
-    private readonly IMapper _mapper;
 
-    public ImageService(BoberDbContext context, ILogger<ImageService> logger, IMapper mapper)
+    public ImageService(BoberDbContext context, ILogger<ImageService> logger)
     {
         _context = context;
         _logger = logger;
-        _mapper = mapper;
     }
 
     public IEnumerable<ImageJob> ActiveJobs
@@ -143,7 +141,7 @@ public class ImageService : IImageDatabaseService
 
     public IEnumerable<JobInfo> GetJobsOlderThan(DateTime date)
     {
-        return _context.Jobs.Include(x => x.Results).Where(x => x.Finised != default && x.Finised < date).Select(x => _mapper.Map<JobInfo>(x));
+        return _context.Jobs.Include(x => x.Results).Where(x => x.Finised != default && x.Finised < date).Select(x => x.ToJobInfo());
     }
 
     public void RemoveJobs(IEnumerable<string> jobsToDelete)
@@ -178,7 +176,7 @@ public class ImageService : IImageDatabaseService
                 imageJob.Status = ImageJobStatus.Running;
                 _ = _context.SaveChanges();
 
-                job = _mapper.Map<JobInfo>(imageJob);
+                job = imageJob.ToJobInfo();
 
                 return true;
             }
@@ -224,13 +222,13 @@ public class ImageService : IImageDatabaseService
     public JobInfo GetJob(string jobId)
     {
         var job = _context.Jobs.FirstOrDefault(x => x.Id == Guid.Parse(jobId));
-        return _mapper.Map<JobInfo>(job);
+        return job.ToJobInfo();
     }
 
     public JobResultInfoView? GetJobResult(string jobResultId)
     {
         var job = _context.JobResult.FirstOrDefault(x => x.Id == Guid.Parse(jobResultId));
-        return job is null ? null : _mapper.Map<JobResultInfoView>(job);
+        return job is null ? null : job.ToJobResultInfoView();
     }
 
     public int ActiveJobsCount(long userId)
@@ -240,7 +238,7 @@ public class ImageService : IImageDatabaseService
 
     public void AddResult(string id, JobResultInfoCreate jobResultInfo)
     {
-        var jobResult = _mapper.Map<JobResult>(jobResultInfo);
+        var jobResult = jobResultInfo.ToJobResult();
         var job = _context.Jobs.First(x => x.Id.ToString() == id);
         job.Results.Add(jobResult);
         _ = _context.SaveChanges();
@@ -248,7 +246,7 @@ public class ImageService : IImageDatabaseService
 
     public void Update(JobInfo job)
     {
-        var entity = _mapper.Map<ImageJob>(job);
+        var entity = job.ToImageJob();
 
         _context.Entry(entity).State = EntityState.Modified;
         _ = _context.SaveChanges();
@@ -282,45 +280,42 @@ public class ImageService : IImageDatabaseService
 
     public JobInfo? GetJobByFileId(string fileId)
     {
-        var result = _context.Jobs.Include(x=>x.Results).AsNoTracking().SingleOrDefault(x=>x.Results.Any(x=>x.FileId == fileId));
-        
-        if (result != null)
-            return _mapper.Map<JobInfo?>(result);
+        var result = _context.Jobs
+            .Include(x => x.Results)
+            .AsNoTracking()
+            .SingleOrDefault(x => x.Results.Any(x => x.FileId == fileId));
 
-        return null;
+        return result?.ToJobInfo();
     }
 
     public JobInfo? GetJobByResultId(string id)
     {
-        var result = _context.Jobs.Include(x => x.Results).AsNoTracking().SingleOrDefault(x => x.Results.Any(x=>x.Id == Guid.Parse(id)));
-        if(result == default)
-            return default;
-        return _mapper.Map<JobInfo?>(result);
-
+        var result = _context.Jobs.Include(x => x.Results).AsNoTracking().SingleOrDefault(x => x.Results.Any(x => x.Id == Guid.Parse(id)));
+        return result?.ToJobInfo();
     }
 
     public void AddFile(string jobResultId, string fileId)
     {
         var guid = Guid.Parse(jobResultId);
-        var result = _context.JobResult.Single(x=>x.Id == guid);
+        var result = _context.JobResult.Single(x => x.Id == guid);
         if (result != null)
         {
             result.FileId = fileId;
             _context.SaveChangesAsync().Wait();
         }
 
-        
+
     }
 
     public IEnumerable<JobInfo> GetJobsFromQueue()
     {
-        return _mapper.Map<IEnumerable<JobInfo>>(_context.Jobs.Where(x => x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running));
+        return _context.Jobs.Where(x=>x.Status == ImageJobStatus.Queued || x.Status == ImageJobStatus.Running).Select(x => x.ToJobInfo());
     }
 
     public int DeleteJob(Guid id)
     {
         var job = _context.Jobs.Find(id);
-        if (job!= null)
+        if (job != null)
         {
             job.Status = ImageJobStatus.Failed;
             job.TextStatus = "canceled by user";

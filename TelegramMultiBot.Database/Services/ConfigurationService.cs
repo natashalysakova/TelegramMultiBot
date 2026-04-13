@@ -1,11 +1,11 @@
-﻿using AutoMapper;
-using Microsoft.EntityFrameworkCore;
+﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging;
 using System.Globalization;
 using System.Reflection;
 using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
+using TelegramMultiBot.Database.Mappers;
 using TelegramMultiBot.Database.Models;
 
 namespace TelegramMultiBot.Database.Services;
@@ -14,14 +14,12 @@ public class ConfigurationService : ISqlConfiguationService
 {
     private readonly BoberDbContext _context;
     private readonly ILogger<ConfigurationService> _logger;
-    private readonly IMapper _mapper;
     private readonly IConfiguration _appSettings;
 
-    public ConfigurationService(BoberDbContext context, ILogger<ConfigurationService> logger, IMapper mapper, IConfiguration appSettings)
+    public ConfigurationService(BoberDbContext context, ILogger<ConfigurationService> logger, IConfiguration appSettings)
     {
         _context = context;
         _logger = logger;
-        _mapper = mapper;
         _appSettings = appSettings;
 
         //if (!context.Settings.Any())
@@ -111,7 +109,7 @@ public class ConfigurationService : ISqlConfiguationService
     {
         get
         {
-            return _mapper.Map<IEnumerable<HostInfo>>(_context.Hosts.OrderBy(x => x.Priority).AsNoTracking());
+            return _context.Hosts.OrderBy(x => x.Priority).AsNoTracking().Select(x=>x.ToHostInfo());
         }
     }
 
@@ -119,7 +117,7 @@ public class ConfigurationService : ISqlConfiguationService
     {
         get
         {
-            return _mapper.Map<IEnumerable<ModelInfo>>(_context.Models.AsNoTracking());
+            return _context.Models.AsNoTracking().Select(x=>x.ToModelInfo());
         }
     }
 
@@ -128,7 +126,7 @@ public class ConfigurationService : ISqlConfiguationService
         get
         {
             var defaultModelName = IGSettings.DefaultModel;
-            return _mapper.Map<ModelInfo>(_context.Models.Single(x => x.Name == defaultModelName));
+            return _context.Models.AsNoTracking().Single(x => x.Name == defaultModelName).ToModelInfo();
         }
     }
 

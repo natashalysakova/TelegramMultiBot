@@ -56,21 +56,22 @@ internal class FixUrlCommand(TelegramClientWrapper client, MeTubeClient meTubeCl
             }
 
             var statusMessage = await client.SendMessageAsync(message, statusText, !canDeleteMessages, disableNotification: true);
-            
-            var response = await meTubeClient.AddDownload(link);
+
+            var id = Guid.NewGuid();
+            var response = await meTubeClient.AddDownload(link, id.ToString());
             if (response?.Status == MeTubeStatus.Ok)
             {
                 context.VideoDownloads.Add(new VideoDownload
                 {
-                    Id = Guid.NewGuid(),
+                    Id = id,
                     VideoUrl = link,
-                    Status = "pending",
                     ChatId = message.Chat.Id,
                     MessageThreadId = message.IsTopicMessage ? message.MessageThreadId ?? 0 : 0,
                     BotMessage = statusMessage.MessageId,
                     MessageToDelete = canDeleteMessages ? message.MessageId : 0,
                     RequestedBy = GetUserName(message.From),
-                    UserComment = userComment
+                    UserComment = userComment,
+                    CreatedAt = DateTimeOffset.UtcNow
                 });
                 await context.SaveChangesAsync();
             }

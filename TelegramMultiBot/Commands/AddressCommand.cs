@@ -1,5 +1,4 @@
-﻿using AutoMapper;
-using Microsoft.Extensions.Logging;
+﻿using Microsoft.Extensions.Logging;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.ReplyMarkups;
 using TelegramMultiBot.BackgroundServies;
@@ -13,8 +12,7 @@ internal class AddressCommand(
         TelegramClientWrapper client, 
         IMonitorDataService dataService, 
         MonitorService monitorService,
-        ILogger<AddressCommand> logger, 
-        IMapper mapper) : BaseCommand, ICallbackHandler, IInlineQueryHandler
+        ILogger<AddressCommand> logger) : BaseCommand, ICallbackHandler, IInlineQueryHandler
 {
     public override bool CanHandle(InlineQuery query)
     {
