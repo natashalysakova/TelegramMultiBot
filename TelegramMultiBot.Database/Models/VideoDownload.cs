@@ -12,4 +12,6 @@ public class VideoDownload
 
     public int BotMessage { get; set; }
     public int MessageToDelete { get; set; }
+    public string? RequestedBy { get; set; }
+    public string? UserComment { get; set; }
 }

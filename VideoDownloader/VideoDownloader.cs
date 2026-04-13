@@ -84,7 +84,7 @@ public class VideoDownloaderService : BackgroundService
 
         foreach (var item in history.Done)
         {
-            var job = pendingJobs.FirstOrDefault(x => x.VideoUrl == item.Url);
+            var job = pendingJobs.FirstOrDefault(x => x.VideoUrl == item.Url || item.Id == GetId(x.VideoUrl));
             if (job == null)
                 continue;
 
@@ -97,8 +97,34 @@ public class VideoDownloaderService : BackgroundService
         await db.SaveChangesAsync(cancellationToken);
     }
 
+    private string GetId(string videoUrl)
+    {
+        if (videoUrl.Contains("youtube.com/watch"))
+        {
+            var index = videoUrl.LastIndexOf('=') + 1;
+            return videoUrl.Substring(index, videoUrl.Length - index);
+        }
+
+        if (videoUrl.Contains("youtube.com/shorts"))
+        {
+            var index = videoUrl.LastIndexOf('/') + 1;
+            return videoUrl.Substring(index, videoUrl.Length - index);
+        }
+
+        return string.Empty;
+    }
+
+    private const long MaxFileSizeBytes = 50L * 1024 * 1024;
+
     private async Task HandleFinishedDownload(VideoDownload job, MeTubeHistoryItem item, BoberDbContext db, CancellationToken cancellationToken)
     {
+        if (item.Size.HasValue && item.Size.Value > MaxFileSizeBytes)
+        {
+            _logger.LogWarning("Video too large ({size} bytes) for Telegram, falling back to URL replacement for {url}", item.Size.Value, item.Url);
+            await HandleOversizedDownload(job, item, db, cancellationToken);
+            return;
+        }
+
         try
         {
             using var response = await _meTubeClient.GetFileResponseAsync(item.Filename!);
@@ -112,7 +138,11 @@ public class VideoDownloaderService : BackgroundService
                 ChatId = chatId,
                 Video = inputFile,
                 MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
-                Caption = item.Title
+                Caption = $"Відео від {job.RequestedBy}."
+                    + (string.IsNullOrWhiteSpace(job.UserComment) ? string.Empty : $"\n{job.UserComment}")
+                    + $"\nОригінальне відео: {job.VideoUrl}",
+                ShowCaptionAboveMedia = true,
+                SupportsStreaming = true
             }, cancellationToken);
 
             await DeleteStatusMessage(job, cancellationToken);
@@ -128,6 +158,41 @@ public class VideoDownloaderService : BackgroundService
 
             await EditStatusMessage(job, "❌ Помилка надсилання відео", cancellationToken);
         }
+    }
+
+    private async Task HandleOversizedDownload(VideoDownload job, MeTubeHistoryItem item, BoberDbContext db, CancellationToken cancellationToken)
+    {
+        var fallbackUrl = GetFallbackUrl(job.VideoUrl);
+        var sizeMb = item.Size!.Value / (1024 * 1024);
+
+        string statusText = $"Відео від {job.RequestedBy}."
+            + (string.IsNullOrWhiteSpace(job.UserComment) ? string.Empty : $"\n{job.UserComment}")
+            + $"\n⚠️ Відео завелике для Telegram ({sizeMb} MB)."
+            + (fallbackUrl != null ? $" {fallbackUrl}" : string.Empty);
+
+        await EditStatusMessage(job, statusText, cancellationToken);
+
+        try
+        {
+            await _meTubeClient.DeleteDownload(item.Id);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Could not delete oversized download {id}", item.Id);
+        }
+
+        db.VideoDownloads.Remove(job);
+    }
+
+    private static string? GetFallbackUrl(string videoUrl)
+    {
+        if (videoUrl.Contains("instagram.com"))
+            return videoUrl.Replace("instagram", "kksave");
+        if (videoUrl.Contains("x.com"))
+            return videoUrl.Replace("x.com", "fixupx.com");
+        if (videoUrl.Contains("twitter.com"))
+            return videoUrl.Replace("twitter.com", "fxtwitter.com");
+        return videoUrl;
     }
 
     private async Task HandleFailedDownload(VideoDownload job, MeTubeHistoryItem item, BoberDbContext db, CancellationToken cancellationToken)

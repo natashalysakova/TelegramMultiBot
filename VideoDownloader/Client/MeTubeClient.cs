@@ -23,7 +23,8 @@ public class MeTubeClient
         {
             Url = url,
             Quality = "best",
-            Format = "any",
+            Format = "mp4",
+            Codec = "h264",
             AutoStart = true,
             SplitByChapters = false
         };
