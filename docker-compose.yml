@@ -31,7 +31,7 @@ services:
       - metube-downloads:/downloads
     image: ghcr.io/alexta69/metube
     ports:
-        - "8081:8081"
+        - "8082:8081"
     restart: always
     environment:
       - YTDL_OPTIONS={"cookiesfrombrowser":null,"merge_output_format":"mp4","format":"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"}
