@@ -40,6 +40,7 @@ public class MeTubeClient
             Quality = "best",
             Format = "mp4",
             Codec = "h264",
+            DownloadType = "video",
             AutoStart = true,
             SplitByChapters = false,
             CustomNamePrefix = idPrefix

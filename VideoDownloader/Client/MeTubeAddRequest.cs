@@ -43,6 +43,12 @@ public record MeTubeAddRequest
     [JsonPropertyName("chapter_template")]
     public string? ChapterTemplate { get; set; }
 
+    /// <summary>
+    /// video, audio
+    /// </summary>
+    [JsonPropertyName("download_type")]
+    public string? DownloadType { get; set; }
+
     [JsonPropertyName("folder")]
     public string? Folder { get; set; }
 
