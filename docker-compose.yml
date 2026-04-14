@@ -34,10 +34,9 @@ services:
         - "8082:8081"
     restart: always
     environment:
-      - YTDL_OPTIONS={"cookiesfrombrowser":null,"merge_output_format":"mp4","format":"bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best"}
+      - 'YTDL_OPTIONS={"cookiesfrombrowser":null,"merge_output_format":"mp4","remux_video":"mp4","format":"mp4","format_sort":["vcodec:h264","lang","quality","res","fps","hdr:12","acodec:aac"]}'
       - DELETE_FILE_ON_TRASHCAN=true
       - OUTPUT_TEMPLATE=%(title)s [%(id)s].%(ext)s
-
   bot:
     image: ghcr.io/natashalysakova/bober-bot:latest
     container_name: bot
@@ -155,6 +154,7 @@ networks:
     driver: bridge
   bober-net-dev:
     driver: bridge
+
 volumes:
   dbdata:
     driver: local
