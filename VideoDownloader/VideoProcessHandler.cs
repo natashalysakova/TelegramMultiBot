@@ -115,7 +115,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             logger.LogTrace("Send failure — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}, Filename: {filename}", job.Id, job.ChatId, job.BotMessage, item.Filename);
             job.Status = VideoDownloadStatus.Failed;
 
-            await EditStatusMessage(job, $"❌ Помилка надсилання відео\n{job.VideoUrl}", cancellationToken);
+            await EditStatusMessage(job, $"❌ Помилка надсилання відео\n{job.VideoUrl}", false, cancellationToken);
         }
 
         if (job.Status == VideoDownloadStatus.Completed)
@@ -142,7 +142,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             + $"\n⚠️ Відео завелике для Telegram ({sizeMb} MB)."
             + (fallbackUrl != null ? $" {fallbackUrl}" : string.Empty);
 
-        await EditStatusMessage(job, statusText, cancellationToken);
+        await EditStatusMessage(job, statusText, true, cancellationToken);
 
         try
         {
@@ -172,7 +172,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         logger.LogWarning("MeTube reported download error for {url}: {msg}", item.Url, item.Title);
         logger.LogTrace("Download failure — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}", job.Id, job.ChatId, job.BotMessage);
 
-        await EditStatusMessage(job, $"❌ Помилка завантаження відео\n{job.VideoUrl}", cancellationToken);
+        await EditStatusMessage(job, $"❌ Помилка завантаження відео\n{job.VideoUrl}", false, cancellationToken);
 
         try
         {
@@ -235,7 +235,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         }
     }
 
-    private async Task EditStatusMessage(VideoDownload job, string text, CancellationToken cancellationToken)
+    private async Task EditStatusMessage(VideoDownload job, string text, bool showPreview, CancellationToken cancellationToken)
     {
         if (job.BotMessage <= 0)
             return;
@@ -246,7 +246,11 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             {
                 ChatId = new ChatId(job.ChatId),
                 MessageId = job.BotMessage,
-                Text = text
+                Text = text, LinkPreviewOptions = new LinkPreviewOptions()
+                {
+                    IsDisabled = !showPreview,
+                    PreferLargeMedia = true
+                }
             }, cancellationToken);
         }
         catch (Exception ex)
