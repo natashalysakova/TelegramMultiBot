@@ -3,6 +3,7 @@ using Microsoft.Extensions.Logging;
 using System.Net.Http.Json;
 using System.Text.Json;
 using System.Text.Json.Serialization;
+using TelegramMultiBot.Database.DTO;
 using TelegramMultiBot.Database.Interfaces;
 
 namespace VideoDownloader.Client;
@@ -13,13 +14,16 @@ public class MeTubeClient
     // POST at /delete
     // POST at /start
     // GET at /history
-    HttpClient _httpClient = new HttpClient();
+    HttpClient _httpClient;
+    private readonly ISqlConfiguationService _sqlConfigurationService;
     private readonly ILogger<MeTubeClient> _logger;
     private readonly string defaultUrl = "http://metube:8081";
 
-    public MeTubeClient(ISqlConfiguationService sqlConfigurationService, ILogger<MeTubeClient> logger)
+    public MeTubeClient(ISqlConfiguationService sqlConfigurationService, ILogger<MeTubeClient> logger, IHttpClientFactory httpClientFactory)
     {
+        _sqlConfigurationService = sqlConfigurationService;
         _logger = logger;
+        _httpClient = httpClientFactory.CreateClient();
 
         var url = sqlConfigurationService.VideoDownloaderSettings.MeTubeUrl;
         if (string.IsNullOrWhiteSpace(url))
@@ -34,12 +38,13 @@ public class MeTubeClient
 
     public async Task<MeTubeGenericResponse?> AddDownload(string url, string idPrefix)
     {
+        var settings = _sqlConfigurationService.VideoDownloaderSettings;
         var requestBody = new MeTubeAddRequest
         {
             Url = url,
-            Quality = "best",
-            Format = "mp4",
-            Codec = "h264",
+            Quality = settings.VideoFormat == VideoFormat.iosCompatible ? VideoQuality.best.GetDescription() : settings.VideoQuality.GetDescription(),
+            Format = settings.VideoFormat.GetDescription(),
+            Codec = settings.VideoCodec.GetDescription(),
             DownloadType = "video",
             AutoStart = true,
             SplitByChapters = false,
@@ -47,6 +52,7 @@ public class MeTubeClient
         };
 
         var content = JsonContent.Create(requestBody);
+        _logger.LogTrace("Sending add download request to MeTube. Request: {content}", await content.ReadAsStringAsync());
         var response = await _httpClient.PostAsync("/add", content);
         response.EnsureSuccessStatusCode();
         var responseContent = await response.Content
@@ -59,6 +65,7 @@ public class MeTubeClient
         var response = await _httpClient.GetAsync("/history");
         response.EnsureSuccessStatusCode();
         var content = await response.Content.ReadAsStringAsync();
+        _logger.LogTrace("Getting history from MeTube. Response: {content}", content);
         var responseContent = JsonSerializer.Deserialize<MeTubeHistoryResponse>(content);
 
         if(responseContent == null)

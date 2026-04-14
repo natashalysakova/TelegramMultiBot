@@ -128,10 +128,10 @@
                         <td><input class="form-control" asp-for="@Model.Settings[i].SettingsValue" placeholder="value"></td>
                         @{
                             var data = new Dictionary<string, string>()
-                    {
-                    {"section", Model.Settings[i].SettingSection},
-                    {"key", Model.Settings[i].SettingsKey}
-                    };
+                            {
+                                {"section", Model.Settings[i].SettingSection},
+                                {"key", Model.Settings[i].SettingsKey}
+                            };
                         }
                         <td>
                             <a class="btn btn-danger" asp-page="Settings/Delete" asp-all-route-data="@data">Delete</a>

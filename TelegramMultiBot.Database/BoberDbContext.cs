@@ -58,6 +58,9 @@ public partial class BoberDbContext : DbContext
                 c => c.Aggregate(0, (a, v) => HashCode.Combine(a, v.GetHashCode())),
                 c => c.ToList()));
 
+        modelBuilder.Entity<ElectricityGroup>()
+            .HasIndex(g => new { g.LocationRegion, g.GroupCode })
+            .IsUnique();
     }
     public void Seed()
     {

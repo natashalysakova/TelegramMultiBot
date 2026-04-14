@@ -1,4 +1,5 @@
 ﻿// See https://aka.ms/new-console-template for more information
+using AngleSharp.Html;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
@@ -125,7 +126,9 @@ internal class BotService(
 
     private IEnumerable<BotCommand> GetCommandList(bool privateCommands = false)
     {
-        var commands = serviceProvider.GetServices<ICommand>();
+        using var scope = serviceProvider.CreateScope();
+
+        var commands = scope.ServiceProvider.GetServices<ICommand>();
 
         List<BotCommand> commandList = new List<BotCommand>();
         foreach (var command in commands.Where(x => x.IsPublic == !privateCommands))
@@ -363,7 +366,8 @@ internal class BotService(
     {
         try
         {
-            var commands = serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(messageReaction) && x.CanHandleMessageReaction).Select(x => (IMessageReactionHandler)x).ToList();
+            using var scope = serviceProvider.CreateScope();
+            var commands = scope.ServiceProvider.GetServices<ICommand>().Where(x => x.CanHandle(messageReaction) && x.CanHandleMessageReaction).Select(x => (IMessageReactionHandler)x).ToList();
 
             foreach (var item in commands)
             {
@@ -381,7 +385,8 @@ internal class BotService(
         try
         {
             logger.LogTrace("{query}", inlineQuery.Query);
-            var commands = serviceProvider.GetServices<ICommand>().Where(x => x.CanHandle(inlineQuery) && x.CanHandleInlineQuery).Select(x => (IInlineQueryHandler)x).ToList();
+            using var scope = serviceProvider.CreateScope();
+            var commands = scope.ServiceProvider.GetServices<ICommand>().Where(x => x.CanHandle(inlineQuery) && x.CanHandleInlineQuery).Select(x => (IInlineQueryHandler)x).ToList();
 
             if (commands.Count == 0)
             {
@@ -408,7 +413,8 @@ internal class BotService(
 
         try
         {
-            var commands = serviceProvider.GetServices<ICommand>().Where(x => x.CanHandleCallback && x.CanHandle(callbackQuery.Data)).Select(x => (ICallbackHandler)x);
+            using var scope = serviceProvider.CreateScope();
+            var commands = scope.ServiceProvider.GetServices<ICommand>().Where(x => x.CanHandleCallback && x.CanHandle(callbackQuery.Data)).Select(x => (ICallbackHandler)x);
 
             foreach (var command in commands)
             {
@@ -438,9 +444,10 @@ internal class BotService(
             message.Text);
 
         var activeDialog = dialogManager[message.Chat.Id, message.From.Id];
+        using var scope = serviceProvider.CreateScope();
         if (activeDialog != null)
         {
-            var cancelCommand = serviceProvider.GetRequiredKeyedService<ICommand>("cancel");
+            var cancelCommand = scope.ServiceProvider.GetRequiredKeyedService<ICommand>("cancel");
             if (cancelCommand.CanHandle(message))
             {
                 await cancelCommand.Handle(message);
@@ -454,7 +461,7 @@ internal class BotService(
         else
         {
             var applicableComands = new List<ICommand>();
-            foreach (var item in serviceProvider.GetServices<ICommand>())
+            foreach (var item in scope.ServiceProvider.GetServices<ICommand>())
             {
                 if (item.CanHandle(message))
                 {

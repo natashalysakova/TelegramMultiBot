@@ -115,7 +115,8 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             logger.LogTrace("Send failure — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}, Filename: {filename}", job.Id, job.ChatId, job.BotMessage, item.Filename);
             job.Status = VideoDownloadStatus.Failed;
 
-            await EditStatusMessage(job, $"❌ Помилка надсилання відео\n{job.VideoUrl}", cancellationToken);
+            var fallbackUrl = GetFallbackUrl(job.VideoUrl);
+            await EditStatusMessage(job, $"❌ Помилка надсилання відео\n{fallbackUrl}", cancellationToken);
         }
 
         if (job.Status == VideoDownloadStatus.Completed)
@@ -172,7 +173,8 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         logger.LogWarning("MeTube reported download error for {url}: {msg}", item.Url, item.Title);
         logger.LogTrace("Download failure — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}", job.Id, job.ChatId, job.BotMessage);
 
-        await EditStatusMessage(job, $"❌ Помилка завантаження відео\n{job.VideoUrl}", cancellationToken);
+        var fallbackUrl = GetFallbackUrl(job.VideoUrl);
+        await EditStatusMessage(job, $"❌ Помилка завантаження відео\n{fallbackUrl}", cancellationToken);
 
         try
         {
@@ -246,7 +248,11 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             {
                 ChatId = new ChatId(job.ChatId),
                 MessageId = job.BotMessage,
-                Text = text
+                Text = text, LinkPreviewOptions = new LinkPreviewOptions()
+                {
+                    IsDisabled = false,
+                    PreferLargeMedia = true
+                }
             }, cancellationToken);
         }
         catch (Exception ex)
