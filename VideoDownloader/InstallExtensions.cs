@@ -7,7 +7,9 @@ public static class InstallExtensions
 {
     public static void InstallVideoDownloader(this IServiceCollection services)
     {
-        services.AddSingleton<MeTubeClient>();
+        services.AddHttpClient();
+        services.AddScoped<MeTubeClient>();
+
         services.AddSingleton<VideoDownloaderService>();
         services.AddHostedService(provider => provider.GetRequiredService<VideoDownloaderService>());
 

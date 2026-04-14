@@ -146,7 +146,7 @@ public class ConfigurationService : ISqlConfiguationService
     {
         get
         {
-            return BindSettings<ImageGenerationSettings>(_context.Settings.Where(x => x.SettingSection == ImageGenerationSettings.Name));
+            return BindSettings<ImageGenerationSettings>(_context.Settings.AsNoTracking().Where(x => x.SettingSection == ImageGenerationSettings.Name));
         }
     }
 
@@ -154,7 +154,7 @@ public class ConfigurationService : ISqlConfiguationService
     {
         get
         {
-            return BindSettings<Automatic1111Settings>(_context.Settings.Where(x => x.SettingSection == Automatic1111Settings.Name));
+            return BindSettings<Automatic1111Settings>(_context.Settings.AsNoTracking().Where(x => x.SettingSection == Automatic1111Settings.Name));
         }
     }
 
@@ -162,7 +162,7 @@ public class ConfigurationService : ISqlConfiguationService
     {
         get
         {
-            return BindSettings<ComfyUISettings>(_context.Settings.Where(x => x.SettingSection == ComfyUISettings.Name));
+            return BindSettings<ComfyUISettings>(_context.Settings.AsNoTracking().Where(x => x.SettingSection == ComfyUISettings.Name));
         }
     }
 
@@ -170,7 +170,7 @@ public class ConfigurationService : ISqlConfiguationService
     {
         get
         {
-            return BindSettings<GeneralSettings>(_context.Settings.Where(x => x.SettingSection == GeneralSettings.Name));
+            return BindSettings<GeneralSettings>(_context.Settings.AsNoTracking().Where(x => x.SettingSection == GeneralSettings.Name));
         }
     }
 
@@ -178,7 +178,7 @@ public class ConfigurationService : ISqlConfiguationService
     {
         get
         {
-            return BindSettings<SvitlobotSettings>(_context.Settings.Where(x => x.SettingSection == SvitlobotSettings.Name));
+            return BindSettings<SvitlobotSettings>(_context.Settings.AsNoTracking().Where(x => x.SettingSection == SvitlobotSettings.Name));
         }
     }
 
@@ -186,7 +186,7 @@ public class ConfigurationService : ISqlConfiguationService
     {
         get
         {
-            return BindSettings<VideoDownloaderSettings>(_context.Settings.Where(x => x.SettingSection == VideoDownloaderSettings.Name));
+            return BindSettings<VideoDownloaderSettings>(_context.Settings.AsNoTracking().Where(x => x.SettingSection == VideoDownloaderSettings.Name));
         }
     }
 
@@ -203,7 +203,14 @@ public class ConfigurationService : ISqlConfiguationService
 
                 if (property.PropertyType.IsEnum)
                 {
-                    property.SetValue(obj, Enum.ToObject(property.PropertyType, int.Parse(config.SettingsValue)));
+                    if(int.TryParse(config.SettingsValue, out int intValue))
+                    {
+                        property.SetValue(obj, Enum.ToObject(property.PropertyType, intValue));
+                    }
+                    else
+                    {
+                        property.SetValue(obj, Enum.Parse(property.PropertyType, config.SettingsValue));
+                    }
                 }
                 else
                 {

@@ -521,6 +521,8 @@ public class DtekSiteParser : BackgroundService
 
         _logger.LogInformation("Generated {count} images", images.Count());
 
+        var groupCache = new Dictionary<string, ElectricityGroup>();
+
         foreach (var image in images)
         {
             var filename = SaveFile(location.Region, scheduleUpdateDate, image);
@@ -530,22 +532,26 @@ public class DtekSiteParser : BackgroundService
 
             if (group != null)
             {
-                dbGroup = await dbservice.GetGroupByCodeAndLocationRegion(location.Region, group.Id);
-                if (dbGroup == null)
+                if (!groupCache.TryGetValue(group.Id, out dbGroup))
                 {
-                    dbGroup = new ElectricityGroup()
+                    dbGroup = await dbservice.GetGroupByCodeAndLocationRegion(location.Region, group.Id);
+                    if (dbGroup == null)
                     {
-                        LocationRegion = location.Region,
-                        GroupCode = group.Id,
-                        GroupName = group.GroupName,
-                        DataSnapshot = group.DataSnapshot,
-                    };
-                    await dbservice.Add(dbGroup, false);
-                }
-                else
-                {
-                    dbGroup.DataSnapshot = group.DataSnapshot;
-                    await dbservice.Update(dbGroup, false);
+                        dbGroup = new ElectricityGroup()
+                        {
+                            LocationRegion = location.Region,
+                            GroupCode = group.Id,
+                            GroupName = group.GroupName,
+                            DataSnapshot = group.DataSnapshot,
+                        };
+                        await dbservice.Add(dbGroup, false);
+                    }
+                    else
+                    {
+                        dbGroup.DataSnapshot = group.DataSnapshot;
+                        await dbservice.Update(dbGroup, false);
+                    }
+                    groupCache[group.Id] = dbGroup;
                 }
             }
 
