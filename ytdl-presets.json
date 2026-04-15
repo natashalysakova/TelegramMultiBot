@@ -1,0 +1,34 @@
+{
+  "default": {
+    "outtmpl": "%(id)s.%(ext)s"
+  },
+
+  "youtube": {
+    "merge_output_format": "mp4",
+    "format": "mp4",
+    "format_sort": [
+      "vcodec:h264",
+      "lang",
+      "quality",
+      "res",
+      "fps",
+      "hdr:12",
+      "acodec:aac"
+    ]
+  },
+
+  "instagram": {
+    "merge_output_format": "mp4",
+    "format": "mp4",
+    "format_sort": [
+      "vcodec:h264",
+      "lang",
+      "quality",
+      "res",
+      "fps",
+      "hdr:12",
+      "acodec:aac"
+    ]
+  }
+
+}

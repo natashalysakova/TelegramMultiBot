@@ -68,10 +68,26 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         try
         {
             using var response = await meTubeClient.GetFileResponseAsync(item.Filename!, cancellationToken);
-            using var stream = await response.Content.ReadAsStreamAsync(cancellationToken);
+
+            using var ms = new MemoryStream();
+            await response.Content.CopyToAsync(ms, cancellationToken);
+            ms.Position = 0;
+
+            int? videoWidth = null, videoHeight = null;
+            try
+            {
+                using var tagFile = TagLib.File.Create(new StreamAbstraction(item.Filename!, ms));
+                videoWidth = tagFile.Properties.VideoWidth > 0 ? tagFile.Properties.VideoWidth : null;
+                videoHeight = tagFile.Properties.VideoHeight > 0 ? tagFile.Properties.VideoHeight : null;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not read video dimensions from {filename}", item.Filename);
+            }
+            ms.Position = 0;
 
             var chatId = new ChatId(job.ChatId);
-            var inputFile = InputFile.FromStream(stream, item.Filename);
+            var inputFile = InputFile.FromStream(ms, item.Filename);
 
             bool sendWithCaption = true;
             var caption = $"Відео від {job.RequestedBy}."
@@ -89,6 +105,8 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             {
                 ChatId = chatId,
                 Video = inputFile,
+                Width = videoWidth,
+                Height = videoHeight,
                 MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
                 Caption = caption,
                 ShowCaptionAboveMedia = true,
@@ -102,6 +120,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
                     ChatId = chatId,
                     Text = $"Повідомлення від {job.RequestedBy}:\n{job.UserComment}",
                     MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
+                    DisableNotification = true,
                 }, cancellationToken);
             }
 
@@ -259,5 +278,13 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         {
             logger.LogWarning(ex, "Could not edit status message {messageId}", job.BotMessage);
         }
+    }
+
+    private sealed class StreamAbstraction(string name, Stream stream) : TagLib.File.IFileAbstraction
+    {
+        public string Name { get; } = name;
+        public Stream ReadStream { get; } = stream;
+        public Stream WriteStream { get; } = stream;
+        public void CloseStream(Stream s) { }
     }
 }

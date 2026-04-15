@@ -1,6 +1,8 @@
 name: bober
 
 x-base-bot-service: &base-bot
+  volumes:
+    - ./ytdl-presets.json:/config/ytdl-presets.json
   restart: always
    
 x-base-db: &base-db
@@ -29,14 +31,15 @@ services:
       - dev
     volumes:
       - metube-downloads:/downloads
+      - ./ytdl-presets.json:/config/ytdl-presets.json
     image: ghcr.io/alexta69/metube
     ports:
         - "8082:8081"
     restart: always
     environment:
-      - 'YTDL_OPTIONS={"cookiesfrombrowser":null,"merge_output_format":"mp4","remux_video":"mp4","format":"mp4","format_sort":["vcodec:h264","lang","quality","res","fps","hdr:12","acodec:aac"]}'
+      - YTDL_OPTIONS_PRESETS_FILE=/config/ytdl-presets.json
       - DELETE_FILE_ON_TRASHCAN=true
-      - OUTPUT_TEMPLATE=%(title)s [%(id)s].%(ext)s
+
   bot:
     image: ghcr.io/natashalysakova/bober-bot:latest
     container_name: bot
