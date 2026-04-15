@@ -57,4 +57,7 @@ public record MeTubeAddRequest
 
     [JsonPropertyName("playlist_item_limit")]
     public int? PlaylistItemLimit { get; set; }
+
+    [JsonPropertyName("ytdl_options_presets")]
+    public string[] Presets { get; set; } = [];
 }

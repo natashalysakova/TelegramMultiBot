@@ -36,7 +36,7 @@ public class MeTubeClient
         _httpClient.BaseAddress = baseUrl;
     }
 
-    public async Task<MeTubeGenericResponse?> AddDownload(string url, string idPrefix)
+    public async Task<MeTubeGenericResponse?> AddDownload(string url, string idPrefix, string[] presets)
     {
         var settings = _sqlConfigurationService.VideoDownloaderSettings;
         var requestBody = new MeTubeAddRequest
@@ -48,7 +48,8 @@ public class MeTubeClient
             DownloadType = "video",
             AutoStart = true,
             SplitByChapters = false,
-            CustomNamePrefix = idPrefix
+            CustomNamePrefix = idPrefix,
+            Presets = presets
         };
 
         var content = JsonContent.Create(requestBody);
