@@ -1,8 +1,11 @@
 ﻿using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
+using System.Text.Json;
+using System.Text.Json.Nodes;
 using Telegram.Bot;
 using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
+using Telegram.Bot.Types.Enums;
 using TelegramMultiBot.Database;
 using VideoDownloader.Client;
 
@@ -10,6 +13,7 @@ namespace VideoDownloader;
 
 public interface IVideoProcessHandler
 {
+    Task AddDownloads(Message message, CancellationToken cancellationToken = default);
     Task ProcessDownloads(CancellationToken cancellationToken);
 }
 
@@ -101,18 +105,6 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
                 sendWithCaption = false;
             }
 
-            await telegramBotClient.SendRequest(new SendVideoRequest
-            {
-                ChatId = chatId,
-                Video = inputFile,
-                Width = videoWidth,
-                Height = videoHeight,
-                MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
-                Caption = caption,
-                ShowCaptionAboveMedia = true,
-                SupportsStreaming = true
-            }, cancellationToken);
-
             if (!sendWithCaption)
             {
                 await telegramBotClient.SendRequest(new SendMessageRequest
@@ -123,6 +115,19 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
                     DisableNotification = true,
                 }, cancellationToken);
             }
+            await telegramBotClient.SendRequest(new SendVideoRequest
+            {
+                ChatId = chatId,
+                Video = inputFile,
+                Width = videoWidth,
+                Height = videoHeight,
+                MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
+                Caption = caption,
+                ShowCaptionAboveMedia = false,
+                SupportsStreaming = true
+            }, cancellationToken);
+
+            
 
             logger.LogInformation("Video sent for {url}", item.Url);
 
@@ -176,7 +181,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         db.VideoDownloads.Remove(job);
     }
 
-    private static string GetFallbackUrl(string videoUrl)
+    public static string GetFallbackUrl(string videoUrl)
     {
         if (videoUrl.Contains("instagram.com"))
             return videoUrl.Replace("instagram.com", "kksave.com");
@@ -189,23 +194,65 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
 
     private async Task HandleFailedDownload(VideoDownload job, MeTubeHistoryItem item, CancellationToken cancellationToken)
     {
-        logger.LogWarning("MeTube reported download error for {url}: {msg}", item.Url, item.Title);
-        logger.LogTrace("Download failure — JobId: {jobId}, ChatId: {chatId}, BotMessage: {msgId}", job.Id, job.ChatId, job.BotMessage);
+        await HandleFailedDownload(job, item.Id, item.Message, cancellationToken);
+    }
+
+    private async Task HandleFailedDownload(VideoDownload job, string errorMessage, CancellationToken cancellationToken)
+    {
+        await HandleFailedDownload(job, null, errorMessage, cancellationToken);
+    }
+
+    private async Task HandleFailedDownload(VideoDownload job, string? itemId, string? errorMessage, CancellationToken cancellationToken)
+    {
+        logger.LogWarning("Download failure — JobId: {jobId}, {msgId}", job.Id, errorMessage);
 
         var fallbackUrl = GetFallbackUrl(job.VideoUrl);
-        await EditStatusMessage(job, $"❌ Помилка завантаження відео\n{fallbackUrl}", cancellationToken);
-
-        try
+        string text;
+        bool deleteOriginal = false;
+        if (errorMessage != null && (errorMessage.Contains("No video formats found") || errorMessage.Contains("Unsupported URL")))
         {
-            await meTubeClient.DeleteDownload(item.Id);
+            text = fallbackUrl;
+            deleteOriginal = true;
         }
-        catch (Exception ex)
+        else
         {
-            logger.LogWarning(ex, "Could not delete errored download {id}", item.Id);
+            text = $"❌ Помилка завантаження відео\n{fallbackUrl}";
         }
 
-        db.VideoDownloads.Remove(job);
+        if (deleteOriginal)
+        {
+            await DeleteOriginalMessage(job, cancellationToken);
+            await DeleteStatusMessage(job, cancellationToken);
+            if (db.VideoDownloads.Contains(job))
+            {
+                db.VideoDownloads.Remove(job);
+            }
+
+            await telegramBotClient.SendRequest(new SendMessageRequest()
+            {
+                ChatId = job.ChatId,
+                MessageThreadId = job.MessageThreadId,
+                Text = $"{job.RequestedBy}: {text}"
+            });
+        }
+        else
+        {
+            await EditStatusMessage(job, text, cancellationToken);
+        }
+
+        if (itemId != null)
+        {
+            try
+            {
+                await meTubeClient.DeleteDownload(itemId);
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Could not delete errored download {id}", itemId);
+            }
+        }
     }
+
 
     private async Task DeleteStatusMessage(VideoDownload job, CancellationToken cancellationToken)
     {
@@ -267,7 +314,8 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             {
                 ChatId = new ChatId(job.ChatId),
                 MessageId = job.BotMessage,
-                Text = text, LinkPreviewOptions = new LinkPreviewOptions()
+                Text = text,
+                LinkPreviewOptions = new LinkPreviewOptions()
                 {
                     IsDisabled = false,
                     PreferLargeMedia = true
@@ -280,11 +328,141 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         }
     }
 
-    private sealed class StreamAbstraction(string name, Stream stream) : TagLib.File.IFileAbstraction
+    public async Task AddDownloads(Message message, CancellationToken cancellationToken)
     {
-        public string Name { get; } = name;
-        public Stream ReadStream { get; } = stream;
-        public Stream WriteStream { get; } = stream;
-        public void CloseStream(Stream s) { }
+
+        var links = message.Text
+            .Split(' ', StringSplitOptions.RemoveEmptyEntries)
+            .Where(x => x.StartsWith("https://")
+                && ServiceItems.Any(s => x.Contains(s, StringComparison.OrdinalIgnoreCase))
+                && !FallbackDomains.Any(f => x.Contains(f, StringComparison.OrdinalIgnoreCase)))
+            .ToList();
+
+        var userComment = GetUserComment(message.Text, links);
+
+        bool canDeleteMessages = false;
+        var bot = await telegramBotClient.GetChatMember(message.Chat, telegramBotClient.BotId);
+        canDeleteMessages = bot.Status == ChatMemberStatus.Administrator || message.Chat.Type == ChatType.Private;
+
+        foreach (var link in links)
+        {
+            string statusText;
+            string userName = GetUserName(message.From);
+            if (canDeleteMessages)
+            {
+                statusText = $"🦫 {userName}: {message.Text}\n⏳ Завантаження відео...";
+            }
+            else
+            {
+                statusText = $"⏳ Завантаження відео...";
+            }
+
+            //var statusMessage = await telegramBotClient.SendMessageAsync(message, statusText, !canDeleteMessages, disableNotification: true);
+            var statusMessage = await telegramBotClient.SendRequest(new SendMessageRequest
+            {
+                ChatId = message.Chat.Id,
+                MessageThreadId = message.MessageThreadId,
+                DisableNotification = true,
+                Text = statusText,
+                ReplyParameters = canDeleteMessages ? null : new ReplyParameters
+                {
+                    ChatId = message.Chat.Id,
+                    MessageId = message.MessageId
+                }
+            });
+            var presets = GetPresetList(link);
+            var id = Guid.NewGuid();
+
+            var job = new VideoDownload
+            {
+                Id = id,
+                VideoUrl = link,
+                ChatId = message.Chat.Id,
+                MessageThreadId = message.IsTopicMessage ? message.MessageThreadId ?? 0 : 0,
+                BotMessage = statusMessage.MessageId,
+                MessageToDelete = canDeleteMessages ? message.MessageId : 0,
+                RequestedBy = userName,
+                UserComment = userComment,
+                CreatedAt = DateTimeOffset.UtcNow
+            };
+
+            try
+            {
+                db.VideoDownloads.Add(job);
+                await db.SaveChangesAsync(cancellationToken);
+
+                var response = await meTubeClient.AddDownload(link, id.ToString(), presets);
+                if (response?.Status != MeTubeStatus.Ok)
+                {
+                    throw new Exception($"Failed to add download for link {link}. Response: {response}");
+                }
+            }
+            catch (Exception ex)
+            {
+                await HandleFailedDownload(job, ex.Message, cancellationToken);
+            }
+        }
     }
+
+
+    private string[] GetPresetList(string link)
+    {
+        var uri = new Uri(link);
+        var host = uri.Host.Split('.', StringSplitOptions.RemoveEmptyEntries);
+        var result = new List<string>()
+        {
+            "default"
+        };
+
+        try
+        {
+            var json = JsonSerializer.Deserialize<JsonObject>(File.ReadAllText("/config/ytdl-presets.json"));
+            var availblePresets = host.Where(x => json.ContainsKey(x));
+            result.AddRange(availblePresets);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError("Failed to read perset file: {error}", ex.Message);
+        }
+
+        return result.ToArray();
+    }
+
+    private static string GetUserName(User? user)
+    {
+        if (user is null) return "Unknown";
+        return user.Username is null ? user.FirstName : "@" + user.Username;
+    }
+
+    private static string? GetUserComment(string messageText, IEnumerable<string> links)
+    {
+        var comment = links.Aggregate(messageText, (text, link) => text.Replace(link, string.Empty)).Trim();
+        return string.IsNullOrWhiteSpace(comment) ? null : comment;
+    }
+
+    public static readonly IEnumerable<string> ServiceItems =
+    [
+        "instagram.com",
+        "x.com",
+        "twitter.com",
+        "facebook.com",
+        "youtube.com/shorts/"
+    ];
+
+    public static readonly IEnumerable<string> FallbackDomains =
+    [
+        "fixupx.com",
+        "fxtwitter.com",
+        "kksave.com",
+        "ddinstagram.com",
+        "kkinstagram.com"
+    ];
+}
+
+sealed class StreamAbstraction(string name, Stream stream) : TagLib.File.IFileAbstraction
+{
+    public string Name { get; } = name;
+    public Stream ReadStream { get; } = stream;
+    public Stream WriteStream { get; } = stream;
+    public void CloseStream(Stream s) { }
 }

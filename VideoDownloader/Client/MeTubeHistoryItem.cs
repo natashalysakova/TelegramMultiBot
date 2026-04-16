@@ -27,4 +27,7 @@ public record MeTubeHistoryItem
 
     [JsonPropertyName("timestamp")]
     public long Timestamp { get; set; } = 0;
+
+    [JsonPropertyName("msg")]
+    public string? Message { get; set; }
 }
