@@ -404,6 +404,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         }
     }
 
+    private static readonly string CongifPath = "/config/ytdl-presets.json";
 
     private string[] GetPresetList(string link)
     {
@@ -412,12 +413,17 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         {
             "default"
         };
-        logger.LogInformation("Looking for presets for link={link}", link);
 
         var alias = GetLinkAlias(link);
         try
         {
-            var text = File.ReadAllText("/config/ytdl-presets.json");
+            if (!File.Exists(CongifPath))
+            {
+                logger.LogWarning("Preset file not found at {path}, using default preset only", CongifPath);
+                return result.ToArray();
+            }
+
+            var text = File.ReadAllText(CongifPath);
             logger.LogInformation(text);
 
             var json = JsonSerializer.Deserialize<JsonObject>(text);
@@ -425,12 +431,10 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             {
                 result.Add(alias);
             }
-
-            logger.LogInformation("Found presets:{list}", string.Join(',', result));
         }
         catch (Exception ex)
         {
-            logger.LogError("Failed to read perset file: {error}", ex.Message);
+            logger.LogError("Failed to read preset file: {error}", ex.Message);
         }
 
         return result.ToArray();

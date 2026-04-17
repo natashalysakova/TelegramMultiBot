@@ -52,6 +52,7 @@ services:
       - .env
     volumes:
       - images:/app/images
+      - ./ytdl-presets.json:/config/ytdl-presets.json
     depends_on:
       database:
         condition: service_healthy
