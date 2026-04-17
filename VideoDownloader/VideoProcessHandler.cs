@@ -127,7 +127,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
                 SupportsStreaming = true
             }, cancellationToken);
 
-            
+
 
             logger.LogInformation("Video sent for {url}", item.Url);
 
@@ -408,17 +408,25 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
     private string[] GetPresetList(string link)
     {
         var uri = new Uri(link);
-        var host = uri.Host.Split('.', StringSplitOptions.RemoveEmptyEntries);
         var result = new List<string>()
         {
             "default"
         };
+        logger.LogInformation("Looking for presets for link={link}", link);
 
+        var alias = GetLinkAlias(link);
         try
         {
-            var json = JsonSerializer.Deserialize<JsonObject>(File.ReadAllText("/config/ytdl-presets.json"));
-            var availblePresets = host.Where(x => json.ContainsKey(x));
-            result.AddRange(availblePresets);
+            var text = File.ReadAllText("/config/ytdl-presets.json");
+            logger.LogInformation(text);
+
+            var json = JsonSerializer.Deserialize<JsonObject>(text);
+            if (json.ContainsKey(alias))
+            {
+                result.Add(alias);
+            }
+
+            logger.LogInformation("Found presets:{list}", string.Join(',', result));
         }
         catch (Exception ex)
         {
@@ -427,6 +435,30 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
 
         return result.ToArray();
     }
+
+    private string GetLinkAlias(string link)
+    {
+        var host = new Uri(link).Host;
+
+        foreach (var aliasEntry in aliases)
+        {
+            foreach (var aliasHost in aliasEntry.Value)
+            {
+                if (aliasHost == host)
+                {
+                    return aliasEntry.Key;
+                }
+            }
+        }
+        return host;
+    }
+
+    private static readonly Dictionary<string, string[]> aliases = new Dictionary<string, string[]>()
+    {
+        { "instagram", ["www.instagram.com", "instagram.com"] },
+        { "twitter", ["www.x.com", "x.com", "www.twitter.com", "twitter.com"] },
+        { "youtube", ["www.youtube.com", "youtube.com", "www.youtu.be", "youtu.be"] }
+    };
 
     private static string GetUserName(User? user)
     {
