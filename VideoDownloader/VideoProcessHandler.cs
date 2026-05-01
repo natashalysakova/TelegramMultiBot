@@ -498,6 +498,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         "fixupx.com",
         "fxtwitter.com",
         "kksave.com",
+        "kksav.com",
         "ddinstagram.com",
         "kkinstagram.com"
     ];
