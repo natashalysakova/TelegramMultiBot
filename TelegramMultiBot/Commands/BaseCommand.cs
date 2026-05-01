@@ -140,3 +140,8 @@ internal sealed class ServiceKeyAttribute(string command, string description, bo
         get => isPublic;
     }
 }
+
+[AttributeUsage(AttributeTargets.Class, Inherited = false, AllowMultiple = false)]
+internal sealed class DisabledAttribute() : Attribute
+{
+}

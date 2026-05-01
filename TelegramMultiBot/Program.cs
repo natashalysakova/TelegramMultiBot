@@ -239,17 +239,21 @@ internal class Program
         return version;
     }
 
+    private static bool IsDisabled(Type type) =>
+        type.GetAttributeValue((DisabledAttribute c) => true);
+
     private static void RegisterMyKeyedServices<T>(IServiceCollection serviceCollection)
     {
-        var services = RegisterMyServices<T>(serviceCollection);
-        var types = GetTypes<T>();
+        var types = GetEnabledTypes<T>();
 
         foreach (var item in types)
         {
-            var key = item.GetAttributeValue((ServiceKeyAttribute c) => { return c.Command; });
+            _ = serviceCollection.AddTransient(typeof(T), item);
+
+            var key = item.GetAttributeValue((ServiceKeyAttribute c) => c.Command);
             if (key != null)
             {
-                _ = services.AddKeyedScoped(typeof(T), key, item);
+                _ = serviceCollection.AddKeyedScoped(typeof(T), key, item);
             }
         }
     }
@@ -257,18 +261,17 @@ internal class Program
     private static IEnumerable<Type> GetTypes<T>()
     {
         var type = typeof(T);
-        var types = AppDomain.CurrentDomain.GetAssemblies()
+        return AppDomain.CurrentDomain.GetAssemblies()
             .SelectMany(s => s.GetTypes())
             .Where(p => type.IsAssignableFrom(p) && !p.IsAbstract);
-
-        return types;
     }
+
+    private static IEnumerable<Type> GetEnabledTypes<T>() =>
+        GetTypes<T>().Where(t => !IsDisabled(t));
 
     public static IServiceCollection RegisterMyServices<T>(IServiceCollection serviceCollection)
     {
-        var services = GetTypes<T>();
-
-        foreach (var item in services)
+        foreach (var item in GetEnabledTypes<T>())
         {
             _ = serviceCollection.AddTransient(typeof(T), item);
         }
