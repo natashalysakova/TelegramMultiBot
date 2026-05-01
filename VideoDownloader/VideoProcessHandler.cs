@@ -184,7 +184,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
     public static string GetFallbackUrl(string videoUrl)
     {
         if (videoUrl.Contains("instagram.com"))
-            return videoUrl.Replace("instagram.com", "kksave.com");
+            return videoUrl.Replace("instagram.com", "kksav.com");
         if (videoUrl.Contains("x.com"))
             return videoUrl.Replace("x.com", "fixupx.com");
         if (videoUrl.Contains("twitter.com"))
@@ -214,6 +214,10 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             text = fallbackUrl;
             deleteOriginal = true;
         }
+        else if (errorMessage != null && errorMessage.Contains("There is no video in this post"))
+        {
+            text = "В посту нема відео";
+        }
         else
         {
             text = $"❌ Помилка завантаження відео\n{fallbackUrl}";
@@ -238,6 +242,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         else
         {
             await EditStatusMessage(job, text, cancellationToken);
+            job.Status = VideoDownloadStatus.Failed;
         }
 
         if (itemId != null)
@@ -389,7 +394,6 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             try
             {
                 db.VideoDownloads.Add(job);
-                await db.SaveChangesAsync(cancellationToken);
 
                 var response = await meTubeClient.AddDownload(link, id.ToString(), presets);
                 if (response?.Status != MeTubeStatus.Ok)
@@ -400,6 +404,10 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             catch (Exception ex)
             {
                 await HandleFailedDownload(job, ex.Message, cancellationToken);
+            }
+            finally
+            {
+                await db.SaveChangesAsync(cancellationToken);
             }
         }
     }
