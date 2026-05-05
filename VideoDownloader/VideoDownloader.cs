@@ -20,25 +20,6 @@ public class VideoDownloaderService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
-        // Pull the gallery-dl image once at startup so per-job execution never needs to pull.
-        try
-        {
-            using var pullScope = _scopeFactory.CreateScope();
-            var settings = pullScope.ServiceProvider
-                .GetRequiredService<TelegramMultiBot.Database.Interfaces.ISqlConfiguationService>()
-                .VideoDownloaderSettings;
-
-            if (settings.GalleryDlEnabled)
-            {
-                var galleryDlClient = pullScope.ServiceProvider.GetRequiredService<GalleryDlClient>();
-                await galleryDlClient.PullImageAsync(stoppingToken);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Startup gallery-dl image pull failed; continuing with locally cached image");
-        }
-
         while (!stoppingToken.IsCancellationRequested)
         {
             try

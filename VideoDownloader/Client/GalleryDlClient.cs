@@ -52,6 +52,9 @@ public class GalleryDlClient
                 {
                     Image = image,
                     Cmd = ["--dest", $"/output/{jobId}/", url],
+                    // Note: Docker.DotNet does not yet support the "pull" policy field
+                    // (--pull=never/newer). The image must be present locally before
+                    // this is called.
                     HostConfig = new HostConfig
                     {
                         // Use a named-volume mount so both the bot container and the
@@ -144,53 +147,6 @@ public class GalleryDlClient
     private static DockerClient CreateDockerClient()
     {
         return new DockerClientConfiguration(new Uri(DockerSocketUri)).CreateClient();
-    }
-
-    /// <summary>
-    /// Pulls the gallery-dl Docker image. Intended to be called once at application startup
-    /// so that per-job execution never requires a pull.
-    /// </summary>
-    public async Task PullImageAsync(CancellationToken cancellationToken)
-    {
-        var image = _sqlConfigurationService.VideoDownloaderSettings.GalleryDlImage;
-
-        // Split image name and tag correctly, accounting for registry URLs that may contain
-        // a port number (e.g. registry.example.com:5000/image:tag). The tag is the portion
-        // after the last colon only if that portion contains no '/' (which would indicate a
-        // registry host:port, not a tag).
-        string imageName;
-        string tag;
-        var lastColon = image.LastIndexOf(':');
-        if (lastColon >= 0 && !image[(lastColon + 1)..].Contains('/'))
-        {
-            imageName = image[..lastColon];
-            tag = image[(lastColon + 1)..];
-        }
-        else
-        {
-            imageName = image;
-            tag = "latest";
-        }
-
-        _logger.LogInformation("Pulling gallery-dl image {image}", image);
-        using var dockerClient = CreateDockerClient();
-        try
-        {
-            await dockerClient.Images.CreateImageAsync(
-                new ImagesCreateParameters { FromImage = imageName, Tag = tag },
-                null,
-                new Progress<JSONMessage>(msg =>
-                {
-                    if (!string.IsNullOrEmpty(msg.Status))
-                        _logger.LogTrace("Pull {image}: {status}", image, msg.Status);
-                }),
-                cancellationToken);
-            _logger.LogInformation("gallery-dl image {image} is ready", image);
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "Could not pull gallery-dl image {image}; jobs will use locally cached image if available", image);
-        }
     }
 
     private static async Task<string> GetContainerLogsAsync(DockerClient dockerClient, string containerId)
