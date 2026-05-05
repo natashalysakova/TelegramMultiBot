@@ -56,8 +56,14 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
 
         await db.SaveChangesAsync(cancellationToken);
 
-        var allJobsGuid = history.GetAllIds().Select(id => Guid.Parse(id.Split('.', StringSplitOptions.RemoveEmptyEntries).First()));
-        var missingJobs = pendingJobs.ToList().Where(j => j.Status == VideoDownloadStatus.Pending && !allJobsGuid.Contains(j.Id));
+        var allJobsGuidSet = new HashSet<Guid>();
+        foreach (var id in history.GetAllIds())
+        {
+            var part = id.Split('.', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            if (Guid.TryParse(part, out var guid))
+                allJobsGuidSet.Add(guid);
+        }
+        var missingJobs = pendingJobs.Where(j => j.Status == VideoDownloadStatus.Pending && !allJobsGuidSet.Contains(j.Id));
 
         foreach (var item in missingJobs)
         {
