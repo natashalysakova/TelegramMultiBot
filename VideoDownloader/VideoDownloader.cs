@@ -24,8 +24,15 @@ public class VideoDownloaderService : BackgroundService
         try
         {
             using var pullScope = _scopeFactory.CreateScope();
-            var galleryDlClient = pullScope.ServiceProvider.GetRequiredService<GalleryDlClient>();
-            await galleryDlClient.PullImageAsync(stoppingToken);
+            var settings = pullScope.ServiceProvider
+                .GetRequiredService<TelegramMultiBot.Database.Interfaces.ISqlConfiguationService>()
+                .VideoDownloaderSettings;
+
+            if (settings.GalleryDlEnabled)
+            {
+                var galleryDlClient = pullScope.ServiceProvider.GetRequiredService<GalleryDlClient>();
+                await galleryDlClient.PullImageAsync(stoppingToken);
+            }
         }
         catch (Exception ex)
         {
