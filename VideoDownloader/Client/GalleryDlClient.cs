@@ -174,7 +174,7 @@ public class GalleryDlClient
         try
         {
             using var logStream = await dockerClient.Containers.GetContainerLogsAsync(containerId,
-                false,
+                tty: false,
                 new ContainerLogsParameters { ShowStdout = true, ShowStderr = true, Tail = "50" });
 
             var (stdout, stderr) = await logStream.ReadOutputToEndAsync(CancellationToken.None);
