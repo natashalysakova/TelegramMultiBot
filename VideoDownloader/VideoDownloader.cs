@@ -1,6 +1,7 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using VideoDownloader.Client;
 
 namespace VideoDownloader;
 
@@ -19,6 +20,18 @@ public class VideoDownloaderService : BackgroundService
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
+        // Pull the gallery-dl image once at startup so per-job execution never needs to pull.
+        try
+        {
+            using var pullScope = _scopeFactory.CreateScope();
+            var galleryDlClient = pullScope.ServiceProvider.GetRequiredService<GalleryDlClient>();
+            await galleryDlClient.PullImageAsync(stoppingToken);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Startup gallery-dl image pull failed; continuing with locally cached image");
+        }
+
         while (!stoppingToken.IsCancellationRequested)
         {
             try

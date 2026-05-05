@@ -47,8 +47,6 @@ public class GalleryDlClient
         string containerId = string.Empty;
         try
         {
-            await EnsureImagePulledAsync(dockerClient, image, cancellationToken);
-
             var containerResponse = await dockerClient.Containers.CreateContainerAsync(
                 new CreateContainerParameters
                 {
@@ -148,31 +146,34 @@ public class GalleryDlClient
         return new DockerClientConfiguration(new Uri(DockerSocketUri)).CreateClient();
     }
 
-    private async Task EnsureImagePulledAsync(DockerClient dockerClient, string image, CancellationToken cancellationToken)
+    /// <summary>
+    /// Pulls the gallery-dl Docker image. Intended to be called once at application startup
+    /// so that per-job execution never requires a pull.
+    /// </summary>
+    public async Task PullImageAsync(CancellationToken cancellationToken)
     {
-        var parts = image.Split(':');
-        var imageName = parts[0];
-        var tag = parts.Length > 1 ? parts[1] : "latest";
+        var image = _sqlConfigurationService.VideoDownloaderSettings.GalleryDlImage;
 
-        try
+        // Split image name and tag correctly, accounting for registry URLs that may contain
+        // a port number (e.g. registry.example.com:5000/image:tag). The tag is the portion
+        // after the last colon only if that portion contains no '/' (which would indicate a
+        // registry host:port, not a tag).
+        string imageName;
+        string tag;
+        var lastColon = image.LastIndexOf(':');
+        if (lastColon >= 0 && !image[(lastColon + 1)..].Contains('/'))
         {
-            var images = await dockerClient.Images.ListImagesAsync(new ImagesListParameters
-            {
-                Filters = new Dictionary<string, IDictionary<string, bool>>
-                {
-                    ["reference"] = new Dictionary<string, bool> { [$"{imageName}:{tag}"] = true }
-                }
-            }, cancellationToken);
-
-            if (images.Count > 0)
-                return;
+            imageName = image[..lastColon];
+            tag = image[(lastColon + 1)..];
         }
-        catch (Exception ex)
+        else
         {
-            _logger.LogWarning(ex, "Could not check for local gallery-dl image; will attempt pull");
+            imageName = image;
+            tag = "latest";
         }
 
         _logger.LogInformation("Pulling gallery-dl image {image}", image);
+        using var dockerClient = CreateDockerClient();
         try
         {
             await dockerClient.Images.CreateImageAsync(
@@ -184,14 +185,11 @@ public class GalleryDlClient
                         _logger.LogTrace("Pull {image}: {status}", image, msg.Status);
                 }),
                 cancellationToken);
+            _logger.LogInformation("gallery-dl image {image} is ready", image);
         }
         catch (Exception ex)
         {
-            // Pull can fail due to permission restrictions or network issues.
-            // Log a warning and continue — if the image is already present locally
-            // the container will start normally; otherwise CreateContainerAsync will
-            // give a clear "image not found" error.
-            _logger.LogWarning(ex, "Could not pull gallery-dl image {image}; will attempt to use local copy", image);
+            _logger.LogWarning(ex, "Could not pull gallery-dl image {image}; jobs will use locally cached image if available", image);
         }
     }
 
