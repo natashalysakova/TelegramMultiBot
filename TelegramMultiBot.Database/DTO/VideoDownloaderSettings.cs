@@ -14,6 +14,11 @@ public class VideoDownloaderSettings : BaseSetting
     public VideoQuality VideoQuality { get; set; } = VideoQuality.best;
     public VideoFormat VideoFormat { get; set; } = VideoFormat.iosCompatible;
     public VideoCodec VideoCodec { get; set; } = VideoCodec.h265;
+
+    public bool GalleryDlEnabled { get; set; } = false;
+    public string GalleryDlImage { get; set; } = "mikf/gallery-dl";
+    public string GalleryDlDownloadsPath { get; set; } = "/gallery-dl-downloads";
+    public string GalleryDlVolumeName { get; set; } = "bober_gallery-dl-downloads";
 }
 
 public enum VideoQuality

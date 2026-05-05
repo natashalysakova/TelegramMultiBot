@@ -11,6 +11,8 @@ RUN apt-get update && apt-get install -y chromium --no-install-recommends --allo
 ######################
 ENV PUPPETEER_EXECUTABLE_PATH "/usr/bin/chromium"
 
+RUN groupadd -f -g 999 docker && usermod -aG docker app
+
 USER app
 WORKDIR /app
 
