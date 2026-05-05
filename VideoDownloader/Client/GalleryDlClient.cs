@@ -173,15 +173,26 @@ public class GalleryDlClient
         }
 
         _logger.LogInformation("Pulling gallery-dl image {image}", image);
-        await dockerClient.Images.CreateImageAsync(
-            new ImagesCreateParameters { FromImage = imageName, Tag = tag },
-            null,
-            new Progress<JSONMessage>(msg =>
-            {
-                if (!string.IsNullOrEmpty(msg.Status))
-                    _logger.LogTrace("Pull {image}: {status}", image, msg.Status);
-            }),
-            cancellationToken);
+        try
+        {
+            await dockerClient.Images.CreateImageAsync(
+                new ImagesCreateParameters { FromImage = imageName, Tag = tag },
+                null,
+                new Progress<JSONMessage>(msg =>
+                {
+                    if (!string.IsNullOrEmpty(msg.Status))
+                        _logger.LogTrace("Pull {image}: {status}", image, msg.Status);
+                }),
+                cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            // Pull can fail due to permission restrictions or network issues.
+            // Log a warning and continue — if the image is already present locally
+            // the container will start normally; otherwise CreateContainerAsync will
+            // give a clear "image not found" error.
+            _logger.LogWarning(ex, "Could not pull gallery-dl image {image}; will attempt to use local copy", image);
+        }
     }
 
     private static async Task<string> GetContainerLogsAsync(DockerClient dockerClient, string containerId)
