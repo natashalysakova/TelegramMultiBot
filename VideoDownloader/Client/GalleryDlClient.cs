@@ -32,10 +32,13 @@ public class GalleryDlClient
 
         var settings = _sqlConfigurationService.VideoDownloaderSettings;
         var downloadsBasePath = settings.GalleryDlDownloadsPath;
+        var volumeName = settings.GalleryDlVolumeName;
         var image = settings.GalleryDlImage;
         var outputDir = Path.Combine(downloadsBasePath, jobId);
 
-        Directory.CreateDirectory(outputDir);
+        // Do not pre-create the output directory — gallery-dl creates it when it writes files.
+        // The bot container runs as a non-root user and cannot create directories in a
+        // root-owned named volume.
 
         _logger.LogInformation("Running gallery-dl for {url} into {outputDir}", url, outputDir);
 
@@ -53,7 +56,19 @@ public class GalleryDlClient
                     Cmd = ["--dest", $"/output/{jobId}/", url],
                     HostConfig = new HostConfig
                     {
-                        Binds = [$"{downloadsBasePath}:/output"],
+                        // Use a named-volume mount so both the bot container and the
+                        // gallery-dl container share the same Docker volume. Using a
+                        // host-path bind (Binds with a container-side path) would
+                        // resolve against the host filesystem, not the bot container.
+                        Mounts =
+                        [
+                            new Mount
+                            {
+                                Type = "volume",
+                                Source = volumeName,
+                                Target = "/output"
+                            }
+                        ],
                         AutoRemove = false
                     }
                 }, cancellationToken);

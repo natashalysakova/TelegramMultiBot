@@ -18,6 +18,7 @@ public class VideoDownloaderSettings : BaseSetting
     public bool GalleryDlEnabled { get; set; } = false;
     public string GalleryDlImage { get; set; } = "mikf/gallery-dl";
     public string GalleryDlDownloadsPath { get; set; } = "/gallery-dl-downloads";
+    public string GalleryDlVolumeName { get; set; } = "bober_gallery-dl-downloads";
 }
 
 public enum VideoQuality
