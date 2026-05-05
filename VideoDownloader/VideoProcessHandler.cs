@@ -57,9 +57,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         await db.SaveChangesAsync(cancellationToken);
 
         var allJobsGuid = history.GetAllIds().Select(id => Guid.Parse(id.Split('.', StringSplitOptions.RemoveEmptyEntries).First()));
-        var missingJobs = await db.VideoDownloads
-            .Where(j => j.Status == VideoDownloadStatus.Pending && !allJobsGuid.Contains(j.Id))
-            .ToListAsync(cancellationToken);
+        var missingJobs = pendingJobs.ToList().Where(j => j.Status == VideoDownloadStatus.Pending && !allJobsGuid.Contains(j.Id));
 
         foreach (var item in missingJobs)
         {
@@ -209,62 +207,30 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
 
     public static string GetFallbackUrl(string videoUrl)
     {
-        try
+        var uri = new Uri(videoUrl);
+        if (uri.Host.Equals("instagram.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.instagram.com", StringComparison.OrdinalIgnoreCase))
         {
-            var uri = new Uri(videoUrl);
-            if (uri.Host.Equals("x.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.x.com", StringComparison.OrdinalIgnoreCase))
-            {
-                var builder = new UriBuilder(uri) { Host = "fixupx.com" };
-                return builder.Uri.ToString();
-            }
-            if (uri.Host.Equals("twitter.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.twitter.com", StringComparison.OrdinalIgnoreCase))
-            {
-                var builder = new UriBuilder(uri) { Host = "fxtwitter.com" };
-                return builder.Uri.ToString();
-            }
-            if (uri.Host.Equals("instagram.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.instagram.com", StringComparison.OrdinalIgnoreCase))
-            {
-                var builder = new UriBuilder(uri) { Host = "kksav.com" };
-                return builder.Uri.ToString();
-            }
+            var builder = new UriBuilder(uri) { Host = "kksav.com" };
+            return builder.Uri.ToString();
         }
-        catch
-        {
-            // fallback to original logic if Uri parsing fails
-            if (videoUrl.Contains("instagram.com"))
-                return videoUrl.Replace("instagram.com", "kksav.com");
-            if (videoUrl.Contains("x.com"))
-                return videoUrl.Replace("x.com", "fixupx.com");
-            if (videoUrl.Contains("twitter.com"))
-                return videoUrl.Replace("twitter.com", "fxtwitter.com");
-        }
-        return videoUrl;
+
+        return GetFallbackUrlForNoVideo(videoUrl);
     }
 
     public static string GetFallbackUrlForNoVideo(string videoUrl)
     {
-        try
+        var uri = new Uri(videoUrl);
+        if (uri.Host.Equals("x.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.x.com", StringComparison.OrdinalIgnoreCase))
         {
-            var uri = new Uri(videoUrl);
-            if (uri.Host.Equals("x.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.x.com", StringComparison.OrdinalIgnoreCase))
-            {
-                var builder = new UriBuilder(uri) { Host = "fixupx.com" };
-                return builder.Uri.ToString();
-            }
-            if (uri.Host.Equals("twitter.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.twitter.com", StringComparison.OrdinalIgnoreCase))
-            {
-                var builder = new UriBuilder(uri) { Host = "fxtwitter.com" };
-                return builder.Uri.ToString();
-            }
+            var builder = new UriBuilder(uri) { Host = "fixupx.com" };
+            return builder.Uri.ToString();
         }
-        catch
+        if (uri.Host.Equals("twitter.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.twitter.com", StringComparison.OrdinalIgnoreCase))
         {
-            // fallback to original logic if Uri parsing fails
-            if (videoUrl.Contains("x.com"))
-                return videoUrl.Replace("x.com", "fixupx.com");
-            if (videoUrl.Contains("twitter.com"))
-                return videoUrl.Replace("twitter.com", "fxtwitter.com");
+            var builder = new UriBuilder(uri) { Host = "fxtwitter.com" };
+            return builder.Uri.ToString();
         }
+
         return videoUrl;
     }
 
@@ -275,7 +241,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
 
     private async Task HandleFailedDownload(VideoDownload job, string errorMessage, CancellationToken cancellationToken)
     {
-        await HandleFailedDownload(job, null, errorMessage, cancellationToken);
+        await HandleFailedDownload(job, null, errorMessage, null, cancellationToken);
     }
 
     private async Task HandleFailedDownload(VideoDownload job, string errorMessage, string fallbackUrl, CancellationToken cancellationToken)
@@ -440,9 +406,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
 
         foreach (var link in links)
         {
-            string statusText;
-            string userName = GetUserName(message.From);
-            statusText = $"⏳ Завантаження відео...";
+            string statusText = $"⏳ Завантаження відео...";
 
             //var statusMessage = await telegramBotClient.SendMessageAsync(message, statusText, !canDeleteMessages, disableNotification: true);
             var statusMessage = await telegramBotClient.SendRequest(new SendMessageRequest
@@ -460,6 +424,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             var presets = GetPresetList(link);
             var id = Guid.NewGuid();
 
+            var userName = GetUserName(message.From);
             var job = new VideoDownload
             {
                 Id = id,
