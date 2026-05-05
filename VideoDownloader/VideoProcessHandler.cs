@@ -292,7 +292,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
                 ChatId = job.ChatId,
                 MessageThreadId = job.MessageThreadId,
                 Text = $"{job.RequestedBy}: {text}" + (job.UserComment != null ? $"\n{job.UserComment}" : string.Empty)
-            });
+            }, cancellationToken);
         }
         else
         {
