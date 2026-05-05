@@ -55,6 +55,38 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         }
 
         await db.SaveChangesAsync(cancellationToken);
+
+        var allJobsGuidSet = new HashSet<Guid>();
+        foreach (var id in history.GetAllIds())
+        {
+            var part = id.Split('.', StringSplitOptions.RemoveEmptyEntries).FirstOrDefault();
+            if (Guid.TryParse(part, out var guid))
+                allJobsGuidSet.Add(guid);
+        }
+        var missingJobs = pendingJobs.Where(j => j.Status == VideoDownloadStatus.Pending && !allJobsGuidSet.Contains(j.Id));
+
+        foreach (var item in missingJobs)
+        {
+            await HandleMissingJob(item, cancellationToken);
+        }
+
+        await db.SaveChangesAsync(cancellationToken);
+    }
+
+    private async Task HandleMissingJob(VideoDownload job, CancellationToken cancellationToken)
+    {
+        job.Status = VideoDownloadStatus.Failed;
+        var fallbackUrl = GetFallbackUrlForNoVideo(job.VideoUrl);
+
+        if (fallbackUrl != job.VideoUrl)
+        {
+            //await EditStatusMessage(job, $"Відео не знайдено\n{fallbackUrl}", cancellationToken);
+            await HandleFailedDownload(job, "There is no video in this post", fallbackUrl, cancellationToken);
+        }
+        else
+        {
+            await EditStatusMessage(job, $"В посту немає відео", cancellationToken);
+        }
     }
 
     private const long MaxFileSizeBytes = 50L * 1024 * 1024;
@@ -162,10 +194,8 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         var fallbackUrl = GetFallbackUrl(job.VideoUrl);
         var sizeMb = item.Size!.Value / (1024 * 1024);
 
-        string statusText = $"Відео від {job.RequestedBy}."
-            + (string.IsNullOrWhiteSpace(job.UserComment) ? string.Empty : $"\n{job.UserComment}")
-            + $"\n⚠️ Відео завелике для Telegram ({sizeMb} MB)."
-            + (fallbackUrl != null ? $" {fallbackUrl}" : string.Empty);
+        string statusText = $"⚠️ Відео завелике для Telegram ({sizeMb} MB)."
+            + (fallbackUrl != job.VideoUrl ? $" {fallbackUrl}" : string.Empty);
 
         await EditStatusMessage(job, statusText, cancellationToken);
 
@@ -183,30 +213,57 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
 
     public static string GetFallbackUrl(string videoUrl)
     {
-        if (videoUrl.Contains("instagram.com"))
-            return videoUrl.Replace("instagram.com", "kksav.com");
-        if (videoUrl.Contains("x.com"))
-            return videoUrl.Replace("x.com", "fixupx.com");
-        if (videoUrl.Contains("twitter.com"))
-            return videoUrl.Replace("twitter.com", "fxtwitter.com");
+        var uri = new Uri(videoUrl);
+        if (uri.Host.Equals("instagram.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.instagram.com", StringComparison.OrdinalIgnoreCase))
+        {
+            var builder = new UriBuilder(uri) { Host = "kksav.com" };
+            return builder.Uri.ToString();
+        }
+
+        return GetFallbackUrlForNoVideo(videoUrl);
+    }
+
+    public static string GetFallbackUrlForNoVideo(string videoUrl)
+    {
+        var uri = new Uri(videoUrl);
+        if (uri.Host.Equals("x.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.x.com", StringComparison.OrdinalIgnoreCase))
+        {
+            var builder = new UriBuilder(uri) { Host = "fixupx.com" };
+            return builder.Uri.ToString();
+        }
+        if (uri.Host.Equals("twitter.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.twitter.com", StringComparison.OrdinalIgnoreCase))
+        {
+            var builder = new UriBuilder(uri) { Host = "fxtwitter.com" };
+            return builder.Uri.ToString();
+        }
+
         return videoUrl;
     }
 
     private async Task HandleFailedDownload(VideoDownload job, MeTubeHistoryItem item, CancellationToken cancellationToken)
     {
-        await HandleFailedDownload(job, item.Id, item.Message, cancellationToken);
+        await HandleFailedDownload(job, item.Id, item.Message, null, cancellationToken);
     }
 
     private async Task HandleFailedDownload(VideoDownload job, string errorMessage, CancellationToken cancellationToken)
     {
-        await HandleFailedDownload(job, null, errorMessage, cancellationToken);
+        await HandleFailedDownload(job, null, errorMessage, null, cancellationToken);
     }
 
-    private async Task HandleFailedDownload(VideoDownload job, string? itemId, string? errorMessage, CancellationToken cancellationToken)
+    private async Task HandleFailedDownload(VideoDownload job, string errorMessage, string fallbackUrl, CancellationToken cancellationToken)
+    {
+        await HandleFailedDownload(job, null, errorMessage, fallbackUrl, cancellationToken);
+    }
+
+    private async Task HandleFailedDownload(VideoDownload job, string? itemId, string? errorMessage, string? fallbackUrl, CancellationToken cancellationToken)
     {
         logger.LogWarning("Download failure — JobId: {jobId}, {msgId}", job.Id, errorMessage);
 
-        var fallbackUrl = GetFallbackUrl(job.VideoUrl);
+        if (fallbackUrl is null)
+        {
+            fallbackUrl = GetFallbackUrl(job.VideoUrl);
+        }
+
         string text;
         bool deleteOriginal = false;
         if (errorMessage != null && (errorMessage.Contains("No video formats found") || errorMessage.Contains("Unsupported URL")))
@@ -216,7 +273,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         }
         else if (errorMessage != null && errorMessage.Contains("There is no video in this post"))
         {
-            text = "В посту нема відео";
+            text = "В посту немає відео";
         }
         else
         {
@@ -227,17 +284,21 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         {
             await DeleteOriginalMessage(job, cancellationToken);
             await DeleteStatusMessage(job, cancellationToken);
-            if (db.VideoDownloads.Contains(job))
-            {
+            // If the entity is in the Added state, it means it hasn't been saved to the database yet.
+            // Detach it instead of removing, as Remove is only valid for entities tracked as Unchanged/Modified/Deleted.
+            // This prevents errors when handling failed downloads that were never persisted.
+            var entry = db.Entry(job);
+            if (entry.State == EntityState.Added)
+                entry.State = EntityState.Detached;
+            else if (entry.State != EntityState.Detached)
                 db.VideoDownloads.Remove(job);
-            }
 
             await telegramBotClient.SendRequest(new SendMessageRequest()
             {
                 ChatId = job.ChatId,
                 MessageThreadId = job.MessageThreadId,
-                Text = $"{job.RequestedBy}: {text}"
-            });
+                Text = $"{job.RequestedBy}: {text}" + (job.UserComment != null ? $"\n{job.UserComment}" : string.Empty)
+            }, cancellationToken);
         }
         else
         {
@@ -351,16 +412,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
 
         foreach (var link in links)
         {
-            string statusText;
-            string userName = GetUserName(message.From);
-            if (canDeleteMessages)
-            {
-                statusText = $"🦫 {userName}: {message.Text}\n⏳ Завантаження відео...";
-            }
-            else
-            {
-                statusText = $"⏳ Завантаження відео...";
-            }
+            string statusText = $"⏳ Завантаження відео...";
 
             //var statusMessage = await telegramBotClient.SendMessageAsync(message, statusText, !canDeleteMessages, disableNotification: true);
             var statusMessage = await telegramBotClient.SendRequest(new SendMessageRequest
@@ -369,7 +421,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
                 MessageThreadId = message.MessageThreadId,
                 DisableNotification = true,
                 Text = statusText,
-                ReplyParameters = canDeleteMessages ? null : new ReplyParameters
+                ReplyParameters = new ReplyParameters
                 {
                     ChatId = message.Chat.Id,
                     MessageId = message.MessageId
@@ -378,6 +430,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
             var presets = GetPresetList(link);
             var id = Guid.NewGuid();
 
+            var userName = GetUserName(message.From);
             var job = new VideoDownload
             {
                 Id = id,
@@ -498,6 +551,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         "fixupx.com",
         "fxtwitter.com",
         "kksave.com",
+        "kksav.com",
         "ddinstagram.com",
         "kkinstagram.com"
     ];
