@@ -7,6 +7,7 @@ using Telegram.Bot.Requests;
 using Telegram.Bot.Types;
 using Telegram.Bot.Types.Enums;
 using TelegramMultiBot.Database;
+using TelegramMultiBot.Database.Interfaces;
 using VideoDownloader.Client;
 
 namespace VideoDownloader;
@@ -17,7 +18,7 @@ public interface IVideoProcessHandler
     Task ProcessDownloads(CancellationToken cancellationToken);
 }
 
-public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBotClient telegramBotClient, MeTubeClient meTubeClient, BoberDbContext db) : IVideoProcessHandler
+public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBotClient telegramBotClient, MeTubeClient meTubeClient, GalleryDlClient galleryDlClient, ISqlConfiguationService sqlConfigurationService, BoberDbContext db) : IVideoProcessHandler
 {
     public async Task ProcessDownloads(CancellationToken cancellationToken)
     {
@@ -76,6 +77,14 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
     private async Task HandleMissingJob(VideoDownload job, CancellationToken cancellationToken)
     {
         job.Status = VideoDownloadStatus.Failed;
+
+        var settings = sqlConfigurationService.VideoDownloaderSettings;
+        if (settings.GalleryDlEnabled && IsGalleryDlSupported(job.VideoUrl))
+        {
+            await HandleGalleryDlDownload(job, cancellationToken);
+            return;
+        }
+
         var fallbackUrl = GetFallbackUrlForNoVideo(job.VideoUrl);
 
         if (fallbackUrl != job.VideoUrl)
@@ -86,6 +95,133 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         else
         {
             await EditStatusMessage(job, $"В посту немає відео", cancellationToken);
+        }
+    }
+
+    private static bool IsGalleryDlSupported(string url)
+    {
+        var uri = new Uri(url);
+        return uri.Host.Equals("instagram.com", StringComparison.OrdinalIgnoreCase)
+            || uri.Host.Equals("www.instagram.com", StringComparison.OrdinalIgnoreCase);
+    }
+
+    private async Task HandleGalleryDlDownload(VideoDownload job, CancellationToken cancellationToken)
+    {
+        await EditStatusMessage(job, "⏳ Завантаження фото...", cancellationToken);
+
+        IReadOnlyList<string> files;
+        try
+        {
+            files = await galleryDlClient.DownloadAsync(job.VideoUrl, job.Id.ToString(), cancellationToken);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "gallery-dl download failed for {url}", job.VideoUrl);
+            var fallbackUrl = GetFallbackUrlForNoVideo(job.VideoUrl);
+            await HandleFailedDownload(job, "There is no video in this post", fallbackUrl, cancellationToken);
+            return;
+        }
+
+        if (files.Count == 0)
+        {
+            logger.LogWarning("gallery-dl returned no files for {url}", job.VideoUrl);
+            var fallbackUrl = GetFallbackUrlForNoVideo(job.VideoUrl);
+            await HandleFailedDownload(job, "There is no video in this post", fallbackUrl, cancellationToken);
+            return;
+        }
+
+        try
+        {
+            await SendPhotosToTelegramAsync(job, files, cancellationToken);
+            job.Status = VideoDownloadStatus.Completed;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Failed to send gallery-dl photos for {url}", job.VideoUrl);
+            job.Status = VideoDownloadStatus.Failed;
+            await EditStatusMessage(job, $"❌ Помилка надсилання фото\n{job.VideoUrl}", cancellationToken);
+        }
+        finally
+        {
+            galleryDlClient.CleanupJobDirectory(job.Id.ToString());
+        }
+
+        if (job.Status == VideoDownloadStatus.Completed)
+        {
+            await DeleteStatusMessage(job, cancellationToken);
+            await DeleteOriginalMessage(job, cancellationToken);
+            db.VideoDownloads.Remove(job);
+        }
+    }
+
+    private async Task SendPhotosToTelegramAsync(VideoDownload job, IReadOnlyList<string> files, CancellationToken cancellationToken)
+    {
+        var chatId = new ChatId(job.ChatId);
+        var caption = $"Фото від {job.RequestedBy}."
+            + (string.IsNullOrWhiteSpace(job.UserComment) && job.MessageToDelete == 0 ? string.Empty : $"\n{job.UserComment}")
+            + $"\nОригінал: {job.VideoUrl}";
+
+        if (caption.Length > 1024)
+        {
+            caption = $"Фото від {job.RequestedBy}.\nОригінал: {job.VideoUrl}";
+        }
+
+        const int telegramAlbumLimit = 10;
+        var chunks = files
+            .Select((f, i) => (file: f, index: i))
+            .GroupBy(x => x.index / telegramAlbumLimit)
+            .Select(g => g.Select(x => x.file).ToList())
+            .ToList();
+
+        bool firstChunk = true;
+        foreach (var chunk in chunks)
+        {
+            if (chunk.Count == 1)
+            {
+                using var fs = File.OpenRead(chunk[0]);
+                var inputFile = InputFile.FromStream(fs, Path.GetFileName(chunk[0]));
+                await telegramBotClient.SendRequest(new SendPhotoRequest
+                {
+                    ChatId = chatId,
+                    Photo = inputFile,
+                    MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
+                    Caption = firstChunk ? caption : null,
+                    ShowCaptionAboveMedia = false
+                }, cancellationToken);
+            }
+            else
+            {
+                var mediaGroup = new List<IAlbumInputMedia>();
+                var streams = new List<Stream>();
+                try
+                {
+                    for (int i = 0; i < chunk.Count; i++)
+                    {
+                        var fs = File.OpenRead(chunk[i]);
+                        streams.Add(fs);
+                        var photo = new InputMediaPhoto(InputFile.FromStream(fs, Path.GetFileName(chunk[i])))
+                        {
+                            Caption = (firstChunk && i == 0) ? caption : null
+                        };
+                        mediaGroup.Add(photo);
+                    }
+
+                    await telegramBotClient.SendRequest(new SendMediaGroupRequest
+                    {
+                        ChatId = chatId,
+                        Media = mediaGroup,
+                        MessageThreadId = job.MessageThreadId == 0 ? null : job.MessageThreadId,
+                        DisableNotification = false
+                    }, cancellationToken);
+                }
+                finally
+                {
+                    foreach (var s in streams)
+                        s.Dispose();
+                }
+            }
+
+            firstChunk = false;
         }
     }
 

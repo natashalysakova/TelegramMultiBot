@@ -53,6 +53,8 @@ services:
     volumes:
       - images:/app/images
       - ./ytdl-presets.json:/config/ytdl-presets.json
+      - /var/run/docker.sock:/var/run/docker.sock
+      - gallery-dl-downloads:/gallery-dl-downloads
     depends_on:
       database:
         condition: service_healthy
@@ -75,6 +77,9 @@ services:
     env_file:
       - dev.env
       - .env
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - gallery-dl-downloads:/gallery-dl-downloads
     depends_on:
       database-dev:
         condition: service_healthy
@@ -167,4 +172,6 @@ volumes:
   dbdata-dev:
     driver: local
   metube-downloads:
+    driver: local
+  gallery-dl-downloads:
     driver: local
