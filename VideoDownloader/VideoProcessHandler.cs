@@ -117,16 +117,16 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         catch (Exception ex)
         {
             logger.LogError(ex, "gallery-dl download failed for {url}", job.VideoUrl);
-            var fallbackUrl = GetFallbackUrlForNoVideo(job.VideoUrl);
-            await HandleFailedDownload(job, "There is no video in this post", fallbackUrl, cancellationToken);
+            await EditStatusMessage(job, $"❌ Помилка завантаження фото\n{job.VideoUrl}", cancellationToken);
+            job.Status = VideoDownloadStatus.Failed;
             return;
         }
 
         if (files.Count == 0)
         {
             logger.LogWarning("gallery-dl returned no files for {url}", job.VideoUrl);
-            var fallbackUrl = GetFallbackUrlForNoVideo(job.VideoUrl);
-            await HandleFailedDownload(job, "There is no video in this post", fallbackUrl, cancellationToken);
+            await EditStatusMessage(job, $"В посту немає фото або відео", cancellationToken);
+            job.Status = VideoDownloadStatus.Failed;
             return;
         }
 
@@ -164,6 +164,8 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         if (caption.Length > 1024)
         {
             caption = $"Фото від {job.RequestedBy}.\nОригінал: {job.VideoUrl}";
+            if (caption.Length > 1024)
+                caption = job.VideoUrl.Length <= 1024 ? job.VideoUrl : job.VideoUrl[..1024];
         }
 
         const int telegramAlbumLimit = 10;

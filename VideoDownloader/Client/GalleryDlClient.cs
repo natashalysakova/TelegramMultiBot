@@ -17,12 +17,19 @@ public class GalleryDlClient
         _logger = logger;
     }
 
+    private const long ExitCodeSuccess = 0;
+    // gallery-dl exits with 1 when at least one download succeeded but others failed (partial success)
+    private const long ExitCodePartialSuccess = 1;
+
     /// <summary>
     /// Downloads photos for the given URL by running a gallery-dl Docker container on demand.
     /// Returns the paths of the downloaded files accessible from the bot container.
     /// </summary>
     public async Task<IReadOnlyList<string>> DownloadAsync(string url, string jobId, CancellationToken cancellationToken)
     {
+        if (!IsValidJobId(jobId))
+            throw new ArgumentException($"Invalid jobId: '{jobId}'. Must be a valid GUID.", nameof(jobId));
+
         var settings = _sqlConfigurationService.VideoDownloaderSettings;
         var downloadsBasePath = settings.GalleryDlDownloadsPath;
         var image = settings.GalleryDlImage;
@@ -47,8 +54,7 @@ public class GalleryDlClient
                     HostConfig = new HostConfig
                     {
                         Binds = [$"{downloadsBasePath}:/output"],
-                        AutoRemove = false,
-                        NetworkMode = "none"
+                        AutoRemove = false
                     }
                 }, cancellationToken);
 
@@ -60,9 +66,8 @@ public class GalleryDlClient
             var waitResponse = await dockerClient.Containers.WaitContainerAsync(containerId, cancellationToken);
             _logger.LogInformation("gallery-dl container exited with code {exitCode} for {url}", waitResponse.StatusCode, url);
 
-            if (waitResponse.StatusCode != 0 && waitResponse.StatusCode != 1)
+            if (waitResponse.StatusCode != ExitCodeSuccess && waitResponse.StatusCode != ExitCodePartialSuccess)
             {
-                // gallery-dl exits with 1 when some but not all downloads succeed; treat as partial success
                 var logs = await GetContainerLogsAsync(dockerClient, containerId);
                 _logger.LogWarning("gallery-dl exited with code {code} for {url}. Logs: {logs}", waitResponse.StatusCode, url, logs);
             }
@@ -116,6 +121,11 @@ public class GalleryDlClient
     {
         var ext = Path.GetExtension(path).ToLowerInvariant();
         return ext is ".jpg" or ".jpeg" or ".png" or ".gif" or ".webp" or ".bmp";
+    }
+
+    private static bool IsValidJobId(string jobId)
+    {
+        return Guid.TryParse(jobId, out _);
     }
 
     private static DockerClient CreateDockerClient()
