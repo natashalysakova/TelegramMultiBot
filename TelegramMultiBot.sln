@@ -1,7 +1,7 @@
 ﻿
 Microsoft Visual Studio Solution File, Format Version 12.00
-# Visual Studio Version 17
-VisualStudioVersion = 17.2.32602.215
+# Visual Studio Version 18
+VisualStudioVersion = 18.5.11723.231 stable
 MinimumVisualStudioVersion = 10.0.40219.1
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "TelegramMultiBot", "TelegramMultiBot\TelegramMultiBot.csproj", "{11DE492D-F193-4563-86EA-CD75A2D9BE34}"
 EndProject
@@ -27,6 +27,8 @@ EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DtekParsers", "DtekParsers\DtekParsers.csproj", "{FA5DE544-B3A2-4220-A4B2-52B09279E174}"
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "VideoDownloader", "VideoDownloader\VideoDownloader.csproj", "{CACA9ED1-DFBF-44AA-8B72-446614B89511}"
+EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "ImageDownloader", "..\ImageDownloader\ImageDownloader.csproj", "{30CA494A-199B-42BA-B4FC-38C6BB6D7382}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
@@ -130,6 +132,18 @@ Global
 		{CACA9ED1-DFBF-44AA-8B72-446614B89511}.Release|x64.Build.0 = Release|Any CPU
 		{CACA9ED1-DFBF-44AA-8B72-446614B89511}.Release|x86.ActiveCfg = Release|Any CPU
 		{CACA9ED1-DFBF-44AA-8B72-446614B89511}.Release|x86.Build.0 = Release|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Debug|x64.ActiveCfg = Debug|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Debug|x64.Build.0 = Debug|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Debug|x86.ActiveCfg = Debug|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Debug|x86.Build.0 = Debug|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Release|Any CPU.Build.0 = Release|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Release|x64.ActiveCfg = Release|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Release|x64.Build.0 = Release|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Release|x86.ActiveCfg = Release|Any CPU
+		{30CA494A-199B-42BA-B4FC-38C6BB6D7382}.Release|x86.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
