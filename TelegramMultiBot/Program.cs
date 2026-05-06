@@ -1,5 +1,6 @@
 ﻿// See https://aka.ms/new-console-template for more information
 using DtekParsers;
+using ImageDownloader;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,6 +48,7 @@ internal class Program
                 RegisterServices(services, args);
                 services.AddHostedService<VideoDownloaderService>();
                 services.InstallVideoDownloader();
+                services.InstallImageDownloader();
           })
          .UseConsoleLifetime()
          .Build();

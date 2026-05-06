@@ -75,6 +75,7 @@
 
 	<ItemGroup>
 	  <ProjectReference Include="../VideoDownloader/VideoDownloader.csproj" />
+	  <ProjectReference Include="..\..\ImageDownloader\ImageDownloader.csproj" />
 	  <ProjectReference Include="..\DtekParsers\DtekParsers.csproj" />
 	  <ProjectReference Include="..\TelegramMultiBot.Database\TelegramMultiBot.Database.csproj" />
 	</ItemGroup>
