@@ -5,6 +5,7 @@ namespace TelegramMultiBot.Database.DTO;
 public class JobInfo
 {
     public long ChatId { get; set; }
+    public long UserId { get; set; }
     public int? MessageThreadId { get; set; }
     public int BotMessageId { get; set; }
     public int MessageId { get; set; }

@@ -13,6 +13,7 @@ public static partial class Mappers
             Id = job.Id.ToString(),
             BotMessageId = job.BotMessageId,
             ChatId = job.ChatId,
+            UserId = job.UserId,
             MessageId = job.MessageId,
             MessageThreadId = job.MessageId,
             PostInfo = job.PostInfo,

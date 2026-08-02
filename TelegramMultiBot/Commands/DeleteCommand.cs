@@ -48,6 +48,10 @@ internal class DeleteCommand(TelegramClientWrapper client, IBotMessageDatabaseSe
 
         if (messageDatabaseService.IsBotMessage(info) && !messageDatabaseService.IsActiveJob(info))
         {
+            var userId = messageDatabaseService.GetUserId(info);
+            if (userId != 0 && messageReaction.User.Id != userId)
+                return;
+
             var emojis = messageReaction.NewReaction.Where(x => x.Type == ReactionTypeKind.Emoji).Select(x => (ReactionTypeEmoji)x);
 
             if (emojis.Any(x => x.Emoji == ReactionEmoji.PileOfPoo))
