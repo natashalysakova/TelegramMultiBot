@@ -75,6 +75,8 @@ public class  ImageGenerationTests
         SaveImages(folder, image.Select(x => x.ImageData));
 
         Assert.AreEqual(schedule.Groups.Count(), image.Count());
+        Assert.IsTrue(image.All(x => x.IsPlanned));
+        Assert.IsTrue(image.All(x => x.Date > 0));
     }
 
     private static ScheduleParser GetParser()

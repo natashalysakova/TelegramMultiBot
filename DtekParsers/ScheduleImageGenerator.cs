@@ -24,7 +24,8 @@ public class ScheduleImageGenerator
             $"Графік відключень {schedule.Location}",
             schedule.Groups,
             schedule.TimeZones.OrderBy(x => x.Id).Select(x => x.Short),
-            schedule.RealSchedule, schedule.AttentionNote);
+            schedule.RealSchedule, schedule.AttentionNote, false,
+            schedule.RealSchedule.Min(x => x.DateTimeStamp));
     }
 
     public async Task<IEnumerable<ImageGenerationModel>> GeneratePlannedScheduleSingleGroupImages(Schedule schedule)
@@ -33,14 +34,15 @@ public class ScheduleImageGenerator
             $"Графік можливих відключень {schedule.Location}",
             schedule.Groups,
             schedule.TimeZones.OrderBy(x => x.Id).Select(x => x.Short),
-            schedule.PlannedSchedule, schedule.AttentionNote);
+            schedule.PlannedSchedule, schedule.AttentionNote, true,
+            schedule.RealSchedule.Min(x => x.DateTimeStamp));
     }
 
     async Task<IEnumerable<ImageGenerationModel>> GenerateSingleGroupImages(
         string title,
         IEnumerable<ScheduleGroup> groups,
         IEnumerable<string> timeZones,
-        IEnumerable<BaseSchedule> days, string attentonNote)
+        IEnumerable<BaseSchedule> days, string attentonNote, bool isPlanned, long scheduleDay)
     {
         var requests = new List<ImageGenerationModel>();
         foreach (var group in groups)
@@ -60,15 +62,13 @@ public class ScheduleImageGenerator
 
             var html = await GenerateScheduleBody($"{title}", [printTable], attentonNote);
 
-            var minDate = days.Min(x => x is RealSchedule rs ? rs.DateTimeStamp : 0);
-
             requests.Add(new ImageGenerationModel
             {
                 Group = group.Id,
                 HtmlContent = html,
                 RowNumber = days.Count(),
-                IsPlanned = printTable.IsPlanned,
-                Date = minDate
+                IsPlanned = isPlanned,
+                Date = scheduleDay
             });
         }
 

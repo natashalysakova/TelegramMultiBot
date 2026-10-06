@@ -525,6 +525,11 @@ public class DtekSiteParser : BackgroundService
 
         foreach (var image in images)
         {
+            if (image.Date <= 0)
+            {
+                throw new InvalidOperationException($"Generated image for group {image.Group} has invalid schedule day {image.Date}");
+            }
+
             var filename = SaveFile(location.Region, scheduleUpdateDate, image);
 
             var group = schedule.Groups.SingleOrDefault(x => x.Id == image.Group);
@@ -561,7 +566,7 @@ public class DtekSiteParser : BackgroundService
                 ImagePath = filename,
                 GroupId = dbGroup?.Id,
                 LocationId = location.Id,
-                ScheduleDay = image.Date.HasValue ? image.Date.Value : 0,
+                ScheduleDay = image.Date,
                 JobType = GetJobType(image)
             }, false);
         }
