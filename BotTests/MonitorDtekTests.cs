@@ -13,6 +13,9 @@ public class MonitorDtekTests
     public async Task PageLoaded()
     {
         var sqlConfiguationService = new Mock<ISqlConfiguationService>();
+        sqlConfiguationService
+            .Setup(c => c.SvitlobotSettings)
+            .Returns(new SvitlobotSettings());
         var parser = new ScheduleParser(sqlConfiguationService.Object);
 
         var html = await parser.GetHtmlUsingPuppeteer("https://www.dtek-krem.com.ua/ua/shutdowns");
@@ -31,6 +34,9 @@ public class MonitorDtekTests
         int expectedPlanned = 12, int expectedReal = 12)
     {
         var config = new Mock<ISqlConfiguationService>();
+        config
+            .Setup(c => c.SvitlobotSettings)
+            .Returns(new SvitlobotSettings());
         var parser = new ScheduleParser(config.Object);
 
         var schedule = await parser.Parse(url);

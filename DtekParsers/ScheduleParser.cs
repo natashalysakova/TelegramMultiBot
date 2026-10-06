@@ -589,7 +589,14 @@ public class ScheduleParser
             await Task.Delay(7000);
             
             // Simulate human-like behavior: scroll down slightly
-            await page.EvaluateExpressionAsync("window.scrollTo(0, 52)");
+            try
+            {
+                await page.EvaluateExpressionAsync("window.scrollTo(0, 52)");
+            }
+            catch (EvaluationFailedException ex)
+            {
+                _logger?.LogDebug(ex, "Page navigated before the challenge scroll could complete");
+            }
             await Task.Delay(1000);
         }
 

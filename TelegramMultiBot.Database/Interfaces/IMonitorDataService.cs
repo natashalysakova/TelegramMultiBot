@@ -142,7 +142,9 @@ public class MonitorDataService(BoberDbContext context) : IMonitorDataService
 
     public async Task<Dictionary<string, bool>> GetSubscriptionList(long chatId, string region)
     {
-        var groupList = await context.ElectricityGroups.Select(x => x.GroupCode).ToListAsync();
+        var groupList = await context.ElectricityGroups
+            .Where(x => x.LocationRegion == region)
+            .Select(x => x.GroupCode).ToListAsync();
         var subscriptions = await GetJobsInternal().Where(x => x.ChatId == chatId && x.Location.Region == region && x.IsActive).Select(x => x.Group).ToListAsync();
 
         var result = new Dictionary<string, bool>();

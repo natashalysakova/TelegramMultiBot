@@ -1,6 +1,8 @@
 using DtekParsers;
 using Microsoft.Extensions.Logging;
 using Moq;
+using TelegramMultiBot.Database.DTO;
+using TelegramMultiBot.Database.Interfaces;
 
 namespace BotTests;
 
@@ -12,7 +14,7 @@ public class  ImageGenerationTests
     [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "krem.real")]
     public async Task Image_RealScheduleSingleGroupImageReady(string url, string folder)
     {
-        var parser = new ScheduleParser(null!);
+        var parser = GetParser();
         var logger = new Mock<ILogger<ScheduleImageGenerator>>();
 
         var schedule = await parser.Parse(url);
@@ -21,7 +23,7 @@ public class  ImageGenerationTests
 
         SaveImages(folder, image.Select(x=>x.ImageData));
 
-        Assert.AreEqual(12, image.Count());
+        Assert.AreEqual(schedule.Groups.Count(), image.Count());
     }
 
     private static void SaveImages(string folder, IEnumerable<byte[]> image)
@@ -45,7 +47,8 @@ public class  ImageGenerationTests
     [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "krem.all")]
     public async Task Image_GenerateAllGroupsRealScheduleImageReady(string url, string folder)
     {
-        var parser = new ScheduleParser(null!);
+        var parser = GetParser();
+
         var logger = new Mock<ILogger<ScheduleImageGenerator>>();
 
         var schedule = await parser.Parse(url);
@@ -62,7 +65,8 @@ public class  ImageGenerationTests
     [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns", "krem.planned")]
     public async Task Image_GeneratePlannedScheduleSingleGroupImageReady(string url, string folder)
     {
-        var parser = new ScheduleParser(null!);
+        ScheduleParser parser = GetParser();
+
         var logger = new Mock<ILogger<ScheduleImageGenerator>>();
         var schedule = await parser.Parse(url);
 
@@ -70,7 +74,15 @@ public class  ImageGenerationTests
 
         SaveImages(folder, image.Select(x => x.ImageData));
 
-        Assert.AreEqual(12, image.Count());
+        Assert.AreEqual(schedule.Groups.Count(), image.Count());
+    }
+
+    private static ScheduleParser GetParser()
+    {
+        var config = new Mock<ISqlConfiguationService>();
+        config.Setup(c => c.SvitlobotSettings).Returns(new SvitlobotSettings());
+        var parser = new ScheduleParser(config.Object);
+        return parser;
     }
 
     private string[] urls = [

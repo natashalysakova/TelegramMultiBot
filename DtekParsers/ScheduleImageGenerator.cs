@@ -50,7 +50,7 @@ public class ScheduleImageGenerator
                 Header = group.GroupName,
                 TimeZones = timeZones,
                 Updated = days.Max(x => x.Updated),
-                Rows = days.Select(day => new PrintRow
+                Rows = days.Where(day => day.Statuses.ContainsKey(group.Id)).Select(day => new PrintRow
                 {
                     Header = day.DateHeader,
                     Statuses = day.Statuses[group.Id],
@@ -86,7 +86,7 @@ public class ScheduleImageGenerator
                 Header = day.DateHeader,
                 TimeZones = schedule.TimeZones.OrderBy(x => x.Id).Select(x => x.Short),
                 Updated = day.Updated,
-                Rows = schedule.Groups.Select(group => new PrintRow
+                Rows = schedule.Groups.Where(group => day.Statuses.ContainsKey(group.Id)).Select(group => new PrintRow
                 {
                     Header = group.GroupName,
                     Statuses = day.Statuses[group.Id],
