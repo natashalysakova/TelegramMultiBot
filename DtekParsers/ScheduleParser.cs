@@ -12,6 +12,7 @@ public class ScheduleParser
 {
     private readonly ISqlConfiguationService _configuationService;
     private readonly ILogger<ScheduleParser>? _logger;
+    private readonly string _browserWSEndpoint = "ws://localhost:5301";
 
     public ScheduleParser(ISqlConfiguationService configuationService, ILogger<ScheduleParser>? logger = null)
     {
@@ -21,7 +22,7 @@ public class ScheduleParser
 
     public async Task<Schedule> Parse(string url)
     {
-        var html = await GetHtmlUsingPuppeteer(url);
+        var html = await GetHtmlViaPuppeteerAndChrome(url);
 
         var location = LocationNameUtility.GetLocationByUrl(url);
 
@@ -484,29 +485,8 @@ public class ScheduleParser
 
     }
 
-    public async Task<string> GetHtmlUsingPuppeteer(string url)
+    private async Task<string> GetHtml(IBrowser browser, string url)
     {
-        var browserFetcher = new BrowserFetcher();
-        await browserFetcher.DownloadAsync();
-
-        await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions
-        {
-            Headless = true,
-            Args = new[]
-            {
-                "--disable-blink-features=AutomationControlled",
-                "--disable-dev-shm-usage",
-                "--no-sandbox",
-                "--disable-setuid-sandbox",
-                "--disable-infobars",
-                "--disable-web-security",
-                "--disable-features=IsolateOrigins,site-per-process",
-                "--window-size=1920,1080",
-                "--start-maximized",
-                "--lang=en-US"
-            },
-        });
-
         await using var page = await browser.NewPageAsync();
         
         // Set more realistic user agent (Chrome on Windows)
@@ -623,6 +603,83 @@ public class ScheduleParser
         var str = await client.GetStringAsync(url); // Make a request to establish session with Incapsula
 
         return str;
+    }
+    public async Task<string> GetHtmlUsingPuppeteer(string url)
+    {
+        var browserFetcher = new BrowserFetcher();
+        await browserFetcher.DownloadAsync();
+
+        await using var browser = await Puppeteer.LaunchAsync(new LaunchOptions
+        {
+            Headless = true,
+            Args = new[]
+            {
+                "--disable-blink-features=AutomationControlled",
+                "--disable-dev-shm-usage",
+                "--no-sandbox",
+                "--disable-setuid-sandbox",
+                "--disable-infobars",
+                "--disable-web-security",
+                "--disable-features=IsolateOrigins,site-per-process",
+                "--window-size=1920,1080",
+                "--start-maximized",
+                "--lang=en-US"
+            },
+        });
+
+        return await GetHtml(browser, url);
+    }
+
+    public async Task<string> GetHtmlViaPuppeteerAndChrome(string url, CancellationToken token = default)
+    {
+        await using var browser = await Puppeteer.ConnectAsync(new ConnectOptions
+        {
+            BrowserWSEndpoint= ResolveBrowserWSEndpoint(_browserWSEndpoint),
+            //Headless = true,
+            //ExecutablePath = executablePath,
+            //Args = new[]
+            //{
+            //    "--disable-gpu",
+            //    "--disable-dev-shm-usage",
+            //    "--disable-setuid-sandbox",
+            //    "--no-sandbox"
+            //},
+        });
+
+        return await GetHtml(browser, url);
+    }
+
+    private string ResolveBrowserWSEndpoint(string endpoint)
+    {
+        if (string.IsNullOrWhiteSpace(endpoint))
+        {
+            return endpoint;
+        }
+
+        if (!Uri.TryCreate(endpoint, UriKind.Absolute, out var uri))
+        {
+            return endpoint;
+        }
+
+        var isRunningInContainer = string.Equals(
+            Environment.GetEnvironmentVariable("DOTNET_RUNNING_IN_CONTAINER"),
+            "true",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (isRunningInContainer || !string.Equals(uri.Host, "chrome", StringComparison.OrdinalIgnoreCase))
+        {
+            return endpoint;
+        }
+
+        var uriBuilder = new UriBuilder(uri)
+        {
+            Host = "localhost",
+            Port = 5301
+        };
+
+        var resolvedEndpoint = uriBuilder.Uri.ToString();
+        _logger.LogInformation("Browser websocket endpoint adjusted from {OriginalEndpoint} to {ResolvedEndpoint}", endpoint, resolvedEndpoint);
+        return resolvedEndpoint;
     }
 
     private static DateTime UnixTimeStampToDateTime(double unixTimeStamp)

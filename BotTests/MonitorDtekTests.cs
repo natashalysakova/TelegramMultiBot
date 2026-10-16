@@ -26,6 +26,22 @@ public class MonitorDtekTests
     }
 
     [TestMethod]
+    public async Task PageLoaded_Chrome()
+    {
+        var sqlConfiguationService = new Mock<ISqlConfiguationService>();
+        sqlConfiguationService
+            .Setup(c => c.SvitlobotSettings)
+            .Returns(new SvitlobotSettings());
+        var parser = new ScheduleParser(sqlConfiguationService.Object);
+
+        var html = await parser.GetHtmlViaPuppeteerAndChrome("https://www.dtek-krem.com.ua/ua/shutdowns");
+
+        Assert.IsNotNull(html);
+        Assert.Contains("DisconSchedule.fact", html);
+        Assert.Contains("DisconSchedule.preset", html);
+    }
+
+    [TestMethod]
     [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns")]
     [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns",  66, 60)]
     [DataRow("https://www.dtek-oem.com.ua/ua/shutdowns")]

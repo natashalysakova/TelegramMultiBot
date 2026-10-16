@@ -152,6 +152,22 @@ services:
         condition: service_healthy
         restart: true
     << : *base-config
+
+  chrome-dev:
+    image: browserless/chrome
+    networks:
+      - bober-net-dev
+    profiles:
+      - dev
+    ports:
+      - 5301:3000
+
+  chrome:
+    image: browserless/chrome
+    networks:
+      - bober-net
+    profiles:
+      - prod
       
 networks:
   bober-net:
