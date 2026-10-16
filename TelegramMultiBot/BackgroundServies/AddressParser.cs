@@ -26,21 +26,13 @@ public class AddressParser(ISqlConfiguationService configuationService)
 
     }
 
-    public async Task<Dictionary<string, BuildingInfo>> ParseAddress(AddressJob addressJob, DateTimeOffset date)
+    public async Task<Dictionary<string, BuildingInfo>> ParseAddress(AddressJob addressJob, DateTimeOffset date, ChromeSession? session = null)
     {
         var responseContent = string.Empty;
         var requestContent = string.Empty;
         try
         {
             var url = addressJob.Location.Url.Replace("shutdowns", "ajax");
-            var client = new HttpClient();
-            var request = new HttpRequestMessage(HttpMethod.Get, url);
-
-            var dtekCookie = GetCookie(url);
-            if (!string.IsNullOrEmpty(dtekCookie))
-            {
-                client.DefaultRequestHeaders.Add("Cookie", dtekCookie);
-            }
 
             // Validate and trim city and street before adding to collection
             var validatedCity = addressJob.City.ValidateAndTrimCyrillicText();
@@ -57,12 +49,29 @@ public class AddressParser(ISqlConfiguationService configuationService)
                 new("data[2][value]", date.ToString("dd.MM.yyyy HH:mm"))
             };
             var content = new FormUrlEncodedContent(collection);
-            request.Content = content;
             requestContent = await content.ReadAsStringAsync();
-            var response = await client.SendAsync(request);
-            response.EnsureSuccessStatusCode();
 
-            responseContent = await response.Content.ReadAsStringAsync();
+            if (session is not null)
+            {
+                responseContent = await session.PostFormAsync(url, collection);
+            }
+            else
+            {
+                // legacy path: plain HTTP with a manually provided cookie
+                using var client = new HttpClient();
+                var request = new HttpRequestMessage(HttpMethod.Get, url) { Content = content };
+
+                var dtekCookie = GetCookie(url);
+                if (!string.IsNullOrEmpty(dtekCookie))
+                {
+                    client.DefaultRequestHeaders.Add("Cookie", dtekCookie);
+                }
+
+                var response = await client.SendAsync(request);
+                response.EnsureSuccessStatusCode();
+                responseContent = await response.Content.ReadAsStringAsync();
+            }
+
             var addressResponse = JsonSerializer.Deserialize<AddressResponse>(responseContent,
                 new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
 

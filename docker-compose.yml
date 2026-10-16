@@ -20,6 +20,16 @@ x-base-config: &base-config
   environment:
       - ASPNETCORE_URLS=http://+:8080
 
+x-base-chrome: &base-chrome
+  restart: always
+  shm_size: 1gb
+  environment:
+    - DEFAULT_STEALTH=true
+    - DEFAULT_LAUNCH_ARGS=["--window-size=1920,1080","--lang=uk-UA"]
+    - CONNECTION_TIMEOUT=180000
+    - MAX_CONCURRENT_SESSIONS=2
+    - MAX_QUEUE_LENGTH=10
+
 services:
   metube:
     container_name: metube
@@ -50,6 +60,8 @@ services:
     env_file:
       - prod.env
       - .env
+    environment:
+      - CHROME_WS_ENDPOINT=ws://chrome:3000
     volumes:
       - images:/app/images
       - ./ytdl-presets.json:/config/ytdl-presets.json
@@ -58,6 +70,9 @@ services:
         condition: service_healthy
         restart: true
       metube:
+        condition: service_started
+        restart: true
+      chrome:
         condition: service_started
         restart: true
     << : *base-bot
@@ -75,11 +90,16 @@ services:
     env_file:
       - dev.env
       - .env
+    environment:
+      - CHROME_WS_ENDPOINT=ws://chrome-dev:3000
     depends_on:
       database-dev:
         condition: service_healthy
         restart: true
       metube:
+        condition: service_started
+        restart: true
+      chrome-dev:
         condition: service_started
         restart: true
     << : *base-bot
@@ -155,19 +175,23 @@ services:
 
   chrome-dev:
     image: browserless/chrome
+    container_name: chrome-dev
     networks:
       - bober-net-dev
     profiles:
       - dev
     ports:
       - 5301:3000
+    <<: *base-chrome
 
   chrome:
     image: browserless/chrome
+    container_name: chrome
     networks:
       - bober-net
     profiles:
       - prod
+    <<: *base-chrome
       
 networks:
   bober-net:

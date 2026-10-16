@@ -149,16 +149,24 @@ public class DtekSiteParser : BackgroundService
         using var scope = _serviceProvider.CreateScope();
         var dbservice = scope.ServiceProvider.GetRequiredService<IMonitorDataService>();
 
-        var addressesToCheck = await dbservice.GetActiveAddresesJobs(locationId);
+        var addressesToCheck = (await dbservice.GetActiveAddresesJobs(locationId)).ToList();
+        if (addressesToCheck.Count == 0)
+        {
+            return;
+        }
 
         var infoParser = new AddressParser(_configuationService);
+
+        // one browser session per location: the challenge is solved once for all addresses
+        await using var session = await new ChromeBrowserClient(_logger)
+            .OpenSessionAsync(addressesToCheck[0].Location.Url, "DisconSchedule.fact");
 
         foreach (var address in addressesToCheck)
         {
             _logger.LogInformation("Parsing address job {id}", address.Id);
             try
             {
-                var buildingInfos = await infoParser.ParseAddress(address, DateTimeOffset.Now);
+                var buildingInfos = await infoParser.ParseAddress(address, DateTimeOffset.Now, session);
 
                 await CreateMissingAddreses(dbservice, address, buildingInfos);
 
@@ -257,7 +265,7 @@ public class DtekSiteParser : BackgroundService
             {
                 LocationId = locationId,
                 CreatedAt = DateTimeOffset.Now,
-                AlertMessage = "Incapsula blocking detected. Please update the cookie using /cookie command."
+                AlertMessage = "Incapsula blocking detected. The remote Chrome could not pass the challenge."
             };
             await dataService.Add(alert);
             return;
