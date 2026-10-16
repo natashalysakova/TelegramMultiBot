@@ -28,7 +28,8 @@ internal class BotService(
     ISqlConfiguationService configuration,
     MonitorService monitorService,
     IAssistantDataService assistantDataService,
-    IMessageCacheService messageCacheService) : BackgroundService
+    IMessageCacheService messageCacheService,
+    DtekSiteParser dtekSiteParser) : BackgroundService
 {
     public static string? BotName;
     private System.Timers.Timer? _timer;
@@ -41,6 +42,7 @@ internal class BotService(
 
         monitorService.Run(stoppingToken);
         monitorService.ReadyToSend += MonitorService_ReadyToSend;
+        dtekSiteParser.ReadyToSend += MonitorService_ReadyToSend;
 
         imageGenearatorQueue.Run(stoppingToken);
         imageGenearatorQueue.JobFinished += ImageGenearatorQueue_JobFinished;

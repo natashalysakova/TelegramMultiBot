@@ -8,6 +8,7 @@ using System.Text.RegularExpressions;
 using TelegramMultiBot.Database;
 using TelegramMultiBot.Database.Interfaces;
 using TelegramMultiBot.Database.Models;
+using TelegramMultiBot.ImageCompare;
 
 namespace TelegramMultiBot.BackgroundServies;
 public class DtekSiteParser : BackgroundService
@@ -17,6 +18,8 @@ public class DtekSiteParser : BackgroundService
     private readonly ISvitlobotClient _svitlobotClient;
     private ISqlConfiguationService _configuationService;
     private CancellationTokenSource _delayCancellationTokenSource;
+    public event Action<SendInfo> ReadyToSend = delegate { };
+
 
     const string baseDirectory = "monitor";
     private static volatile int delay = 300;
@@ -141,6 +144,16 @@ public class DtekSiteParser : BackgroundService
             existingAlert.ResolvedAt = DateTimeOffset.Now;
             await dbservice.Update(existingAlert);
             _logger.LogDebug("Resolve alert after success: {region}", existingAlert.Location.Region);
+
+            var info = new SendInfo()
+            {
+                Type = BotMessageType.Alert,
+                ChatId = 80413249,
+                Filenames = new List<string>(),
+                Caption = $"{existingAlert.Location.Region} is resolved",
+            };
+
+            ReadyToSend?.Invoke(info);
         }
     }
 
