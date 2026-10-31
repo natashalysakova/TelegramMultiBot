@@ -292,7 +292,7 @@ public class AddressParserTests
         var expected = "м. Київ";
 
         // Act
-        var result = InvokeValidateAndTrimCyrillicText(input, "City");
+        var result = input.ValidateAndTrimCyrillicText();
 
         // Assert
         Assert.AreEqual(expected, result);
@@ -306,7 +306,7 @@ public class AddressParserTests
         var expected = "вул. Величка Михайла";
 
         // Act
-        var result = InvokeValidateAndTrimCyrillicText(input, "Street");
+        var result = input.ValidateAndTrimCyrillicText();
 
         // Assert
         Assert.AreEqual(expected, result);
@@ -320,7 +320,7 @@ public class AddressParserTests
         var expected = "м. Куів"; // Should convert 'K' to 'К', 'y' to 'у', 'i' to 'і', 'v' to 'в'
 
         // Act
-        var result = InvokeValidateAndTrimCyrillicText(input, "City");
+        var result = input.ValidateAndTrimCyrillicText();
 
         // Assert
         Assert.AreEqual(expected, result);
@@ -334,7 +334,7 @@ public class AddressParserTests
         var expected = "вул. Маха Крова"; // Should convert latin characters to cyrillic
 
         // Act
-        var result = InvokeValidateAndTrimCyrillicText(input, "Street");
+        var result = input.ValidateAndTrimCyrillicText();
 
         // Assert
         Assert.AreEqual(expected, result);
@@ -347,24 +347,10 @@ public class AddressParserTests
         var input = "Kyiv Street with q and w";
 
         // Act & Assert
-        try
-        {
-            InvokeValidateAndTrimCyrillicText(input, "City");
-            Assert.Fail("Expected ArgumentException was not thrown");
-        }
-        catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is ArgumentException)
-        {   
-            Assert.Contains("contains invalid characters", ex.InnerException.Message);
-            // Should show both original and converted text
-            Assert.Contains("Original:", ex.InnerException.Message);
-            Assert.Contains("Converted:", ex.InnerException.Message);
-        }
-        catch (ArgumentException ex)
-        {
-            Assert.Contains("contains invalid characters", ex.Message);
-            Assert.Contains("Original:", ex.Message);
-            Assert.Contains("Converted:", ex.Message);
-        }
+        var exception = Assert.Throws<ArgumentException>(() => input.ValidateAndTrimCyrillicText());
+        Assert.Contains("contains invalid characters", exception.Message);
+        Assert.Contains("Original:", exception.Message);
+        Assert.Contains("Converted:", exception.Message);
     }
 
     [TestMethod]
@@ -374,19 +360,8 @@ public class AddressParserTests
         var input = "";
 
         // Act & Assert
-        try
-        {
-            InvokeValidateAndTrimCyrillicText(input, "City");
-            Assert.Fail("Expected ArgumentException was not thrown");
-        }
-        catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is ArgumentException)
-        {
-            Assert.Contains("cannot be null or empty", ex.InnerException.Message);
-        }
-        catch (ArgumentException ex)
-        {
-            Assert.Contains("cannot be null or empty", ex.Message);
-        }
+        var exception = Assert.Throws<ArgumentException>(() => input.ValidateAndTrimCyrillicText());
+        Assert.Contains("cannot be null or empty", exception.Message);
     }
 
     [TestMethod]
@@ -396,34 +371,8 @@ public class AddressParserTests
         var input = "   ";
 
         // Act & Assert
-        try
-        {
-            InvokeValidateAndTrimCyrillicText(input, "Street");
-            Assert.Fail("Expected ArgumentException was not thrown");
-        }
-        catch (System.Reflection.TargetInvocationException ex) when (ex.InnerException is ArgumentException)
-        {
-            Assert.IsTrue(ex.InnerException.Message.Contains("cannot be null or empty"));
-        }
-        catch (ArgumentException ex)
-        {
-            Assert.IsTrue(ex.Message.Contains("cannot be null or empty"));
-        }
-    }
-
-    private static string InvokeValidateAndTrimCyrillicText(string text, string fieldName)
-    {
-        // Use reflection to call the private static method
-        var type = typeof(AddressParser);
-        var method = type.GetMethod("ValidateAndTrimCyrillicText", 
-            System.Reflection.BindingFlags.NonPublic | System.Reflection.BindingFlags.Static);
-        
-        if (method == null)
-        {
-            throw new InvalidOperationException("ValidateAndTrimCyrillicText method not found");
-        }
-
-        return (string)method.Invoke(null, new object[] { text, fieldName });
+        var exception = Assert.Throws<ArgumentException>(() => input.ValidateAndTrimCyrillicText());
+        Assert.Contains("cannot be null or empty", exception.Message);
     }
 
     #endregion

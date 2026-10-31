@@ -10,7 +10,11 @@ public class MonitorDtekTests
 {
 
     [TestMethod]
-    public async Task PageLoaded()
+    [DataRow("https://www.dtek-krem.com.ua/ua/shutdowns")]
+    [DataRow("https://www.dtek-kem.com.ua/ua/shutdowns")]
+    [DataRow("https://www.dtek-oem.com.ua/ua/shutdowns")]
+
+    public async Task PageLoaded_Chrome(string url)
     {
         var sqlConfiguationService = new Mock<ISqlConfiguationService>();
         sqlConfiguationService
@@ -18,7 +22,7 @@ public class MonitorDtekTests
             .Returns(new SvitlobotSettings());
         var parser = new ScheduleParser(sqlConfiguationService.Object);
 
-        var html = await parser.GetHtmlUsingPuppeteer("https://www.dtek-krem.com.ua/ua/shutdowns");
+        var html = await parser.GetHtmlViaPuppeteerAndChrome(url);
 
         Assert.IsNotNull(html);
         Assert.Contains("DisconSchedule.fact", html);
