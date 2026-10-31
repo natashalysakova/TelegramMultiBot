@@ -33,13 +33,14 @@ public class ScheduleParser
 
         var streets = GetJsonFromScriptVariables(html, "DisconSchedule.streets");
 
-        var schedule = new Schedule();
-
-        schedule.TimeZones = GetTimeZones(presetVariableJobject);
-        schedule.Groups = GetGroups(presetVariableJobject);
-        schedule.Streets = GetStreetsInfo(streets);
-        schedule.Location = location;
-        schedule.AttentionNote = GetAttentionNote(html);
+        var schedule = new Schedule
+        {
+            TimeZones = GetTimeZones(presetVariableJobject),
+            Groups = GetGroups(presetVariableJobject),
+            Streets = GetStreetsInfo(streets),
+            Location = location,
+            AttentionNote = GetAttentionNote(html)
+        };
 
 
         FillRealSchedule(schedule, realVariableJobject);
