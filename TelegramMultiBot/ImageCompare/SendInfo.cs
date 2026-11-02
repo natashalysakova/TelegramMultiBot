@@ -7,6 +7,8 @@ public class SendInfo
     public string Caption { get; set; }
     public long ChatId { get; set; }
     public int? MessageThreadId { get; set; }
+    public string? Region { get; set; }
+    public bool IsSingleGroupSchedule { get; set; }
 }
 
 public enum BotMessageType

@@ -179,6 +179,8 @@ internal class BotService(
         try
         {
             List<IAlbumInputMedia> media = new List<IAlbumInputMedia>();
+            var sendAsDocument = string.Equals(info.Region, "kem", StringComparison.OrdinalIgnoreCase)
+                && !info.IsSingleGroupSchedule;
             foreach (var image in info.Filenames.Take(10))
             {
                 logger.LogDebug("sending new schedule: {chatId} {message}", info.ChatId, image);
@@ -191,10 +193,11 @@ internal class BotService(
 
                 var stream = System.IO.File.OpenRead(image);
                 streams.Add(stream);
-                var filename = Path.GetFileName(image);
-                var photo = new InputMediaPhoto(stream);
-                photo.Caption = info.Caption;
-                media.Add(photo);
+                var inputFile = InputFile.FromStream(stream, Path.GetFileName(image));
+                IAlbumInputMedia mediaItem = sendAsDocument
+                    ? new InputMediaDocument(inputFile) { Caption = info.Caption }
+                    : new InputMediaPhoto(inputFile) { Caption = info.Caption };
+                media.Add(mediaItem);
             }
 
             if (media.Count > 0)
