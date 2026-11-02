@@ -336,6 +336,7 @@ public class MonitorService
             Filenames = existingInfo.ToList(),
             Caption = caption,
             MessageThreadId = messageThreadId,
+            Region = region,
         };
 
         _logger.LogTrace("Sending existing schedule for region {region} to chat {chatId} with {count} files", region, chatId, info.Filenames.Count());
@@ -361,6 +362,8 @@ public class MonitorService
             Filenames = existingInfo.ToList(),
             Caption = caption,
             MessageThreadId = messageThreadId,
+            Region = region,
+            IsSingleGroupSchedule = jobType is ElectricityJobType.SingleGroup or ElectricityJobType.SingleGroupPlan,
         };
 
         ReadyToSend?.Invoke(info);
@@ -405,6 +408,8 @@ public class MonitorService
             Filenames = images.ToList(),
             Caption = caption,
             MessageThreadId = job.MessageThreadId,
+            Region = job.Location.Region,
+            IsSingleGroupSchedule = job.Type is ElectricityJobType.SingleGroup or ElectricityJobType.SingleGroupPlan,
         };
     }
 
