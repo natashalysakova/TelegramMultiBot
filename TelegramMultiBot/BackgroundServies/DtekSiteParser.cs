@@ -527,10 +527,11 @@ public class DtekSiteParser : BackgroundService
         if (location.LastUpdated >= scheduleUpdateDate)
         {
             _logger.LogDebug("location was not updated. Last update at {date}", location.LastUpdated);
+            await dbservice.ApplyChanges(); // save LastChecked date and skip further processing
             return;
         }
 
-        _logger.LogInformation("Location was updated");
+        _logger.LogInformation("Location was updated. Saving new schedule images.");
         location.LastUpdated = scheduleUpdateDate;
         location.ConfigSnapshots.Add(new RegionConfigSnapshot()
         {
