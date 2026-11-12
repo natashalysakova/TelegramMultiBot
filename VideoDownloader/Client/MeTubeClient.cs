@@ -61,17 +61,17 @@ public class MeTubeClient
         return responseContent;
     }
 
-    public async Task<MeTubeHistoryResponse> GetHistory()
+    public async Task<MeTubeHistoryResponse> GetHistory(CancellationToken cancellationToken = default)
     {
-        var response = await _httpClient.GetAsync("/history");
+        using var response = await _httpClient.GetAsync("/history", cancellationToken);
         response.EnsureSuccessStatusCode();
-        var content = await response.Content.ReadAsStringAsync();
+        var content = await response.Content.ReadAsStringAsync(cancellationToken);
         _logger.LogTrace("Getting history from MeTube. Response: {content}", content);
         var responseContent = JsonSerializer.Deserialize<MeTubeHistoryResponse>(content);
 
         if(responseContent == null)
         {
-            throw new Exception($"Failed to deserialize MeTube history response. Response: {content}");
+            throw new JsonException("MeTube returned an empty history response.");
         }
 
         return responseContent;
@@ -82,7 +82,7 @@ public class MeTubeClient
         return await DeleteDownloads([id]);
     }
 
-    public async Task<MeTubeGenericResponse?> DeleteDownloads(IEnumerable<string> ids)
+    public async Task<MeTubeGenericResponse?> DeleteDownloads(IEnumerable<string> ids, CancellationToken cancellationToken = default)
     {
         // {"where":"done","ids":["https://www.youtube.com/watch?v=bxOLkxR6_6c"]}
         var requestBody = new MeTubeDeleteRequest
@@ -90,11 +90,11 @@ public class MeTubeClient
             Where = "done",
             Ids = ids.ToArray()
         };
-        var content = JsonContent.Create(requestBody);
-        var response = await _httpClient.PostAsync("/delete", content);
+        using var content = JsonContent.Create(requestBody);
+        using var response = await _httpClient.PostAsync("/delete", content, cancellationToken);
         response.EnsureSuccessStatusCode();
         var responseContent = await response.Content
-            .ReadFromJsonAsync<MeTubeGenericResponse>();
+            .ReadFromJsonAsync<MeTubeGenericResponse>(cancellationToken: cancellationToken);
         return responseContent;
     }
 

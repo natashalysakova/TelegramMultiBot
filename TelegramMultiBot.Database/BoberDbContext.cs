@@ -112,7 +112,7 @@ public class BoberDbContextFactory : IDesignTimeDbContextFactory<BoberDbContext>
         return new BoberDbContext(optionsBuilder.Options);
     }
 
-    private static ServerVersion GetServerVersion(string? connectionString)
+    private static ServerVersion GetServerVersion(string connectionString)
     {
         ServerVersion? version = default;
 
@@ -120,7 +120,7 @@ public class BoberDbContextFactory : IDesignTimeDbContextFactory<BoberDbContext>
         {
             try
             {
-                Console.WriteLine("connecting to " + connectionString);
+                Console.WriteLine("Connecting to the database");
                 version = ServerVersion.AutoDetect(connectionString);
                 Console.WriteLine("Success");
             }

@@ -27,7 +27,7 @@ public class VideoDownloaderService : BackgroundService
                 var handler = processScope.ServiceProvider.GetRequiredService<IVideoProcessHandler>();
                 await handler.ProcessDownloads(stoppingToken);
             }
-            catch (OperationCanceledException)
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
             {
                 break;
             }
@@ -42,6 +42,10 @@ public class VideoDownloaderService : BackgroundService
                 var cleanupHandler = cleanupScope.ServiceProvider.GetRequiredService<IVideoCleanupHandler>();
                 await cleanupHandler.CleanupOld(stoppingToken);
             }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
             catch (Exception ex)
             {
                 _logger.LogError(ex, "Error in video cleanup processing loop");
@@ -53,7 +57,14 @@ public class VideoDownloaderService : BackgroundService
                 .VideoDownloaderSettings;
             var interval = settings.PollingIntervalSeconds > 0 ? settings.PollingIntervalSeconds : 15;
 
-            await Task.Delay(TimeSpan.FromSeconds(interval), stoppingToken);
+            try
+            {
+                await Task.Delay(TimeSpan.FromSeconds(interval), stoppingToken);
+            }
+            catch (OperationCanceledException) when (stoppingToken.IsCancellationRequested)
+            {
+                break;
+            }
         }
     }
 

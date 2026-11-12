@@ -31,11 +31,26 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         MeTubeHistoryResponse? history;
         try
         {
-            history = await meTubeClient.GetHistory();
+            history = await meTubeClient.GetHistory(cancellationToken);
         }
-        catch (Exception ex)
+        catch (HttpRequestException ex) when (ex.StatusCode is null)
+        {
+            logger.LogWarning("Could not retrieve MeTube history: service is unreachable ({reason}). Check VideoDownloader.MeTubeUrl and network connectivity; processing will retry on the next poll.", ex.Message);
+            return;
+        }
+        catch (HttpRequestException ex)
         {
             logger.LogError(ex, "Failed to retrieve MeTube history");
+            return;
+        }
+        catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
+        {
+            logger.LogWarning("Timed out retrieving MeTube history; processing will retry on the next poll.");
+            return;
+        }
+        catch (JsonException ex)
+        {
+            logger.LogError(ex, "MeTube returned an invalid history response");
             return;
         }
 

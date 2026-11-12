@@ -211,7 +211,7 @@ internal class Program
     private static ServerVersion GetServerVersion(string? connectionString, ILogger logger)
     {
         ServerVersion? version = default;
-        logger.LogInformation("connecting to " + connectionString);
+        logger.LogInformation("Connecting to the database");
         do
         {
             try

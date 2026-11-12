@@ -1,6 +1,6 @@
 #See https://aka.ms/customizecontainer to learn how to customize your debug container and how Visual Studio uses this Dockerfile to build your images for faster debugging.
 
-FROM mcr.microsoft.com/dotnet/aspnet:8.0 AS base
+FROM mcr.microsoft.com/dotnet/aspnet:11.0 AS base
 
 #####################
 #PUPPETEER RECIPE 
@@ -14,12 +14,14 @@ ENV PUPPETEER_EXECUTABLE_PATH "/usr/bin/chromium"
 USER app
 WORKDIR /app
 
-FROM mcr.microsoft.com/dotnet/sdk:8.0 AS build
+FROM mcr.microsoft.com/dotnet/sdk:11.0 AS build
 ARG BUILD_CONFIGURATION=Release
 WORKDIR /src
 COPY ["nuget.config", "."]
 COPY ["TelegramMultiBot/TelegramMultiBot.csproj", "TelegramMultiBot/"]
 COPY ["TelegramMultiBot.Database/TelegramMultiBot.Database.csproj", "TelegramMultiBot.Database/"]
+COPY ["DtekParsers/DtekParsers.csproj", "DtekParsers/"]
+COPY ["VideoDownloader/VideoDownloader.csproj", "VideoDownloader/"]
 RUN dotnet restore "./TelegramMultiBot/TelegramMultiBot.csproj"
 COPY . .
 WORKDIR "/src/TelegramMultiBot"

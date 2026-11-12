@@ -63,7 +63,7 @@ internal class Program
         {
             try
             {
-                Console.WriteLine("connecting to " + connectionString);
+                Console.WriteLine("Connecting to the database");
                 version = ServerVersion.AutoDetect(connectionString);
                 Console.WriteLine("Success");
             }
