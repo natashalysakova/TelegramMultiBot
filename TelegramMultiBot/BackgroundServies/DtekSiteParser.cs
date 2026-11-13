@@ -393,11 +393,9 @@ public class DtekSiteParser : BackgroundService
 
                 var dayofWeek = (int)DateTimeOffset.FromUnixTimeSeconds(long.Parse(date)).ToLocalTime().DayOfWeek;
 
-                var cultureInfo = Thread.CurrentThread.CurrentCulture;
-                if (cultureInfo.DateTimeFormat.FirstDayOfWeek == DayOfWeek.Sunday) // adjust if week starts from Sunday
-                {
-                    dayofWeek = dayofWeek == 0 ? 6 : dayofWeek - 1;
-                }
+                // Convert from .NET DayOfWeek enum (Sunday=0, Monday=1, ..., Saturday=6)
+                // to schedule array index (Monday=0, Tuesday=1, ..., Sunday=6)
+                dayofWeek = dayofWeek == 0 ? 6 : dayofWeek - 1;
 
                 result[dayofWeek] = readyDay;
             }
