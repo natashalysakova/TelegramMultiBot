@@ -216,7 +216,7 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         var uri = new Uri(videoUrl);
         if (uri.Host.Equals("instagram.com", StringComparison.OrdinalIgnoreCase) || uri.Host.Equals("www.instagram.com", StringComparison.OrdinalIgnoreCase))
         {
-            var builder = new UriBuilder(uri) { Host = "kksav.com" };
+            var builder = new UriBuilder(uri) { Host = "vxinstagram.com" };
             return builder.Uri.ToString();
         }
 
@@ -553,7 +553,8 @@ public class VideoProcessHandler(ILogger<VideoProcessHandler> logger, TelegramBo
         "kksave.com",
         "kksav.com",
         "ddinstagram.com",
-        "kkinstagram.com"
+        "kkinstagram.com",
+        "vxinstagram.com"
     ];
 }
 
